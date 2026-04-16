@@ -140,8 +140,10 @@ jobs:
           az containerapp update \
             --name ${{ matrix.service }} \
             --resource-group ${{ env.ACA_RESOURCE_GROUP }} \
-            --image ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}
+            --image ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }} \
+            --min-replicas 1
           az containerapp ingress update \
             --name ${{ matrix.service }} \
             --resource-group ${{ env.ACA_RESOURCE_GROUP }} \
-            --type external
+            --type external \
+            --target-port 8080
