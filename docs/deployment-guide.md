@@ -4,7 +4,7 @@
 
 ## Overview
 
-This guide deploys all 9 HealthQCopilot microservices and 5 micro-frontends using **\$0/month free tiers** across Azure, Railway, Supabase, and Vercel. The full production architecture (AKS + APIM + Azure Service Bus) is preserved for paid scale-up — this guide bootstraps the platform at zero cost.
+This guide deploys all 9 HealthQCopilot microservices and 5 micro-frontends using **\$0/month free tiers** across Azure (Static Web Apps, Container Apps, Application Insights, API Management), Supabase, and Auth0. The full production architecture (AKS + APIM + Azure Service Bus) is preserved for paid scale-up — this guide bootstraps the platform at zero cost.
 
 ***
 
@@ -12,18 +12,19 @@ This guide deploys all 9 HealthQCopilot microservices and 5 micro-frontends usin
 
 | Component | Production Service | Free Tier Alternative | Limit |
 | :-- | :-- | :-- | :-- |
-| **Kubernetes (AKS)** | Azure AKS Standard | Railway containers | 500 hrs/mo free |
+| **Kubernetes (AKS)** | Azure AKS Standard | Azure Container Apps (Consumption) | 180,000 vCPU-sec/mo free |
 | **PostgreSQL (×6 DBs)** | Azure PostgreSQL Flexible | Supabase Free | 500MB per project |
 | **Redis** | Azure Cache for Redis | Upstash Redis | 10,000 req/day |
 | **FHIR Server** | Azure Health Data Services | HAPI FHIR (self-hosted) | Unlimited (open source) |
 | **Service Bus** | Azure Service Bus | Azure Service Bus Emulator (local) | Free (local only) |
 | **AI Inference** | Azure AI Foundry Phi-4-Medical | GitHub Models (phi-4) | 150 req/day free |
-| **Frontend Hosting (×5 MFEs)** | Azure Static Web Apps | Vercel Free | 100GB bandwidth/mo |
+| **Frontend Hosting (×5 MFEs)** | Azure Static Web Apps | Azure Static Web Apps Free | 100GB bandwidth/mo |
 | **Auth** | Azure Entra ID | Auth0 Free | 7,500 MAU |
-| **Observability** | Azure Monitor + App Insights | Grafana Cloud Free | 10,000 metrics/mo |
+| **Observability** | Azure Monitor + App Insights | Azure Application Insights Free | 5GB ingestion/mo |
 | **OCR / Document AI** | Azure Document Intelligence | Azure Free Tier (500 pages/mo) | 500 pages/mo |
 | **Vector Search** | Azure AI Search | Qdrant Cloud Free | 1GB, 1 collection |
 | **CI/CD** | GitHub Actions (self-hosted) | GitHub Actions Free | 2,000 min/mo |
+| **API Gateway** | Azure API Management Standard | Azure API Management Consumption | 1M calls/mo free |
 
 
 ***
@@ -35,7 +36,17 @@ This guide deploys all 9 HealthQCopilot microservices and 5 micro-frontends usin
 npm install -g pnpm@9           # Monorepo package manager
 curl -fsSL https://get.docker.com | sh  # Docker Engine
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-dotnet sdk install 9.0          # .NET 9 SDK
+
+# .NET 9 SDK (choose your platform)
+winget install Microsoft.DotNet.SDK.9        # Windows
+# OR: brew install --cask dotnet-sdk         # macOS
+# OR: sudo apt-get install -y dotnet-sdk-9.0 # Linux (Ubuntu/Debian)
+
+# Azure CLI (required for Steps 8–11)
+winget install Microsoft.AzureCLI            # Windows
+# OR: brew install azure-cli                 # macOS
+# OR: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash  # Linux
+
 brew install dapr/tap/dapr-cli  # Dapr CLI (macOS)
 # OR
 wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O - | /bin/bash  # Linux
@@ -43,6 +54,7 @@ wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O 
 # Verify installations
 docker --version       # Docker 26+
 dotnet --version       # 9.0+
+az --version           # 2.50+
 dapr --version         # 1.14+
 pnpm --version         # 9+
 ```
@@ -207,7 +219,7 @@ Configure Auth0 Application URIs:
 Run each microservice with a Dapr sidecar. Each service gets its own terminal or create a `run-all.sh` file at the project root with the contents below:
 
 ```bash
-# run-all.sh — run all 9 services simultaneously
+# run-all.sh — run all 8 services simultaneously
 #!/bin/bash
 
 services=(
@@ -219,7 +231,6 @@ services=(
   "notification-service:5006:src/HealthQCopilot.Notifications"
   "pop-health-service:5007:src/HealthQCopilot.PopulationHealth"
   "identity-service:5008:src/HealthQCopilot.Identity"
-  "api-gateway:5000:src/HealthQCopilot.Gateway"
 )
 
 for entry in "${services[@]}"; do
@@ -256,16 +267,16 @@ Verify all services are registered with Dapr:
 dapr list
 # Expected output:
 # APP ID                 HTTP PORT  GRPC PORT  APP PORT  COMMAND        AGE
-# voice-service          3501       50001       5001      dotnet run     1m
-# ai-agent-service       3502       50002       5002      dotnet run     1m
-# fhir-service           3503       50003       5003      dotnet run     1m
-# ... (all 9 services)
+# voice-service          6001       50001       5001      dotnet run     1m
+# ai-agent-service       6002       50002       5002      dotnet run     1m
+# fhir-service           6003       50003       5003      dotnet run     1m
+# ... (all 8 services)
 ```
 
 
 ***
 
-## Step 7 — Run the Micro-Frontends (Vercel Dev / Next.js)
+## Step 7 — Run the Micro-Frontends Locally (Next.js / Vite)
 
 ```bash
 cd frontend
@@ -299,106 +310,205 @@ Open `http://localhost:3000` — the full platform is now running locally at \$0
 
 ***
 
-## Step 8 — Deploy Frontends to Vercel (Free)
+## Step 8 — Deploy Frontends to Azure Static Web Apps (Free)
 
-Vercel Free provides **100GB bandwidth/month** and **unlimited deployments**:
+Azure Static Web Apps Free tier provides **100GB bandwidth/month**, **2 custom domains**, and GitHub Actions CI/CD configured automatically on creation — the same service used in production:
 
 ```bash
-# Install Vercel CLI
-npm install -g vercel
+# Login to Azure (az CLI must be installed — see Prerequisites)
+az login
 
-# Login
-vercel login
+# Create resource group (one-time setup)
+az group create \
+  --name healthq-copilot-rg \
+  --location eastus2
 
-# Deploy each MFE independently (from the frontend/apps directory)
-cd frontend/apps/shell && vercel --prod
-cd frontend/apps/voice-mfe && vercel --prod
-cd frontend/apps/triage-mfe && vercel --prod
-cd frontend/apps/scheduling-mfe && vercel --prod
-cd frontend/apps/pophealth-mfe && vercel --prod
-cd frontend/apps/revenue-mfe && vercel --prod
+# Deploy Shell App
+az staticwebapp create \
+  --name healthq-copilot-shell \
+  --resource-group healthq-copilot-rg \
+  --source https://github.com/imatiqul/healthcare-ai \
+  --branch main \
+  --app-location "frontend/apps/shell" \
+  --output-location ".next" \
+  --sku Free
+
+# Deploy each MFE as a separate Static Web App (repeat for each)
+az staticwebapp create \
+  --name healthq-copilot-voice-mfe \
+  --resource-group healthq-copilot-rg \
+  --source https://github.com/imatiqul/healthcare-ai \
+  --branch main \
+  --app-location "frontend/apps/voice-mfe" \
+  --output-location "dist" \
+  --sku Free
+
+# Repeat for: triage-mfe, scheduling-mfe, pophealth-mfe, revenue-mfe
 ```
 
-After each deployment, Vercel outputs a production URL (e.g., `https://voice-mfe-abc123.vercel.app`). Update the Shell App environment variables in Vercel Dashboard:
+Azure Static Web Apps generates a GitHub Actions workflow automatically. Each app receives a URL in the format `https://<random>.azurestaticapps.net`. Set the Shell App environment variables:
 
-```
-VOICE_MFE_URL    = https://voice-mfe-abc123.vercel.app
-TRIAGE_MFE_URL   = https://triage-mfe-abc123.vercel.app
-SCHEDULING_MFE_URL = https://scheduling-mfe-abc123.vercel.app
-POPHEALTH_MFE_URL = https://pophealth-mfe-abc123.vercel.app
-REVENUE_MFE_URL  = https://revenue-mfe-abc123.vercel.app
-NEXT_PUBLIC_API_URL = https://your-api-gateway-url.railway.app
+```bash
+az staticwebapp appsettings set \
+  --name healthq-copilot-shell \
+  --resource-group healthq-copilot-rg \
+  --setting-names \
+    VOICE_MFE_URL="https://healthq-copilot-voice-mfe.azurestaticapps.net" \
+    TRIAGE_MFE_URL="https://healthq-copilot-triage-mfe.azurestaticapps.net" \
+    SCHEDULING_MFE_URL="https://healthq-copilot-scheduling-mfe.azurestaticapps.net" \
+    POPHEALTH_MFE_URL="https://healthq-copilot-pophealth-mfe.azurestaticapps.net" \
+    REVENUE_MFE_URL="https://healthq-copilot-revenue-mfe.azurestaticapps.net" \
+    NEXT_PUBLIC_API_URL="https://healthq-copilot-apim.azure-api.net" \
+    NEXT_PUBLIC_AUTH0_DOMAIN="your-tenant.us.auth0.com" \
+    NEXT_PUBLIC_AUTH0_CLIENT_ID="your_client_id"
 ```
 
 
 ***
 
-## Step 9 — Deploy Backend Services to Railway (Free)
+## Step 9 — Deploy Backend Services to Azure Container Apps (Free)
 
-Railway Free gives **500 container hours/month** — enough for a demo/dev environment:
+Azure Container Apps Consumption free tier provides **180,000 vCPU-seconds + 360,000 GiB-seconds/month** — sufficient for demo/dev. This is the same service used in production so no migration is needed when scaling up:
 
 ```bash
-# Install Railway CLI
-npm install -g @railway/cli
+# Create Container Apps environment (one-time)
+az containerapp env create \
+  --name healthq-copilot-env \
+  --resource-group healthq-copilot-rg \
+  --location eastus2
 
-# Login
-railway login
+# Deploy each microservice as a Container App
+# Images are built and pushed to ghcr.io by CI (see Step 13)
+az containerapp create \
+  --name voice-service \
+  --resource-group healthq-copilot-rg \
+  --environment healthq-copilot-env \
+  --image ghcr.io/imatiqul/healthcare-ai/healthq-copilot/voice:latest \
+  --target-port 5001 \
+  --ingress internal \
+  --min-replicas 0 \
+  --max-replicas 3 \
+  --cpu 0.25 --memory 0.5Gi
 
-# Create a new Railway project
-railway init
-
-# Deploy each microservice
-# (Repeat for each of the 9 services)
-cd src/HealthQCopilot.Voice
-railway up --service voice-service
-
-cd src/HealthQCopilot.Agents
-railway up --service ai-agent-service
-
-cd src/HealthQCopilot.Fhir
-railway up --service fhir-service
-
-# ... repeat for all 9 services
+# Repeat for each service, updating --name, --image, and --target-port:
+# agents (5002), fhir (5003), ocr (5004), scheduling (5005),
+# notifications (5006), pophealth (5007), identity (5008)
 ```
 
-Set environment variables for each Railway service via the Railway dashboard or CLI:
+Set environment variables for each Container App:
 
 ```bash
-railway variables set \
-  VOICE_DB_CONNECTION="your_supabase_connection_string" \
-  REDIS_CONNECTION="your_upstash_redis_url" \
-  AUTH0_DOMAIN="your-tenant.us.auth0.com" \
-  AUTH0_AUDIENCE="https://api.healthqcopilot.com" \
-  GITHUB_MODELS_TOKEN="your_github_token" \
-  ASPNETCORE_ENVIRONMENT="Production"
+az containerapp update \
+  --name voice-service \
+  --resource-group healthq-copilot-rg \
+  --set-env-vars \
+    VOICE_DB_CONNECTION="your_supabase_connection_string" \
+    REDIS_CONNECTION="your_upstash_redis_url" \
+    AUTH0_DOMAIN="your-tenant.us.auth0.com" \
+    AUTH0_AUDIENCE="https://api.healthqcopilot.com" \
+    GITHUB_MODELS_TOKEN="your_github_token" \
+    ASPNETCORE_ENVIRONMENT="Production"
+# Repeat for each service with its relevant DB connection variable
+```
+
+> **Scale-to-zero:** `--min-replicas 0` scales each app to zero when idle, keeping costs at \$0 during off-hours.
+
+
+***
+
+## Step 10 — Configure API Gateway (Azure API Management — Free)
+
+Azure API Management Consumption tier provides **1,000,000 calls/month free** with no fixed hourly charge. It creates a unified entry point for all 8 backend services:
+
+```bash
+# Create APIM instance (Consumption tier — pay-per-call only, no fixed cost)
+az apim create \
+  --name healthq-copilot-apim \
+  --resource-group healthq-copilot-rg \
+  --location eastus2 \
+  --publisher-email "your@email.com" \
+  --publisher-name "HealthQ Copilot" \
+  --sku-name Consumption
+
+# Import each backend service as an API (repeat for each of the 8 services)
+az apim api import \
+  --resource-group healthq-copilot-rg \
+  --service-name healthq-copilot-apim \
+  --path "/voice" \
+  --api-id voice-api \
+  --service-url "https://voice-service.internal.<env-default-domain>.azurecontainerapps.io" \
+  --specification-format OpenApi \
+  --specification-path src/HealthQCopilot.Voice/openapi.json
+
+# Get the unified gateway URL
+az apim show \
+  --name healthq-copilot-apim \
+  --resource-group healthq-copilot-rg \
+  --query "gatewayUrl" -o tsv
+# Output: https://healthq-copilot-apim.azure-api.net
+```
+
+Point the Shell App at the gateway:
+
+```bash
+az staticwebapp appsettings set \
+  --name healthq-copilot-shell \
+  --resource-group healthq-copilot-rg \
+  --setting-names \
+    NEXT_PUBLIC_API_URL="https://healthq-copilot-apim.azure-api.net"
 ```
 
 
 ***
 
-## Step 10 — Set Up Free Observability (Grafana Cloud)
+## Step 11 — Set Up Free Observability (Azure Application Insights)
 
-Grafana Cloud Free supports **10,000 metrics/month** and **14-day log retention**:
+Azure Application Insights provides **5GB data ingestion/month free** with 90-day retention. This is the production-target service — no migration needed when scaling up:
 
 ```bash
-# Sign up at https://grafana.com/auth/sign-up/create-user
-# Create a free stack → Get Prometheus remote_write URL and credentials
+# Create Log Analytics Workspace
+az monitor log-analytics workspace create \
+  --resource-group healthq-copilot-rg \
+  --workspace-name healthq-copilot-logs \
+  --location eastus2
 
-# Add to each microservice's environment variables:
-OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-prod-us-central-0.grafana.net/otlp
-OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic <base64-encoded credentials>
+# Create Application Insights instance
+az monitor app-insights component create \
+  --app healthq-copilot-insights \
+  --location eastus2 \
+  --resource-group healthq-copilot-rg \
+  --workspace healthq-copilot-logs
 
-# View distributed traces at Zipkin (local):
-open http://localhost:9411
+# Get the connection string
+az monitor app-insights component show \
+  --app healthq-copilot-insights \
+  --resource-group healthq-copilot-rg \
+  --query "connectionString" -o tsv
+```
 
-# View metrics at Grafana Cloud:
-open https://your-org.grafana.net
+Set the connection string on each Container App:
+
+```bash
+az containerapp update \
+  --name voice-service \
+  --resource-group healthq-copilot-rg \
+  --set-env-vars \
+    APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=...;IngestionEndpoint=..."
+# Repeat for all 8 services
+```
+
+`HealthQCopilot.ServiceDefaults` already configures OpenTelemetry to export to Application Insights when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set — no code changes required.
+
+```bash
+# View live metrics, distributed traces, and logs:
+# Azure Portal → Resource Groups → healthq-copilot-rg → healthq-copilot-insights
+open https://portal.azure.com
 ```
 
 
 ***
 
-## Step 11 — Run the Full Test Suite
+## Step 12 — Run the Full Test Suite
 
 ```bash
 # From project root
@@ -427,7 +537,7 @@ open ./coverage/report/index.html
 
 ***
 
-## Step 12 — GitHub Actions CI/CD (Free Tier)
+## Step 13 — GitHub Actions CI/CD (Free Tier)
 
 GitHub Actions Free provides **2,000 minutes/month**. The pipeline runs on every push to `main`:
 
@@ -441,14 +551,26 @@ GitHub Actions Free provides **2,000 minutes/month**. The pipeline runs on every
 # Gate 3: Integration tests (Testcontainers)
 # Gate 4: Trivy container scan (blocks on CRITICAL CVEs)
 # Gate 5: Build + push Docker image to GitHub Container Registry (ghcr.io — free)
-# Gate 6: Deploy to Railway via railway up (requires RAILWAY_TOKEN secret — see Step 9)
+# Gate 6: Deploy to Azure Container Apps via az containerapp update --image (see Step 9)
 
 # Configure required GitHub Secrets:
 # Settings → Secrets and variables → Actions → New repository secret
-RAILWAY_TOKEN          # From Railway Dashboard → Account → Tokens
+AZURE_CREDENTIALS      # Service principal JSON — create with command below
+AZURE_RESOURCE_GROUP   # healthq-copilot-rg
 AUTH0_DOMAIN           # Your Auth0 tenant domain
 AUTH0_CLIENT_SECRET    # Your Auth0 client secret
 GITHUB_MODELS_TOKEN    # Your GitHub Models PAT
+```
+
+Create the Azure service principal for GitHub Actions:
+
+```bash
+az ad sp create-for-rbac \
+  --name healthq-copilot-deploy \
+  --role contributor \
+  --scopes /subscriptions/<subscription-id>/resourceGroups/healthq-copilot-rg \
+  --sdk-auth
+# Copy the JSON output → add as AZURE_CREDENTIALS secret in GitHub
 ```
 
 Trigger your first deployment:
@@ -469,12 +591,13 @@ git push origin main
 
 | Metric | Free Tier Ceiling | Upgrade Trigger | Upgrade Path |
 | :-- | :-- | :-- | :-- |
-| **Concurrent users** | ~50 (Railway 500hr/mo) | >50 concurrent | Railway Starter \$5/mo |
+| **Concurrent users** | ~100 (ACA scale-to-zero) | >500 concurrent | Azure Container Apps Dedicated |
 | **Database storage** | 500MB × 6 = 3GB (Supabase) | 80% capacity | Supabase Pro \$25/mo/project |
 | **AI requests** | 150/day (GitHub Models) | Going live with patients | Azure AI Foundry pay-per-use |
 | **Auth users** | 7,500 MAU (Auth0) | 5,000 MAU | Auth0 Essential \$23/mo |
-| **Frontend bandwidth** | 100GB/mo (Vercel) | 80GB/mo | Vercel Pro \$20/mo |
-| **Observability** | 10,000 metrics (Grafana) | Production monitoring | Azure Monitor \$0.01/GB |
+| **Frontend bandwidth** | 100GB/mo (Azure Static Web Apps) | 80GB/mo | Azure SWA Standard \$9/mo |
+| **Observability** | 5GB/mo (Application Insights) | Production monitoring | Azure Monitor pay-per-use |
+| **API gateway calls** | 1M calls/mo (APIM Consumption) | >1M calls/mo | APIM Consumption \$3.50/million |
 
 
 ***
@@ -485,8 +608,9 @@ git push origin main
 > - Sign a **Business Associate Agreement (BAA)** with each cloud provider
 > - Supabase Pro (\$25/mo) — BAA available
 > - Auth0 Enterprise — BAA available
-> - Vercel Enterprise — BAA available
-> - Railway — **No BAA available** → upgrade to **Azure Container Apps** for production PHI workloads
+> - Azure Static Web Apps — BAA available (covered under Microsoft Azure DPA)
+> - Azure Container Apps — BAA available (covered under Microsoft Azure DPA)
+> - Azure API Management — BAA available (covered under Microsoft Azure DPA)
 > - Enable **PHI encryption** via the `PhiEncryptedString` value objects already built into the codebase
 > - Activate **audit logging** via `PhiAuditMiddleware` in every FHIR-touching service
 
@@ -510,5 +634,5 @@ git push origin main
 
 ***
 
-*HealthQCopilot Deployment Guide — Free Cloud Edition v1.0 | April 2026*
+*HealthQCopilot Deployment Guide — Free Azure Cloud Edition v2.0 | April 2026*
 
