@@ -99,11 +99,11 @@ jobs:
         run: pnpm --filter ${{ matrix.app }} build
         env:
           NEXT_PUBLIC_API_URL: ${{ vars.API_URL }}
-          VOICE_MFE_URL: https://happy-smoke-0ba02780f.7.azurestaticapps.net/mf-manifest.json
-          TRIAGE_MFE_URL: https://brave-hill-0d76ab10f.7.azurestaticapps.net/mf-manifest.json
-          SCHEDULING_MFE_URL: https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net/mf-manifest.json
-          POPHEALTH_MFE_URL: https://orange-bay-00f28280f.7.azurestaticapps.net/mf-manifest.json
-          REVENUE_MFE_URL: https://lemon-pond-067d2f40f.7.azurestaticapps.net/mf-manifest.json
+          VOICE_MFE_URL: https://happy-smoke-0ba02780f.7.azurestaticapps.net/remoteEntry.js
+          TRIAGE_MFE_URL: https://brave-hill-0d76ab10f.7.azurestaticapps.net/remoteEntry.js
+          SCHEDULING_MFE_URL: https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net/remoteEntry.js
+          POPHEALTH_MFE_URL: https://orange-bay-00f28280f.7.azurestaticapps.net/remoteEntry.js
+          REVENUE_MFE_URL: https://lemon-pond-067d2f40f.7.azurestaticapps.net/remoteEntry.js
 
       - name: Copy SWA config to dist
         if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'
