@@ -6,6 +6,7 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 COPY ["src/HealthQCopilot.Domain/HealthQCopilot.Domain.csproj", "src/HealthQCopilot.Domain/"]
 COPY ["src/HealthQCopilot.Infrastructure/HealthQCopilot.Infrastructure.csproj", "src/HealthQCopilot.Infrastructure/"]
+COPY ["src/HealthQCopilot.ServiceDefaults/HealthQCopilot.ServiceDefaults.csproj", "src/HealthQCopilot.ServiceDefaults/"]
 COPY ["src/HealthQCopilot.Fhir/HealthQCopilot.Fhir.csproj", "src/HealthQCopilot.Fhir/"]
 RUN dotnet restore "src/HealthQCopilot.Fhir/HealthQCopilot.Fhir.csproj"
 COPY . .
