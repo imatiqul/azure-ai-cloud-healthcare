@@ -1,4 +1,5 @@
 using HealthQCopilot.Domain.Scheduling;
+using HealthQCopilot.Infrastructure.Validation;
 using HealthQCopilot.Scheduling.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +11,8 @@ public static class SchedulingEndpoints
     {
         var group = app.MapGroup("/api/v1/scheduling")
             .WithTags("Scheduling")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .WithAutoValidation();
 
         group.MapGet("/slots", async (
             DateOnly? date,

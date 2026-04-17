@@ -1,3 +1,4 @@
+using FluentValidation;
 using HealthQCopilot.Infrastructure.Auth;
 using HealthQCopilot.Infrastructure.Messaging;
 using HealthQCopilot.Infrastructure.Middleware;
@@ -15,8 +16,12 @@ builder.Services.AddHealthcareObservability(builder.Configuration, "notification
 builder.Services.AddHealthcareAuth(builder.Configuration);
 builder.Services.AddHealthcareRateLimiting();
 builder.Services.AddControllers().AddDapr();
+builder.Services.AddOpenApi();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddDbContext<NotificationDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("NotificationDb")));
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("NotificationDb"))
+       .AddInterceptors(new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
+                        new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor()));
 builder.Services.AddOutboxRelay<NotificationDbContext>(builder.Configuration);
 builder.Services.AddScoped<INotificationSender, AcsNotificationSender>();
 builder.Services.AddHostedService<CampaignDispatchService>();
@@ -27,6 +32,7 @@ var app = builder.Build();
 
 await app.InitializeDatabaseAsync<NotificationDbContext>();
 
+app.MapOpenApi();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthentication();

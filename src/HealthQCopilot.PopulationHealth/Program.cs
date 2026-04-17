@@ -8,6 +8,7 @@ using HealthQCopilot.PopulationHealth.Endpoints;
 using HealthQCopilot.PopulationHealth.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
@@ -15,8 +16,11 @@ builder.Services.AddHealthcareObservability(builder.Configuration, "pophealth-se
 builder.Services.AddHealthcareAuth(builder.Configuration);
 builder.Services.AddHealthcareRateLimiting();
 builder.Services.AddControllers().AddDapr();
+builder.Services.AddOpenApi();
 builder.Services.AddDbContext<PopHealthDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("PopHealthDb")));
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("PopHealthDb"))
+       .AddInterceptors(new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
+                        new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor()));
 builder.Services.AddOutboxRelay<PopHealthDbContext>(builder.Configuration);
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<PopHealthDbContext>("pophealth");
@@ -25,6 +29,7 @@ var app = builder.Build();
 
 await app.InitializeDatabaseAsync<PopHealthDbContext>();
 
+app.MapOpenApi();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthentication();

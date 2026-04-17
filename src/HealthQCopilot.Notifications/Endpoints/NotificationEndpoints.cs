@@ -1,4 +1,5 @@
 using HealthQCopilot.Domain.Notifications;
+using HealthQCopilot.Infrastructure.Validation;
 using HealthQCopilot.Notifications.Infrastructure;
 using HealthQCopilot.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,8 @@ public static class NotificationEndpoints
     {
         var group = app.MapGroup("/api/v1/notifications")
             .WithTags("Notifications")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .WithAutoValidation();
 
         group.MapPost("/campaigns", async (
             CreateCampaignRequest request,

@@ -7,6 +7,7 @@ using HealthQCopilot.Infrastructure.Observability;
 using HealthQCopilot.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
@@ -14,8 +15,11 @@ builder.Services.AddHealthcareObservability(builder.Configuration, "fhir-service
 builder.Services.AddHealthcareAuth(builder.Configuration);
 builder.Services.AddHealthcareRateLimiting();
 builder.Services.AddControllers().AddDapr();
+builder.Services.AddOpenApi();
 builder.Services.AddDbContext<FhirDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("FhirDb")));
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("FhirDb"))
+       .AddInterceptors(new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
+                        new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor()));
 builder.Services.AddOutboxRelay<FhirDbContext>(builder.Configuration);
 builder.Services.AddFhirHttpClient(builder.Configuration);
 builder.Services.AddHealthChecks();
@@ -25,6 +29,7 @@ var app = builder.Build();
 
 await app.InitializeDatabaseAsync<FhirDbContext>();
 
+app.MapOpenApi();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthentication();

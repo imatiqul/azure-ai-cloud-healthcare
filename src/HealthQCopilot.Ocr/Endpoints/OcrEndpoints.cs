@@ -1,4 +1,5 @@
 using HealthQCopilot.Domain.Ocr;
+using HealthQCopilot.Infrastructure.Validation;
 using HealthQCopilot.Ocr.Infrastructure;
 using HealthQCopilot.Ocr.Services;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,8 @@ public static class OcrEndpoints
     {
         var group = app.MapGroup("/api/v1/ocr")
             .WithTags("OCR")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .WithAutoValidation();
 
         group.MapPost("/jobs", async (
             CreateOcrJobRequest request,

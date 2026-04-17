@@ -1,4 +1,5 @@
 using HealthQCopilot.Domain.RevenueCycle;
+using HealthQCopilot.Infrastructure.Validation;
 using HealthQCopilot.RevenueCycle.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +11,8 @@ public static class RevenueEndpoints
     {
         var group = app.MapGroup("/api/v1/revenue")
             .WithTags("Revenue Cycle")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .WithAutoValidation();
 
         // ── Coding Jobs ──────────────────────────────────────
 

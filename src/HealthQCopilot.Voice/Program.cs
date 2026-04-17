@@ -1,3 +1,4 @@
+using FluentValidation;
 using HealthQCopilot.Infrastructure.Auth;
 using HealthQCopilot.Infrastructure.Messaging;
 using HealthQCopilot.Infrastructure.Middleware;
@@ -16,8 +17,12 @@ builder.Services.AddHealthcareObservability(builder.Configuration, "voice-servic
 builder.Services.AddHealthcareAuth(builder.Configuration);
 builder.Services.AddHealthcareRateLimiting();
 builder.Services.AddControllers().AddDapr();
+builder.Services.AddOpenApi();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddDbContext<VoiceDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("VoiceDb")));
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("VoiceDb"))
+       .AddInterceptors(new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
+                        new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor()));
 builder.Services.AddOutboxRelay<VoiceDbContext>(builder.Configuration);
 builder.Services.AddSingleton<ITranscriptionService, AzureSpeechTranscriptionService>();
 builder.Services.AddHealthChecks();
@@ -28,6 +33,7 @@ var app = builder.Build();
 
 await app.InitializeDatabaseAsync<VoiceDbContext>();
 
+app.MapOpenApi();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthentication();

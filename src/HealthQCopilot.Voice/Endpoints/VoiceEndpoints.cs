@@ -1,4 +1,5 @@
 using HealthQCopilot.Domain.Voice;
+using HealthQCopilot.Infrastructure.Validation;
 using HealthQCopilot.Voice.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +11,8 @@ public static class VoiceEndpoints
     {
         var group = app.MapGroup("/api/v1/voice")
             .WithTags("Voice")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .WithAutoValidation();
 
         group.MapPost("/sessions", async (
             CreateSessionRequest request,

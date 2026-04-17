@@ -1,6 +1,7 @@
 using HealthQCopilot.Domain.Agents;
 using HealthQCopilot.Agents.Infrastructure;
 using HealthQCopilot.Agents.Services;
+using HealthQCopilot.Infrastructure.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace HealthQCopilot.Agents.Endpoints;
@@ -11,7 +12,8 @@ public static class AgentEndpoints
     {
         var group = app.MapGroup("/api/v1/agents")
             .WithTags("Agents")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .WithAutoValidation();
 
         group.MapPost("/triage", async (
             StartTriageRequest request,

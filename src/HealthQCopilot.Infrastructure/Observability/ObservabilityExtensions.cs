@@ -1,4 +1,5 @@
 using Azure.Monitor.OpenTelemetry.Exporter;
+using HealthQCopilot.Infrastructure.Metrics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
@@ -52,7 +53,10 @@ public static class ObservabilityExtensions
                     .AddMeter("HealthQCopilot.RevenueCycleService")
                     .AddMeter("HealthQCopilot.IdentityService")
                     .AddMeter("HealthQCopilot.GuideService")
+                    .AddMeter("HealthQCopilot.Business")
                     .AddPrometheusExporter();
+
+        services.AddSingleton<BusinessMetrics>();
 
                 var aiConnStr = config["ApplicationInsights:ConnectionString"];
                 if (!string.IsNullOrEmpty(aiConnStr))

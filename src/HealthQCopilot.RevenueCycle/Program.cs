@@ -1,3 +1,4 @@
+using FluentValidation;
 using HealthQCopilot.Domain.RevenueCycle;
 using HealthQCopilot.Infrastructure.Auth;
 using HealthQCopilot.Infrastructure.Messaging;
@@ -15,8 +16,12 @@ builder.Services.AddHealthcareObservability(builder.Configuration, "revenue-serv
 builder.Services.AddHealthcareAuth(builder.Configuration);
 builder.Services.AddHealthcareRateLimiting();
 builder.Services.AddControllers().AddDapr();
+builder.Services.AddOpenApi();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddDbContext<RevenueDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("RevenueDb")));
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("RevenueDb"))
+       .AddInterceptors(new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
+                        new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor()));
 builder.Services.AddOutboxRelay<RevenueDbContext>(builder.Configuration);
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<RevenueDbContext>("revenue");
@@ -25,6 +30,7 @@ var app = builder.Build();
 
 await app.InitializeDatabaseAsync<RevenueDbContext>();
 
+app.MapOpenApi();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthentication();

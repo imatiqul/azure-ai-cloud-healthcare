@@ -1,3 +1,4 @@
+using FluentValidation;
 using HealthQCopilot.Agents.Endpoints;
 using HealthQCopilot.Agents.Infrastructure;
 using HealthQCopilot.Agents.Plugins;
@@ -19,8 +20,12 @@ builder.Services.AddHealthcareObservability(builder.Configuration, "ai-agent-ser
 builder.Services.AddHealthcareAuth(builder.Configuration);
 builder.Services.AddHealthcareRateLimiting();
 builder.Services.AddControllers().AddDapr();
+builder.Services.AddOpenApi();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddDbContext<AgentDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("AgentDb")));
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("AgentDb"))
+       .AddInterceptors(new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
+                        new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor()));
 builder.Services.AddOutboxRelay<AgentDbContext>(builder.Configuration);
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<AgentDbContext>("agent");
@@ -54,6 +59,7 @@ var app = builder.Build();
 
 await app.InitializeDatabaseAsync<AgentDbContext>();
 
+app.MapOpenApi();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthentication();

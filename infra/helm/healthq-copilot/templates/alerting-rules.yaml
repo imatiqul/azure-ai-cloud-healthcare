@@ -1,0 +1,152 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: healthq-copilot-alerts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: healthq-copilot
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: healthq-copilot.availability
+      interval: 30s
+      rules:
+        - alert: HighErrorRate
+          expr: |
+            sum(rate(http_server_request_duration_seconds_count{job=~"healthq-.*",http_response_status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_server_request_duration_seconds_count{job=~"healthq-.*"}[5m]))
+            > 0.05
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: "High 5xx error rate across HealthQ services"
+            description: "Error rate is {{ "{{ $value | humanizePercentage }}" }} over the last 5 minutes."
+
+        - alert: ServiceDown
+          expr: up{job=~"healthq-.*"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: "HealthQ service {{ "{{ $labels.job }}" }} is down"
+            description: "Service {{ "{{ $labels.job }}" }} has been unreachable for more than 2 minutes."
+
+        - alert: HighP99Latency
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(http_server_request_duration_seconds_bucket{job=~"healthq-.*"}[5m])) by (le, job)
+            ) > 5
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "High P99 latency on {{ "{{ $labels.job }}" }}"
+            description: "P99 latency is {{ "{{ $value | humanizeDuration }}" }}."
+
+    - name: healthq-copilot.business
+      interval: 60s
+      rules:
+        - alert: TriageEscalationSpike
+          expr: |
+            rate(healthq_triage_escalations_total[15m])
+            /
+            rate(healthq_triage_requests_total[15m])
+            > 0.3
+          for: 15m
+          labels:
+            severity: warning
+            team: clinical
+          annotations:
+            summary: "Triage escalation rate above 30%"
+            description: "{{ "{{ $value | humanizePercentage }}" }} of triage requests are being escalated."
+
+        - alert: OcrFailureSpike
+          expr: |
+            rate(healthq_ocr_jobs_failed_total[15m])
+            /
+            (rate(healthq_ocr_jobs_completed_total[15m]) + rate(healthq_ocr_jobs_failed_total[15m]))
+            > 0.2
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "OCR failure rate above 20%"
+            description: "{{ "{{ $value | humanizePercentage }}" }} of OCR jobs are failing."
+
+        - alert: NotificationDeliveryFailures
+          expr: |
+            rate(healthq_notifications_messages_failed_total[15m])
+            /
+            (rate(healthq_notifications_messages_sent_total[15m]) + rate(healthq_notifications_messages_failed_total[15m]))
+            > 0.1
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Notification delivery failure rate above 10%"
+            description: "{{ "{{ $value | humanizePercentage }}" }} of notifications are failing to deliver."
+
+        - alert: PriorAuthDenialSpike
+          expr: |
+            rate(healthq_revenue_prior_auths_denied_total[1h])
+            /
+            rate(healthq_revenue_prior_auths_submitted_total[1h])
+            > 0.5
+          for: 30m
+          labels:
+            severity: warning
+            team: revenue
+          annotations:
+            summary: "Prior authorization denial rate above 50%"
+            description: "{{ "{{ $value | humanizePercentage }}" }} of prior auths are being denied."
+
+    - name: healthq-copilot.resources
+      interval: 60s
+      rules:
+        - alert: HighMemoryUsage
+          expr: |
+            container_memory_working_set_bytes{namespace="{{ "{{ .Release.Namespace }}" }}", container=~"healthq-.*"}
+            /
+            container_spec_memory_limit_bytes{namespace="{{ "{{ .Release.Namespace }}" }}", container=~"healthq-.*"}
+            > 0.85
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "High memory usage on {{ "{{ $labels.container }}" }}"
+            description: "Memory usage is at {{ "{{ $value | humanizePercentage }}" }} of limit."
+
+        - alert: HighCpuUsage
+          expr: |
+            rate(container_cpu_usage_seconds_total{namespace="{{ "{{ .Release.Namespace }}" }}", container=~"healthq-.*"}[5m])
+            /
+            container_spec_cpu_quota{namespace="{{ "{{ .Release.Namespace }}" }}", container=~"healthq-.*"}
+            * container_spec_cpu_period{namespace="{{ "{{ .Release.Namespace }}" }}", container=~"healthq-.*"}
+            > 0.85
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "High CPU usage on {{ "{{ $labels.container }}" }}"
+            description: "CPU usage is at {{ "{{ $value | humanizePercentage }}" }} of limit."
+
+        - alert: PodRestartLooping
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="{{ "{{ .Release.Namespace }}" }}", container=~"healthq-.*"}[1h]) > 5
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: "Pod {{ "{{ $labels.pod }}" }} is restart-looping"
+            description: "{{ "{{ $value }}" }} restarts in the last hour."

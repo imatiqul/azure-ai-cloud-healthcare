@@ -1,0 +1,18 @@
+{{- $services := list "agents" "identity" "voice" "scheduling" "fhir" "revenuecycle" "populationhealth" "ocr" "notifications" }}
+{{- range $services }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: healthq-{{ . }}-pdb
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: healthq-{{ . }}
+    app.kubernetes.io/part-of: healthq-copilot
+    helm.sh/chart: {{ $.Chart.Name }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: healthq-{{ . }}
+---
+{{- end }}

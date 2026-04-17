@@ -1,5 +1,6 @@
 using HealthQCopilot.Domain.Identity;
 using HealthQCopilot.Identity.Persistence;
+using HealthQCopilot.Infrastructure.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace HealthQCopilot.Identity.Endpoints;
@@ -10,7 +11,8 @@ public static class IdentityEndpoints
     {
         var group = app.MapGroup("/api/v1/identity")
             .WithTags("Identity")
-            .RequireAuthorization("Admin");
+            .RequireAuthorization("Admin")
+            .WithAutoValidation();
 
         group.MapPost("/users", async (
             CreateUserRequest request,

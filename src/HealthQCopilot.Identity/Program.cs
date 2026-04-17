@@ -1,3 +1,4 @@
+using FluentValidation;
 using HealthQCopilot.Identity.Endpoints;
 using HealthQCopilot.Identity.Persistence;
 using HealthQCopilot.Infrastructure.Auth;
@@ -14,8 +15,12 @@ builder.Services.AddHealthcareObservability(builder.Configuration, "identity-ser
 builder.Services.AddHealthcareAuth(builder.Configuration);
 builder.Services.AddHealthcareRateLimiting();
 builder.Services.AddControllers().AddDapr();
+builder.Services.AddOpenApi();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddDbContext<IdentityDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("IdentityDb")));
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("IdentityDb"))
+       .AddInterceptors(new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
+                        new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor()));
 builder.Services.AddOutboxRelay<IdentityDbContext>(builder.Configuration);
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<IdentityDbContext>("identity");
@@ -24,6 +29,7 @@ var app = builder.Build();
 
 await app.InitializeDatabaseAsync<IdentityDbContext>();
 
+app.MapOpenApi();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthentication();
