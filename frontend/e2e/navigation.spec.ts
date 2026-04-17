@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Sidebar Navigation', () => {
   test('renders all navigation links', async ({ page }) => {
     await page.goto('/');
-    const sidebar = page.locator('nav, [class*="sidebar"], [class*="Sidebar"]').first();
+    const sidebar = page.locator('aside, nav, [class*="sidebar"], [class*="Sidebar"]').first();
     await expect(sidebar.getByText('Dashboard')).toBeVisible();
     await expect(sidebar.getByText('Voice Sessions')).toBeVisible();
     await expect(sidebar.getByText('AI Triage')).toBeVisible();

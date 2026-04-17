@@ -8,8 +8,8 @@ test.describe('Demo Flow — End-to-End', () => {
 
   test('dashboard loads with stat cards', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText('Active Encounters')).toBeVisible();
-    await expect(page.getByText('Scheduled Today')).toBeVisible();
+    await expect(page.getByText('Pending Triage')).toBeVisible();
+    await expect(page.getByText('Available Slots Today')).toBeVisible();
   });
 
   test('can navigate to scheduling module', async ({ page }) => {
