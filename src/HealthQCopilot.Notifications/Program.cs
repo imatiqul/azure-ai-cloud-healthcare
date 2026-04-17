@@ -37,3 +37,5 @@ app.MapDefaultEndpoints();
 app.MapNotificationEndpoints();
 
 app.Run();
+
+public partial class Program { }

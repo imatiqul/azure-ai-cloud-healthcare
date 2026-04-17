@@ -4,6 +4,7 @@ using HealthQCopilot.Infrastructure.Auth;
 using HealthQCopilot.Infrastructure.Messaging;
 using HealthQCopilot.Infrastructure.Middleware;
 using HealthQCopilot.Infrastructure.Observability;
+using HealthQCopilot.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +23,8 @@ builder.Services.AddDatabaseHealthCheck<FhirDbContext>("fhir");
 
 var app = builder.Build();
 
+await app.InitializeDatabaseAsync<FhirDbContext>();
+
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthentication();
@@ -32,3 +35,5 @@ app.MapDefaultEndpoints();
 app.MapFhirEndpoints();
 
 app.Run();
+
+public partial class Program { }

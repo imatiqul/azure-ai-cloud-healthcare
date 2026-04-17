@@ -37,3 +37,5 @@ app.MapDefaultEndpoints();
 app.MapOcrEndpoints();
 
 app.Run();
+
+public partial class Program { }

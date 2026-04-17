@@ -1,0 +1,17 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: revenue-scaledobject
+  namespace: healthq-copilot
+spec:
+  scaleTargetRef:
+    name: revenue-service
+  minReplicaCount: 0
+  maxReplicaCount: 10
+  cooldownPeriod: 600
+  triggers:
+    - type: azure-servicebus
+      metadata:
+        queueName: revenue-coding
+        namespace: healthq-copilot-servicebus
+        messageCount: "5"

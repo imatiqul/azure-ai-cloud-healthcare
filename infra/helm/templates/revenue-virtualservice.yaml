@@ -1,0 +1,29 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: revenue-service
+  namespace: {{ .Values.global.namespace }}
+spec:
+  hosts:
+    - "revenue-service"
+  http:
+    - route:
+        - destination:
+            host: revenue-service
+            port:
+              number: 8080
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: gateway-error,connect-failure,refused-stream
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: revenue-service
+  namespace: {{ .Values.global.namespace }}
+spec:
+  host: revenue-service
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL

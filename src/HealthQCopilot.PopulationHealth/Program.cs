@@ -65,3 +65,5 @@ app.MapPost("/api/v1/population-health/seed", async (PopHealthDbContext db) =>
 });
 
 app.Run();
+
+public partial class Program { }

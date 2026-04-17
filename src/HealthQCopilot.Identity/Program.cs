@@ -34,3 +34,5 @@ app.MapDefaultEndpoints();
 app.MapIdentityEndpoints();
 
 app.Run();
+
+public partial class Program { }

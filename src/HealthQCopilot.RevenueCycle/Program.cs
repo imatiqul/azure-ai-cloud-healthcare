@@ -70,3 +70,5 @@ app.MapPost("/api/v1/revenue/seed", async (RevenueDbContext db) =>
 app.Run();
 
 public partial class Program { }
+
+public partial class Program { }
