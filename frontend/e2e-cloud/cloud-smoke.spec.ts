@@ -14,7 +14,7 @@ test.describe('Cloud — Shell SWA', () => {
 
   test('shell renders navigation sidebar', async ({ page }) => {
     await page.goto('/');
-    const nav = page.locator('nav, [class*="sidebar"], [class*="Sidebar"]').first();
+    const nav = page.locator('aside, nav, [class*="sidebar"], [class*="Sidebar"]').first();
     await expect(nav).toBeVisible({ timeout: 10000 });
   });
 
