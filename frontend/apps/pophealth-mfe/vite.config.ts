@@ -28,7 +28,7 @@ export default defineConfig({
   server: {
     port: 3004,
     proxy: {
-      '/api': { target: 'http://localhost:5007', changeOrigin: true },
+      '/api': { target: 'http://localhost:5000', changeOrigin: true },
     },
   },
   build: { target: 'esnext' },

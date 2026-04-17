@@ -78,11 +78,9 @@ var revenueService = builder.AddProject<Projects.HealthQCopilot_RevenueCycle>("r
     .WithExternalHttpEndpoints();
 
 // ──────────────────────────────────────────────
-// Frontend (Vite apps via pnpm)
+// API Gateway (YARP reverse proxy)
 // ──────────────────────────────────────────────
-var frontend = builder.AddNpmApp("frontend-shell", "../../frontend", "dev")
-    .WithHttpEndpoint(port: 3000, env: "PORT")
-    .WithExternalHttpEndpoints()
+var gateway = builder.AddProject<Projects.HealthQCopilot_Gateway>("api-gateway")
     .WithReference(identityService)
     .WithReference(voiceService)
     .WithReference(agentService)
@@ -91,6 +89,16 @@ var frontend = builder.AddNpmApp("frontend-shell", "../../frontend", "dev")
     .WithReference(schedulingService)
     .WithReference(notificationService)
     .WithReference(pophealthService)
-    .WithReference(revenueService);
+    .WithReference(revenueService)
+    .WithHttpEndpoint(port: 5000, name: "gateway")
+    .WithExternalHttpEndpoints();
+
+// ──────────────────────────────────────────────
+// Frontend (Vite apps via pnpm)
+// ──────────────────────────────────────────────
+var frontend = builder.AddNpmApp("frontend-shell", "../../frontend", "dev")
+    .WithHttpEndpoint(port: 3000, env: "PORT")
+    .WithExternalHttpEndpoints()
+    .WithReference(gateway);
 
 builder.Build().Run();

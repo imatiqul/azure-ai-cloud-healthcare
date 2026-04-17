@@ -23,5 +23,6 @@
     <ProjectReference Include="..\HealthQCopilot.Notifications\HealthQCopilot.Notifications.csproj" />
     <ProjectReference Include="..\HealthQCopilot.PopulationHealth\HealthQCopilot.PopulationHealth.csproj" />
     <ProjectReference Include="..\HealthQCopilot.RevenueCycle\HealthQCopilot.RevenueCycle.csproj" />
+    <ProjectReference Include="..\HealthQCopilot.Gateway\HealthQCopilot.Gateway.csproj" />
   </ItemGroup>
 </Project>
