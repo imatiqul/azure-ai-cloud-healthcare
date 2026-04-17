@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { Sidebar } from './components/Sidebar';
 import { TopNav } from './components/TopNav';
+import { CopilotChat } from './components/CopilotChat';
 import Dashboard from './pages/Dashboard';
 
 const VoicePage = lazy(() => import('voice/VoiceSessionController').then(m => ({ default: m.VoiceSessionController })));
@@ -75,6 +76,7 @@ export default function App() {
           </Suspense>
         </Box>
       </Box>
+      <CopilotChat />
     </Box>
   );
 }

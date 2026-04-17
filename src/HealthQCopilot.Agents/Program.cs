@@ -25,6 +25,9 @@ builder.Services.AddDatabaseHealthCheck<AgentDbContext>("agent");
 
 builder.Services.AddKernel();
 builder.Services.AddScoped<TriageOrchestrator>();
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<PlatformGuidePlugin>();
+builder.Services.AddScoped<GuideOrchestrator>();
 
 // Register Semantic Kernel plugins
 builder.Services.AddSingleton(sp =>
@@ -46,6 +49,7 @@ app.UseHealthcareRateLimiting();
 app.MapControllers();
 app.MapDefaultEndpoints();
 app.MapAgentEndpoints();
+app.MapGuideEndpoints();
 
 app.Run();
 
