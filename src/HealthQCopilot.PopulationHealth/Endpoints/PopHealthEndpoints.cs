@@ -130,3 +130,8 @@ public static class PopHealthEndpoints
         return app;
     }
 }
+
+public sealed record CalculateRiskRequest(
+    string PatientId,
+    IReadOnlyList<string> Conditions,
+    string? TriageLevel = null);
