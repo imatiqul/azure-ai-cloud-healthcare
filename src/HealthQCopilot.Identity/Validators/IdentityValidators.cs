@@ -13,3 +13,13 @@ public sealed class CreateUserRequestValidator : AbstractValidator<CreateUserReq
         RuleFor(x => x.Role).IsInEnum();
     }
 }
+
+public sealed class RegisterPatientRequestValidator : AbstractValidator<RegisterPatientRequest>
+{
+    public RegisterPatientRequestValidator()
+    {
+        RuleFor(x => x.ExternalId).NotEmpty().MaximumLength(256);
+        RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(256);
+        RuleFor(x => x.FullName).NotEmpty().MaximumLength(256);
+    }
+}

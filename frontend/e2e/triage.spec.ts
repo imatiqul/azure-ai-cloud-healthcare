@@ -37,38 +37,46 @@ test.describe('Triage MFE', () => {
   });
 
   test('renders triage workflow list', async ({ page }) => {
-    // MFE may not load in CI if remote isn't ready
+    // If the MFE remote is unavailable, skip rather than silently pass with a degraded assertion
     const mfeLoaded = await page.getByText('Jane Doe').isVisible({ timeout: 5000 }).catch(() => false);
-    if (mfeLoaded) {
-      await expect(page.getByText('John Smith')).toBeVisible();
-      await expect(page.getByText('Alice Brown')).toBeVisible();
-    } else {
-      await expect(page.getByText(/failed to load|loading/i).first()).toBeVisible();
+    if (!mfeLoaded) {
+      test.skip(true, 'Triage MFE remote not available — skipping render assertions');
+      return;
     }
+    await expect(page.getByText('John Smith')).toBeVisible();
+    await expect(page.getByText('Alice Brown')).toBeVisible();
   });
 
   test('displays priority badges', async ({ page }) => {
     const mfeLoaded = await page.getByText('P1_Immediate').isVisible({ timeout: 5000 }).catch(() => false);
-    if (mfeLoaded) {
-      await expect(page.getByText('P2_Urgent')).toBeVisible();
-      await expect(page.getByText('P3_Standard')).toBeVisible();
+    if (!mfeLoaded) {
+      test.skip(true, 'Triage MFE remote not available — skipping badge assertions');
+      return;
     }
+    await expect(page.getByText('P2_Urgent')).toBeVisible();
+    await expect(page.getByText('P3_Standard')).toBeVisible();
   });
 
   test('shows review button for awaiting human review', async ({ page }) => {
     const btn = page.getByRole('button', { name: /review.*approve/i });
-    if (await btn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(btn).toBeVisible();
+    const mfeLoaded = await btn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Triage MFE remote not available — skipping button assertion');
+      return;
     }
+    await expect(btn).toBeVisible();
   });
 
   test('opens HITL escalation modal on review click', async ({ page }) => {
     const btn = page.getByRole('button', { name: /review.*approve/i });
-    if (await btn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await btn.click();
-      await expect(page.getByRole('dialog')).toBeVisible();
-      await expect(page.getByRole('button', { name: /approve/i })).toBeVisible();
-      await expect(page.getByRole('button', { name: /cancel/i })).toBeVisible();
+    const mfeLoaded = await btn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Triage MFE remote not available — skipping modal test');
+      return;
     }
+    await btn.click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('button', { name: /approve/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /cancel/i })).toBeVisible();
   });
 });

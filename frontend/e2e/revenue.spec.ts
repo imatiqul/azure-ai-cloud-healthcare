@@ -30,17 +30,23 @@ test.describe('Revenue Cycle — Coding Queue', () => {
 
   test('displays coding items when API returns data', async ({ page }) => {
     const janeDoe = page.getByText('Jane Doe');
-    if (await janeDoe.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(janeDoe).toBeVisible();
-      await expect(page.getByText('E11.9')).toBeVisible();
+    const mfeLoaded = await janeDoe.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Revenue MFE remote not available — skipping coding items assertions');
+      return;
     }
+    await expect(janeDoe).toBeVisible();
+    await expect(page.getByText('E11.9')).toBeVisible();
   });
 
   test('shows review codes button', async ({ page }) => {
     const reviewBtn = page.getByRole('button', { name: /review codes/i }).first();
-    if (await reviewBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(reviewBtn).toBeVisible();
+    const mfeLoaded = await reviewBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Revenue MFE remote not available — skipping review button assertion');
+      return;
     }
+    await expect(reviewBtn).toBeVisible();
   });
 });
 
@@ -56,10 +62,13 @@ test.describe('Revenue Cycle — Prior Auth Tracker', () => {
     await page.goto('/revenue');
 
     const mri = page.getByText('MRI Brain');
-    if (await mri.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(mri).toBeVisible();
-      await expect(page.getByText('approved')).toBeVisible();
-      await expect(page.getByText('denied')).toBeVisible();
+    const mfeLoaded = await mri.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Revenue MFE remote not available — skipping prior auth assertions');
+      return;
     }
+    await expect(mri).toBeVisible();
+    await expect(page.getByText('approved')).toBeVisible();
+    await expect(page.getByText('denied')).toBeVisible();
   });
 });

@@ -45,6 +45,7 @@ app.MapControllers();
 app.MapSubscribeHandler();
 app.MapDefaultEndpoints();
 app.MapFhirEndpoints();
+app.MapSmartEndpoints();
 
 app.Run();
 

@@ -87,12 +87,14 @@ await app.InitializeDatabaseAsync<AgentDbContext>();
 await app.InitializeDatabaseAsync<AuditDbContext>();
 
 app.MapOpenApi();
+app.UseCloudEvents();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHealthcareRateLimiting();
 app.MapControllers();
+app.MapSubscribeHandler();
 app.MapDefaultEndpoints();
 app.MapAgentEndpoints();
 app.MapGuideEndpoints();

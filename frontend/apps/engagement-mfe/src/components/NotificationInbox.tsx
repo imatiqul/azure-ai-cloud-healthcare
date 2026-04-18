@@ -1,0 +1,89 @@
+import { useState, useEffect } from 'react';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+interface NotificationMessage {
+  id: string;
+  campaignId: string;
+  channel: string;
+  status: string;
+  createdAt: string;
+}
+
+interface Props {
+  patientId: string;
+}
+
+function channelColor(channel: string): 'default' | 'info' | 'warning' {
+  switch (channel.toLowerCase()) {
+    case 'email': return 'info';
+    case 'sms':   return 'warning';
+    default:      return 'default';
+  }
+}
+
+export function NotificationInbox({ patientId }: Props) {
+  const [messages, setMessages] = useState<NotificationMessage[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetch(`${API_BASE}/api/v1/notifications/messages?patientId=${encodeURIComponent(patientId)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json() as Promise<NotificationMessage[]>;
+      })
+      .then(setMessages)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load notifications'))
+      .finally(() => setLoading(false));
+  }, [patientId]);
+
+  if (loading) return <Typography color="text.secondary">Loading notifications…</Typography>;
+  if (error)   return <Typography color="error">{error}</Typography>;
+
+  if (messages.length === 0) {
+    return (
+      <Card>
+        <CardContent>
+          <Typography color="text.disabled" textAlign="center" sx={{ py: 4 }}>
+            No notifications for this patient
+          </Typography>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Stack spacing={2}>
+      {messages.map((msg) => (
+        <Card key={msg.id}>
+          <CardHeader>
+            <CardTitle>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Badge variant={channelColor(msg.channel)}>{msg.channel}</Badge>
+                  <Typography variant="body2" color="text.secondary">
+                    Campaign #{msg.campaignId.substring(0, 8)}
+                  </Typography>
+                </Stack>
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(msg.createdAt).toLocaleString()}
+                </Typography>
+              </Stack>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary">
+              Status: <strong>{msg.status}</strong>
+            </Typography>
+          </CardContent>
+        </Card>
+      ))}
+    </Stack>
+  );
+}

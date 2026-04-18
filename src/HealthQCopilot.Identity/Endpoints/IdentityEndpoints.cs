@@ -146,9 +146,71 @@ public static class IdentityEndpoints
                 });
         }).RequireAuthorization();
 
+        // ── Patient Self-Registration ───────────────────────────────────────────
+        // Public endpoint: registers a patient account from their Entra ID token.
+        // The caller supplies their external (Entra ID object) id + profile details.
+        // No admin token required — patient registers themselves after B2C sign-up.
+        group.MapPost("/patients/register", async (
+            RegisterPatientRequest request,
+            IdentityDbContext db,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.ExternalId))
+                return Results.BadRequest(new { error = "ExternalId is required" });
+            if (string.IsNullOrWhiteSpace(request.Email))
+                return Results.BadRequest(new { error = "Email is required" });
+
+            // Idempotent: return existing record if already registered
+            var existing = await db.UserAccounts
+                .FirstOrDefaultAsync(u => u.ExternalId == request.ExternalId, ct);
+
+            if (existing is not null)
+                return Results.Ok(new { existing.Id, existing.Email, Role = existing.Role.ToString(), alreadyRegistered = true });
+
+            var patient = UserAccount.Create(
+                Guid.NewGuid(),
+                request.ExternalId,
+                request.Email,
+                request.FullName,
+                UserRole.Patient);
+
+            db.UserAccounts.Add(patient);
+            await db.SaveChangesAsync(ct);
+
+            return Results.Created($"/api/v1/identity/users/{patient.Id}",
+                new { patient.Id, patient.Email, Role = patient.Role.ToString() });
+        }).WithSummary("Self-register a patient account after B2C sign-up");
+
+        // Patient-facing profile — returns the calling patient's own record.
+        group.MapGet("/patients/me", async (
+            HttpContext http,
+            IdentityDbContext db,
+            CancellationToken ct) =>
+        {
+            var externalId = http.User.FindFirst("sub")?.Value
+                ?? http.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(externalId))
+                return Results.Unauthorized();
+
+            var user = await db.UserAccounts
+                .FirstOrDefaultAsync(u => u.ExternalId == externalId && u.Role == UserRole.Patient, ct);
+
+            return user is null
+                ? Results.NotFound(new { error = "Patient profile not found. Please complete registration." })
+                : Results.Ok(new
+                {
+                    user.Id,
+                    user.ExternalId,
+                    user.Email,
+                    user.DisplayName,
+                    user.IsActive
+                });
+        }).RequireAuthorization("Patient").WithSummary("Get the authenticated patient's own profile");
+
         return app;
     }
 }
 
 public record CreateUserRequest(string ExternalId, string Email, string FullName, UserRole Role);
 public record UpdateUserRequest(string Email, string FullName);
+public record RegisterPatientRequest(string ExternalId, string Email, string FullName);

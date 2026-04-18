@@ -98,6 +98,35 @@ public static class PopHealthEndpoints
             return Results.Ok(stats);
         });
 
+        group.MapPost("/risks/calculate", async (
+            CalculateRiskRequest request,
+            PopHealthDbContext db,
+            RiskCalculationService calculator,
+            IDistributedCache cache,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.PatientId))
+                return Results.BadRequest(new { error = "PatientId is required" });
+
+            var existing = await db.PatientRisks
+                .Where(r => r.PatientId == request.PatientId)
+                .OrderByDescending(r => r.AssessedAt)
+                .FirstOrDefaultAsync(ct);
+
+            PatientRisk risk;
+            if (existing is not null)
+                risk = calculator.Recalculate(request.PatientId, existing.RiskFactors, request.Conditions, request.TriageLevel);
+            else
+                risk = calculator.Calculate(request.PatientId, request.Conditions, request.TriageLevel);
+
+            db.PatientRisks.Add(risk);
+            await db.SaveChangesAsync(ct);
+            await cache.RemoveAsync("healthq:pophealth:stats", ct);
+
+            return Results.Created($"/api/v1/population-health/risks/{request.PatientId}",
+                new { risk.Id, risk.PatientId, Level = risk.Level.ToString(), risk.RiskScore, risk.AssessedAt });
+        }).WithSummary("Calculate and persist a fresh risk score for a patient");
+
         return app;
     }
 }

@@ -6,11 +6,10 @@ test.describe('Voice Sessions MFE', () => {
   });
 
   test('renders voice session controller', async ({ page }) => {
-    // MFE may not load in CI if remote isn't ready
     const startBtn = page.getByRole('button', { name: /start session/i });
     const mfeLoaded = await startBtn.isVisible({ timeout: 5000 }).catch(() => false);
     if (!mfeLoaded) {
-      await expect(page.getByText(/failed to load|loading/i).first()).toBeVisible();
+      test.skip(true, 'Voice MFE remote not available — skipping render assertion');
       return;
     }
     await expect(startBtn).toBeVisible();
@@ -26,10 +25,13 @@ test.describe('Voice Sessions MFE', () => {
     );
 
     const startBtn = page.getByRole('button', { name: /start session/i });
-    if (await startBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await startBtn.click();
-      await expect(page.getByText('test-session-123')).toBeVisible();
+    const mfeLoaded = await startBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Voice MFE remote not available — skipping session start test');
+      return;
     }
+    await startBtn.click();
+    await expect(page.getByText('test-session-123')).toBeVisible();
   });
 
   test('shows end session button when live', async ({ page }) => {
@@ -42,9 +44,12 @@ test.describe('Voice Sessions MFE', () => {
     );
 
     const startBtn = page.getByRole('button', { name: /start session/i });
-    if (await startBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await startBtn.click();
-      await expect(page.getByRole('button', { name: /end session/i })).toBeVisible();
+    const mfeLoaded = await startBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Voice MFE remote not available — skipping end session test');
+      return;
     }
+    await startBtn.click();
+    await expect(page.getByRole('button', { name: /end session/i })).toBeVisible();
   });
 });

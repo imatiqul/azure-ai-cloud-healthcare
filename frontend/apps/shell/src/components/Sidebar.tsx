@@ -12,14 +12,18 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
+import PersonIcon from '@mui/icons-material/Person';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: <DashboardIcon /> },
   { href: '/voice', label: 'Voice Sessions', icon: <MicIcon /> },
   { href: '/triage', label: 'AI Triage', icon: <SmartToyIcon /> },
+  { href: '/encounters', label: 'Encounters', icon: <MedicalInformationIcon /> },
   { href: '/scheduling', label: 'Scheduling', icon: <CalendarMonthIcon /> },
   { href: '/population-health', label: 'Population Health', icon: <TrendingUpIcon /> },
   { href: '/revenue', label: 'Revenue Cycle', icon: <AttachMoneyIcon /> },
+  { href: '/patient-portal', label: 'Patient Portal', icon: <PersonIcon /> },
 ];
 
 export function Sidebar() {

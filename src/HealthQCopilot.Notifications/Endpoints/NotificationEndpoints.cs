@@ -74,20 +74,84 @@ public static class NotificationEndpoints
 
         group.MapGet("/messages", async (
             Guid? campaignId,
+            string? patientId,
             NotificationDbContext db,
             CancellationToken ct) =>
         {
             var query = db.Messages.AsQueryable();
             if (campaignId.HasValue)
                 query = query.Where(m => m.CampaignId == campaignId.Value);
+            if (!string.IsNullOrWhiteSpace(patientId))
+                query = query.Where(m => m.PatientId == patientId);
             var messages = await query.OrderByDescending(m => m.CreatedAt).Take(100)
                 .Select(m => new { m.Id, m.CampaignId, Channel = m.Channel.ToString(), Status = m.Status.ToString(), m.CreatedAt })
                 .ToListAsync(ct);
             return Results.Ok(messages);
         });
 
+        // ── Web Push subscription management ──────────────────────────────────
+        // The patient portal calls these to register/unregister browser push tokens.
+
+        group.MapPost("/push-subscriptions", async (
+            RegisterPushSubscriptionRequest request,
+            NotificationDbContext db,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.PatientId)
+                || string.IsNullOrWhiteSpace(request.Endpoint)
+                || string.IsNullOrWhiteSpace(request.P256dh)
+                || string.IsNullOrWhiteSpace(request.Auth))
+            {
+                return Results.BadRequest(new { error = "PatientId, Endpoint, P256dh and Auth are required" });
+            }
+
+            // Idempotent: deactivate any existing subscription for this endpoint
+            var existing = await db.WebPushSubscriptions
+                .Where(s => s.PatientId == request.PatientId && s.Endpoint == request.Endpoint)
+                .ToListAsync(ct);
+            foreach (var sub in existing) sub.Deactivate();
+
+            var newSub = WebPushSubscription.Create(request.PatientId, request.Endpoint, request.P256dh, request.Auth);
+            db.WebPushSubscriptions.Add(newSub);
+            await db.SaveChangesAsync(ct);
+
+            return Results.Created($"/api/v1/notifications/push-subscriptions/{newSub.Id}",
+                new { newSub.Id, newSub.PatientId, newSub.CreatedAt });
+        })
+        .WithSummary("Register a Web Push subscription for a patient")
+        .RequireAuthorization();
+
+        group.MapDelete("/push-subscriptions/{id:guid}", async (
+            Guid id,
+            NotificationDbContext db,
+            CancellationToken ct) =>
+        {
+            var sub = await db.WebPushSubscriptions.FindAsync([id], ct);
+            if (sub is null) return Results.NotFound();
+            sub.Deactivate();
+            await db.SaveChangesAsync(ct);
+            return Results.NoContent();
+        })
+        .WithSummary("Unregister a Web Push subscription")
+        .RequireAuthorization();
+
+        group.MapGet("/push-subscriptions", async (
+            string patientId,
+            NotificationDbContext db,
+            CancellationToken ct) =>
+        {
+            var subs = await db.WebPushSubscriptions
+                .Where(s => s.PatientId == patientId && s.IsActive)
+                .Select(s => new { s.Id, s.Endpoint, s.CreatedAt })
+                .ToListAsync(ct);
+            return Results.Ok(subs);
+        })
+        .WithSummary("List active Web Push subscriptions for a patient")
+        .RequireAuthorization();
+
         return app;
     }
 }
 
 public record CreateCampaignRequest(string Name, CampaignType Type, List<Guid> TargetPatientIds);
+public record RegisterPushSubscriptionRequest(string PatientId, string Endpoint, string P256dh, string Auth);

@@ -25,6 +25,8 @@ builder.Services.AddHealthcareDb<NotificationDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<NotificationDbContext>(builder.Configuration);
 builder.Services.AddScoped<INotificationSender, AcsNotificationSender>();
+builder.Services.AddScoped<WebPushSender>();
+builder.Services.AddHttpClient("WebPush");
 builder.Services.AddHostedService<CampaignDispatchService>();
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<NotificationDbContext>("notification");

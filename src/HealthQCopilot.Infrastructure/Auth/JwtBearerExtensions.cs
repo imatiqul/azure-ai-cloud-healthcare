@@ -42,7 +42,11 @@ public static class JwtBearerExtensions
             .AddPolicy("Clinician", policy =>
                 policy.RequireClaim(ClaimTypes.Role, "Clinician", "Admin"))
             .AddPolicy("Admin", policy =>
-                policy.RequireClaim(ClaimTypes.Role, "Admin"));
+                policy.RequireClaim(ClaimTypes.Role, "Admin"))
+            .AddPolicy("Patient", policy =>
+                policy.RequireClaim(ClaimTypes.Role, "Patient", "Admin"))
+            .AddPolicy("PatientOrClinician", policy =>
+                policy.RequireClaim(ClaimTypes.Role, "Patient", "Clinician", "Admin"));
 
         return services;
     }

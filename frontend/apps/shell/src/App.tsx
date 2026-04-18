@@ -17,7 +17,8 @@ const PopHealthPage = lazy(() => import('pophealth/RiskPanel').then(m => ({ defa
 const CareGapListPage = lazy(() => import('pophealth/CareGapList').then(m => ({ default: m.CareGapList })));
 const RevenuePage = lazy(() => import('revenue/CodingQueue').then(m => ({ default: m.CodingQueue })));
 const PriorAuthTrackerPage = lazy(() => import('revenue/PriorAuthTracker').then(m => ({ default: m.PriorAuthTracker })));
-const DemoLanding = lazy(() => import('./pages/DemoLanding'));
+const EncountersPage = lazy(() => import('encounters/EncounterList').then(m => ({ default: m.EncounterList })));
+const EngagementPage = lazy(() => import('engagement/PatientPortal').then(m => ({ default: m.PatientPortal })));
 const DemoLive = lazy(() => import('./pages/DemoLive'));
 
 function Loading() {
@@ -106,6 +107,16 @@ export default function App() {
                 <MfeErrorBoundary name="Revenue">
                   <RevenuePage />
                   <PriorAuthTrackerPage />
+                </MfeErrorBoundary>
+              } />
+              <Route path="/encounters" element={
+                <MfeErrorBoundary name="Encounters">
+                  <EncountersPage />
+                </MfeErrorBoundary>
+              } />
+              <Route path="/patient-portal" element={
+                <MfeErrorBoundary name="Patient Portal">
+                  <EngagementPage />
                 </MfeErrorBoundary>
               } />
             </Routes>

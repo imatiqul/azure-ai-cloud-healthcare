@@ -37,6 +37,7 @@ builder.Services.AddHttpClient<CareGapNotificationDispatcher>(client =>
     client.Timeout = TimeSpan.FromSeconds(15);
 });
 builder.Services.AddScoped<CareGapNotificationDispatcher>();
+builder.Services.AddSingleton<RiskCalculationService>();
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "PopHealthDb");
 builder.Services.AddDaprSecretProvider();
 builder.Services.AddEventHubAudit();
@@ -47,29 +48,33 @@ await app.InitializeDatabaseAsync<PopHealthDbContext>();
 await app.InitializeDatabaseAsync<AuditDbContext>();
 
 app.MapOpenApi();
+app.UseCloudEvents();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHealthcareRateLimiting();
 app.MapControllers();
+app.MapSubscribeHandler();
 app.MapDefaultEndpoints();
 app.MapPopHealthEndpoints();
 
-app.MapPost("/api/v1/population-health/seed", async (PopHealthDbContext db, CareGapNotificationDispatcher notificationDispatcher) =>
+app.MapPost("/api/v1/population-health/seed", async (PopHealthDbContext db, RiskCalculationService calculator, CareGapNotificationDispatcher notificationDispatcher) =>
 {
     if (await db.PatientRisks.AnyAsync()) return Results.Ok(new { message = "Already seeded" });
 
-    var risks = new[]
+    // Risk scores are now calculated by the deterministic scoring engine rather than hardcoded
+    var riskData = new[]
     {
-        PatientRisk.Create("PAT-001", RiskLevel.Critical, 0.92, "v2.1", ["Diabetes", "Hypertension", "Age>65"]),
-        PatientRisk.Create("PAT-002", RiskLevel.High, 0.78, "v2.1", ["CHF", "COPD"]),
-        PatientRisk.Create("PAT-003", RiskLevel.High, 0.71, "v2.1", ["Chronic Pain", "Opioid Use"]),
-        PatientRisk.Create("PAT-004", RiskLevel.Moderate, 0.55, "v2.1", ["Asthma", "Smoking"]),
-        PatientRisk.Create("PAT-005", RiskLevel.Moderate, 0.48, "v2.1", ["Obesity", "Pre-diabetes"]),
-        PatientRisk.Create("PAT-006", RiskLevel.Low, 0.22, "v2.1", ["Seasonal Allergies"]),
-        PatientRisk.Create("PAT-007", RiskLevel.Low, 0.15, "v2.1", ["Routine Care"]),
+        ("PAT-001", new List<string> { "Diabetes", "Hypertension", "Age>65" }),
+        ("PAT-002", new List<string> { "CHF", "COPD" }),
+        ("PAT-003", new List<string> { "Chronic Pain", "Opioid Use" }),
+        ("PAT-004", new List<string> { "Asthma", "Smoking" }),
+        ("PAT-005", new List<string> { "Obesity", "Pre-diabetes" }),
+        ("PAT-006", new List<string> { "Seasonal Allergies" }),
+        ("PAT-007", new List<string> { "Routine Care" }),
     };
+    var risks = riskData.Select(r => calculator.Calculate(r.Item1, r.Item2)).ToArray();
     db.PatientRisks.AddRange(risks);
 
     var gaps = new[]

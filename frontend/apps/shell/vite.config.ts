@@ -37,6 +37,16 @@ export default defineConfig({
           name: 'revenue',
           entry: process.env.REVENUE_MFE_URL || 'http://localhost:3005/remoteEntry.js',
         },
+        encounters: {
+          type: 'module',
+          name: 'encounters',
+          entry: process.env.ENCOUNTERS_MFE_URL || 'http://localhost:3006/remoteEntry.js',
+        },
+        engagement: {
+          type: 'module',
+          name: 'engagement',
+          entry: process.env.ENGAGEMENT_MFE_URL || 'http://localhost:3007/remoteEntry.js',
+        },
       },
       shared: {
         react: { singleton: true },

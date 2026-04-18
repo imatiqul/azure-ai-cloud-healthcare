@@ -35,35 +35,50 @@ test.describe('Copilot Guide', () => {
   test('renders copilot chat interface', async ({ page }) => {
     await page.goto('/');
     const copilotBtn = page.getByRole('button', { name: /copilot|guide|assistant|chat/i });
-    if (await copilotBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await copilotBtn.click();
-      await expect(page.getByText(/copilot|guide|assistant/i).first()).toBeVisible();
+    const mfeLoaded = await copilotBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Copilot guide not available — skipping chat interface test');
+      return;
     }
+    await copilotBtn.click();
+    await expect(page.getByText(/copilot|guide|assistant/i).first()).toBeVisible();
   });
 
   test('sends a message and receives response', async ({ page }) => {
     await page.goto('/');
     const copilotBtn = page.getByRole('button', { name: /copilot|guide|assistant|chat/i });
-    if (await copilotBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await copilotBtn.click();
-      const input = page.getByPlaceholder(/ask|message|type/i);
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('Hello');
-        await input.press('Enter');
-        await expect(page.getByText(/Welcome to HealthQ Copilot/)).toBeVisible({ timeout: 5000 });
-      }
+    const mfeLoaded = await copilotBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Copilot guide not available — skipping message test');
+      return;
     }
+    await copilotBtn.click();
+    const input = page.getByPlaceholder(/ask|message|type/i);
+    const inputVisible = await input.isVisible({ timeout: 3000 }).catch(() => false);
+    if (!inputVisible) {
+      test.skip(true, 'Copilot input field not visible — skipping message send test');
+      return;
+    }
+    await input.fill('Hello');
+    await input.press('Enter');
+    await expect(page.getByText(/Welcome to HealthQ Copilot/)).toBeVisible({ timeout: 5000 });
   });
 
   test('displays suggestion chips', async ({ page }) => {
     await page.goto('/');
     const copilotBtn = page.getByRole('button', { name: /copilot|guide|assistant|chat/i });
-    if (await copilotBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await copilotBtn.click();
-      const suggestion = page.getByText('Show me the platform overview');
-      if (await suggestion.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await expect(suggestion).toBeVisible();
-      }
+    const mfeLoaded = await copilotBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Copilot guide not available — skipping suggestion chips test');
+      return;
     }
+    await copilotBtn.click();
+    const suggestion = page.getByText('Show me the platform overview');
+    const chipVisible = await suggestion.isVisible({ timeout: 3000 }).catch(() => false);
+    if (!chipVisible) {
+      test.skip(true, 'Suggestion chips not visible — skipping');
+      return;
+    }
+    await expect(suggestion).toBeVisible();
   });
 });

@@ -28,6 +28,7 @@ builder.Services.AddHealthcareDb<RevenueDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<RevenueDbContext>(builder.Configuration);
 builder.Services.AddSingleton<CodeSuggestionService>();
+builder.Services.AddDaprClient();
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<RevenueDbContext>("revenue");
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "RevenueDb");
@@ -40,12 +41,14 @@ await app.InitializeDatabaseAsync<RevenueDbContext>();
 await app.InitializeDatabaseAsync<AuditDbContext>();
 
 app.MapOpenApi();
+app.UseCloudEvents();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHealthcareRateLimiting();
 app.MapControllers();
+app.MapSubscribeHandler();
 app.MapDefaultEndpoints();
 app.MapRevenueEndpoints();
 

@@ -1,0 +1,6 @@
+{
+  "extends": "@healthcare/tsconfig/vite.json",
+  "compilerOptions": { "paths": { "@/*": ["./src/*"] }, "types": [] },
+  "include": ["src"],
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"]
+}

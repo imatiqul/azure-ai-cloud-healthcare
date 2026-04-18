@@ -17,6 +17,10 @@ spec:
       value: "60"
     - name: maxConcurrentHandlers
       value: "8"
+    - name: maxRetriableErrorStatusCodes
+      value: "500,503"
+    - name: deadLetterTopic
+      value: "healthq-dlq"
   auth:
     secretStore: azure-keyvault
 scopes:
@@ -27,3 +31,6 @@ scopes:
   - scheduling-service
   - notification-service
   - pophealth-service
+  - revenue-service
+  - identity-service
+  - identity-service

@@ -16,6 +16,7 @@ public class AgentDbContext : OutboxDbContext
     public DbSet<StepFeedback> StepFeedbacks => Set<StepFeedback>();
     public DbSet<OverallFeedback> OverallFeedbacks => Set<OverallFeedback>();
     public DbSet<DemoInsight> DemoInsights => Set<DemoInsight>();
+    public DbSet<EscalationQueueItem> EscalationQueue => Set<EscalationQueueItem>();
 
     public AgentDbContext(DbContextOptions<AgentDbContext> options) : base(options) { }
 
@@ -117,6 +118,19 @@ public class AgentDbContext : OutboxDbContext
             b.ToTable("demo_insights");
             b.HasKey(e => e.Id);
             b.HasIndex(e => e.GeneratedAt);
+        });
+
+        modelBuilder.Entity<EscalationQueueItem>(b =>
+        {
+            b.ToTable("escalation_queue");
+            b.HasKey(e => e.Id);
+            b.Property(e => e.Status).HasConversion<string>();
+            b.Property(e => e.Level).HasConversion<string>();
+            b.Property(e => e.SessionId).HasMaxLength(256).IsRequired();
+            b.Property(e => e.ClaimedBy).HasMaxLength(256);
+            b.Property(e => e.ResolutionNote).HasMaxLength(1024);
+            b.HasIndex(e => e.Status);
+            b.HasIndex(e => e.WorkflowId).IsUnique();
         });
     }
 }

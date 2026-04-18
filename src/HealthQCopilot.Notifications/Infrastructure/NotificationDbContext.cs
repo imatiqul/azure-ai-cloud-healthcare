@@ -8,6 +8,7 @@ public class NotificationDbContext : OutboxDbContext
 {
     public DbSet<OutreachCampaign> OutreachCampaigns => Set<OutreachCampaign>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<WebPushSubscription> WebPushSubscriptions => Set<WebPushSubscription>();
 
     public NotificationDbContext(DbContextOptions<NotificationDbContext> options) : base(options) { }
 

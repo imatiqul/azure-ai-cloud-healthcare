@@ -8,11 +8,13 @@ public sealed class AcsNotificationSender : INotificationSender
 {
     private readonly IConfiguration _config;
     private readonly ILogger<AcsNotificationSender> _logger;
+    private readonly WebPushSender _webPush;
 
-    public AcsNotificationSender(IConfiguration config, ILogger<AcsNotificationSender> logger)
+    public AcsNotificationSender(IConfiguration config, ILogger<AcsNotificationSender> logger, WebPushSender webPush)
     {
         _config = config;
         _logger = logger;
+        _webPush = webPush;
     }
 
     public async Task<bool> SendAsync(Message message, CancellationToken ct)
@@ -38,8 +40,19 @@ public sealed class AcsNotificationSender : INotificationSender
                 case MessageChannel.Sms:
                     await SendSmsAsync(connectionString, message, ct);
                     break;
+                case MessageChannel.Push:
+                    // RecipientAddress stores the patientId for push delivery
+                    var sent = await _webPush.SendAsync(
+                        message.RecipientAddress!, "HealthQ Alert", message.Content, ct);
+                    if (sent == 0)
+                    {
+                        _logger.LogInformation(
+                            "No active push subscriptions for message {MessageId} — patient {Recipient}",
+                            message.Id, message.RecipientAddress);
+                    }
+                    break;
                 default:
-                    _logger.LogWarning("Channel {Channel} not supported yet", message.Channel);
+                    _logger.LogWarning("Channel {Channel} not supported", message.Channel);
                     return false;
             }
 

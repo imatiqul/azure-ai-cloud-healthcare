@@ -59,6 +59,68 @@ public static class FhirEndpoints
             return Results.Content(content, "application/fhir+json");
         });
 
+        group.MapPost("/patients", async (
+            HttpRequest request,
+            IHttpClientFactory httpClientFactory,
+            CancellationToken ct) =>
+        {
+            var client = httpClientFactory.CreateClient("FhirServer");
+            var body = await new StreamReader(request.Body).ReadToEndAsync(ct);
+            if (string.IsNullOrWhiteSpace(body))
+                return Results.BadRequest(new { error = "Request body is required" });
+            var content = new StringContent(body, System.Text.Encoding.UTF8, "application/fhir+json");
+            var response = await client.PostAsync("Patient", content, ct);
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+            return Results.Content(responseBody, "application/fhir+json", statusCode: (int)response.StatusCode);
+        }).WithSummary("Create a FHIR Patient resource");
+
+        group.MapPut("/patients/{id}", async (
+            string id,
+            HttpRequest request,
+            IHttpClientFactory httpClientFactory,
+            CancellationToken ct) =>
+        {
+            var client = httpClientFactory.CreateClient("FhirServer");
+            var body = await new StreamReader(request.Body).ReadToEndAsync(ct);
+            if (string.IsNullOrWhiteSpace(body))
+                return Results.BadRequest(new { error = "Request body is required" });
+            var content = new StringContent(body, System.Text.Encoding.UTF8, "application/fhir+json");
+            var response = await client.PutAsync($"Patient/{id}", content, ct);
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+            return Results.Content(responseBody, "application/fhir+json", statusCode: (int)response.StatusCode);
+        }).WithSummary("Update a FHIR Patient resource");
+
+        group.MapPost("/encounters", async (
+            HttpRequest request,
+            IHttpClientFactory httpClientFactory,
+            CancellationToken ct) =>
+        {
+            var client = httpClientFactory.CreateClient("FhirServer");
+            var body = await new StreamReader(request.Body).ReadToEndAsync(ct);
+            if (string.IsNullOrWhiteSpace(body))
+                return Results.BadRequest(new { error = "Request body is required" });
+            var content = new StringContent(body, System.Text.Encoding.UTF8, "application/fhir+json");
+            var response = await client.PostAsync("Encounter", content, ct);
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+            return Results.Content(responseBody, "application/fhir+json", statusCode: (int)response.StatusCode);
+        }).WithSummary("Create a FHIR Encounter resource");
+
+        group.MapPut("/encounters/{id}", async (
+            string id,
+            HttpRequest request,
+            IHttpClientFactory httpClientFactory,
+            CancellationToken ct) =>
+        {
+            var client = httpClientFactory.CreateClient("FhirServer");
+            var body = await new StreamReader(request.Body).ReadToEndAsync(ct);
+            if (string.IsNullOrWhiteSpace(body))
+                return Results.BadRequest(new { error = "Request body is required" });
+            var content = new StringContent(body, System.Text.Encoding.UTF8, "application/fhir+json");
+            var response = await client.PutAsync($"Encounter/{id}", content, ct);
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+            return Results.Content(responseBody, "application/fhir+json", statusCode: (int)response.StatusCode);
+        }).WithSummary("Update a FHIR Encounter resource");
+
         group.MapPost("/appointments", async (
             HttpRequest request,
             IHttpClientFactory httpClientFactory,

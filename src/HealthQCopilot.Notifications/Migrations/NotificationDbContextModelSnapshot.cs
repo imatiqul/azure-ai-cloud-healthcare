@@ -91,6 +91,42 @@ namespace HealthQCopilot.Notifications.Migrations
                     b.ToTable("outreach_campaigns", (string)null);
                 });
 
+            modelBuilder.Entity("HealthQCopilot.Domain.Notifications.WebPushSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeactivatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PatientId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("WebPushSubscriptions");
+                });
+
             modelBuilder.Entity("HealthQCopilot.Infrastructure.Persistence.OutboxEvent", b =>
                 {
                     b.Property<Guid>("Id")

@@ -198,6 +198,7 @@ public static class RevenueEndpoints
             Guid id,
             RevenueDbContext db,
             IDistributedCache cache,
+            Dapr.Client.DaprClient dapr,
             CancellationToken ct) =>
         {
             var auth = await db.PriorAuths.FindAsync([id], ct);
@@ -206,6 +207,16 @@ public static class RevenueEndpoints
             if (result.IsFailure) return Results.BadRequest(new { error = result.Error });
             await db.SaveChangesAsync(ct);
             await cache.RemoveAsync("healthq:revenue:stats", ct);
+            // Notify downstream services (patient notifications, pop-health) via Dapr pub/sub
+            _ = dapr.PublishEventAsync("pubsub", "revenue.prior-auth.approved", new
+            {
+                auth.Id,
+                auth.PatientId,
+                auth.PatientName,
+                auth.Procedure,
+                auth.InsurancePayer,
+                ResolvedAt = DateTime.UtcNow
+            }, CancellationToken.None);
             return Results.Ok(new { auth.Id, auth.Status });
         });
 
@@ -214,6 +225,7 @@ public static class RevenueEndpoints
             DenyPriorAuthRequest request,
             RevenueDbContext db,
             IDistributedCache cache,
+            Dapr.Client.DaprClient dapr,
             CancellationToken ct) =>
         {
             var auth = await db.PriorAuths.FindAsync([id], ct);
@@ -222,6 +234,17 @@ public static class RevenueEndpoints
             if (result.IsFailure) return Results.BadRequest(new { error = result.Error });
             await db.SaveChangesAsync(ct);
             await cache.RemoveAsync("healthq:revenue:stats", ct);
+            // Notify downstream services (patient notifications) via Dapr pub/sub
+            _ = dapr.PublishEventAsync("pubsub", "revenue.prior-auth.denied", new
+            {
+                auth.Id,
+                auth.PatientId,
+                auth.PatientName,
+                auth.Procedure,
+                auth.InsurancePayer,
+                auth.DenialReason,
+                ResolvedAt = DateTime.UtcNow
+            }, CancellationToken.None);
             return Results.Ok(new { auth.Id, Status = auth.Status.ToString(), auth.DenialReason });
         });
 

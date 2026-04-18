@@ -19,13 +19,13 @@ test.describe('Scheduling MFE', () => {
   });
 
   test('renders slot calendar', async ({ page }) => {
-    // MFE may not load in CI if remote isn't ready
     const mfeLoaded = await page.getByText(/9:00|09:00/).isVisible({ timeout: 5000 }).catch(() => false);
-    if (mfeLoaded) {
-      await expect(page.getByText(/10:00/)).toBeVisible();
-    } else {
-      await expect(page.getByText(/failed to load|loading/i).first()).toBeVisible();
+    if (!mfeLoaded) {
+      test.skip(true, 'Scheduling MFE remote not available — skipping calendar assertions');
+      return;
     }
+    await expect(page.getByText(/10:00/)).toBeVisible();
+    await expect(page.getByText(/11:00/)).toBeVisible();
   });
 
   test('reserves a slot on click', async ({ page }) => {

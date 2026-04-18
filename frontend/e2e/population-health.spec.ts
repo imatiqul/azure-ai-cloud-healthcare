@@ -25,34 +25,42 @@ test.describe('Population Health — Risk Panel', () => {
   });
 
   test('renders patient risk list', async ({ page }) => {
-    // MFE may not load in CI if remote isn't ready
     const mfeLoaded = await page.getByText('Jane Doe').isVisible({ timeout: 5000 }).catch(() => false);
-    if (mfeLoaded) {
-      await expect(page.getByText('John Smith')).toBeVisible();
-      await expect(page.getByText('Alice Brown')).toBeVisible();
-      await expect(page.getByText('Bob Wilson')).toBeVisible();
-    } else {
-      // Error boundary or loading state is acceptable
-      await expect(page.getByText(/failed to load|loading/i).first()).toBeVisible();
+    if (!mfeLoaded) {
+      test.skip(true, 'Population Health MFE remote not available — skipping render assertions');
+      return;
     }
+    await expect(page.getByText('John Smith')).toBeVisible();
+    await expect(page.getByText('Alice Brown')).toBeVisible();
+    await expect(page.getByText('Bob Wilson')).toBeVisible();
   });
 
   test('displays risk level badges', async ({ page }) => {
     const mfeLoaded = await page.getByText('Critical').isVisible({ timeout: 5000 }).catch(() => false);
-    if (mfeLoaded) {
-      await expect(page.getByText('High')).toBeVisible();
-      await expect(page.getByText('Moderate')).toBeVisible();
-      await expect(page.getByText('Low')).toBeVisible();
+    if (!mfeLoaded) {
+      test.skip(true, 'Population Health MFE remote not available — skipping badge assertions');
+      return;
     }
+    await expect(page.getByText('High')).toBeVisible();
+    await expect(page.getByText('Moderate')).toBeVisible();
+    await expect(page.getByText('Low')).toBeVisible();
   });
 
   test('filters by risk level', async ({ page }) => {
     const dropdown = page.getByRole('combobox').or(page.locator('select')).first();
-    if (await dropdown.isVisible()) {
-      await dropdown.selectOption({ label: 'Critical' }).catch(() => {
-        // MUI Select — click then pick from listbox
-      });
+    const mfeLoaded = await dropdown.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Population Health MFE remote not available — skipping filter test');
+      return;
     }
+    const tag = await dropdown.evaluate((el) => el.tagName.toLowerCase());
+    if (tag === 'select') {
+      await dropdown.selectOption({ label: 'Critical' });
+    } else {
+      await dropdown.click();
+      await page.getByRole('option', { name: 'Critical' }).click();
+    }
+    await expect(page.getByText('Critical')).toBeVisible();
   });
 });
 
@@ -72,10 +80,13 @@ test.describe('Population Health — Care Gap List', () => {
 
     // Care gap data may be visible if component renders both panels
     const hba1c = page.getByText('HbA1c Screening');
-    if (await hba1c.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(hba1c).toBeVisible();
-      await expect(page.getByText('Mammography')).toBeVisible();
+    const mfeLoaded = await hba1c.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Population Health MFE remote not available — skipping care gap assertions');
+      return;
     }
+    await expect(hba1c).toBeVisible();
+    await expect(page.getByText('Mammography')).toBeVisible();
   });
 
   test('address care gap button calls API', async ({ page }) => {
@@ -95,8 +106,11 @@ test.describe('Population Health — Care Gap List', () => {
     await page.goto('/population-health');
 
     const addressBtn = page.getByRole('button', { name: /address/i }).first();
-    if (await addressBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await addressBtn.click();
+    const mfeLoaded = await addressBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Population Health MFE remote not available — skipping address button test');
+      return;
     }
+    await addressBtn.click();
   });
 });

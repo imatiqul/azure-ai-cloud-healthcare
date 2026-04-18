@@ -30,3 +30,19 @@ declare module 'revenue/CodingQueue' {
 declare module 'revenue/PriorAuthTracker' {
   export const PriorAuthTracker: React.ComponentType;
 }
+declare module 'encounters/EncounterList' {
+  export const EncounterList: React.ComponentType;
+}
+declare module 'encounters/CreateEncounterModal' {
+  export const CreateEncounterModal: React.ComponentType<{
+    patientId: string;
+    onClose: () => void;
+    onCreated: () => void;
+  }>;
+}
+declare module 'engagement/PatientPortal' {
+  export const PatientPortal: React.ComponentType<{ patientId?: string }>;
+}
+declare module 'engagement/NotificationInbox' {
+  export const NotificationInbox: React.ComponentType<{ patientId: string }>;
+}
