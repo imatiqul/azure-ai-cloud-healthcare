@@ -20,3 +20,6 @@ services:
   gateway:
     image:
       tag: 1806b5afef252e9116e47aa1472472bd88fa5e84
+  pop-health:
+    image:
+      tag: f0f3766a037e2f5b2509db7025d885557441ec91
