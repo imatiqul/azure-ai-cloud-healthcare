@@ -73,7 +73,7 @@ public static class PopHealthEndpoints
             await cache.RemoveAsync("healthq:pophealth:stats", ct);
             // Fire-and-forget: create follow-up notification campaign for this patient
             _ = Task.Run(() => notificationDispatcher.DispatchCareGapAddressedAsync(gap, CancellationToken.None));
-            return Results.Ok(new { gap.Id, gap.Status });
+            return Results.Ok(new { gap.Id, Status = gap.Status.ToString() });
         });
 
         group.MapGet("/stats", async (
