@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -84,7 +86,7 @@ public static class DatabaseExtensions
                 {
                     logger.LogInformation("Applying {Count} pending migrations for {Context}",
                         pending.Count(), typeof(TContext).Name);
-                    await db.Database.MigrateAsync();
+                    await ApplyMigrationsWithBrownfieldHandlingAsync(db, pending, logger);
                 }
                 else
                 {
@@ -121,5 +123,64 @@ public static class DatabaseExtensions
         {
             logger.LogWarning(ex, "Could not initialize database for {Context}, will continue with degraded mode", typeof(TContext).Name);
         }
+    }
+
+    /// <summary>
+    /// Applies EF Core migrations one-by-one.  When a migration fails because the
+    /// database was previously created with EnsureCreated (brownfield scenario) and
+    /// the target object already exists (PostgreSQL error 42P07), the migration is
+    /// stamped as applied in __EFMigrationsHistory and the loop continues.  This
+    /// allows "new" migrations (e.g. those that add genuinely missing tables) to run.
+    /// </summary>
+    private static async Task ApplyMigrationsWithBrownfieldHandlingAsync(
+        DbContext db,
+        IEnumerable<string> pendingMigrationIds,
+        ILogger logger)
+    {
+        var migrator = db.GetService<IMigrator>();
+        var efVersion = typeof(DbContext).Assembly.GetName().Version?.ToString() ?? "9.0.0";
+
+        foreach (var migrationId in pendingMigrationIds)
+        {
+            try
+            {
+                logger.LogInformation("Applying migration '{MigrationId}'", migrationId);
+                await migrator.MigrateAsync(migrationId);
+                logger.LogInformation("Migration '{MigrationId}' applied successfully", migrationId);
+            }
+            catch (Exception ex) when (IsDuplicateObjectException(ex))
+            {
+                // The database was previously created with EnsureCreated — the schema
+                // already exists.  Stamp the migration as applied so EF Core can
+                // continue to the next one.
+                logger.LogWarning(
+                    "Migration '{MigrationId}' skipped (objects already exist). " +
+                    "Baselining in __EFMigrationsHistory.", migrationId);
+
+                await db.Database.ExecuteSqlRawAsync(
+                    "INSERT INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") " +
+                    $"VALUES ('{migrationId}', '{efVersion}') " +
+                    "ON CONFLICT (\"MigrationId\") DO NOTHING");
+            }
+        }
+    }
+
+    private static bool IsDuplicateObjectException(Exception ex)
+    {
+        // PostgreSQL error code 42P07 = duplicate_table
+        // PostgreSQL error code 42701 = duplicate_column
+        // PostgreSQL error code 42P16 = invalid_table_definition (raised for duplicate constraints)
+        const string duplicateTable = "42P07";
+        const string duplicateColumn = "42701";
+
+        for (var inner = ex; inner != null; inner = inner.InnerException)
+        {
+            if (inner is Npgsql.PostgresException pgEx &&
+                (pgEx.SqlState == duplicateTable || pgEx.SqlState == duplicateColumn))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }
