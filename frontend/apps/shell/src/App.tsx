@@ -8,6 +8,7 @@ import { Sidebar } from './components/Sidebar';
 import { TopNav } from './components/TopNav';
 import { CopilotChat } from './components/CopilotChat';
 import Dashboard from './pages/Dashboard';
+import DemoLanding from './pages/DemoLanding';
 
 const VoicePage = lazy(() => import('voice/VoiceSessionController').then(m => ({ default: m.VoiceSessionController })));
 const TriagePage = lazy(() => import('triage/TriageViewer').then(m => ({ default: m.TriageViewer })));
