@@ -10,7 +10,7 @@ test.describe('Voice Sessions MFE', () => {
     const startBtn = page.getByRole('button', { name: /start session/i });
     const mfeLoaded = await startBtn.isVisible({ timeout: 5000 }).catch(() => false);
     if (!mfeLoaded) {
-      await expect(page.getByText(/voice|failed to load|loading/i)).toBeVisible();
+      await expect(page.getByText(/failed to load|loading/i).first()).toBeVisible();
       return;
     }
     await expect(startBtn).toBeVisible();

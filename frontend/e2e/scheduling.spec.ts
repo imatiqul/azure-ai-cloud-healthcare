@@ -24,7 +24,7 @@ test.describe('Scheduling MFE', () => {
     if (mfeLoaded) {
       await expect(page.getByText(/10:00/)).toBeVisible();
     } else {
-      await expect(page.getByText(/scheduling|failed to load|loading/i)).toBeVisible();
+      await expect(page.getByText(/failed to load|loading/i).first()).toBeVisible();
     }
   });
 

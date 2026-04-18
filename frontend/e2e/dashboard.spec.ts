@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Dashboard', () => {
   test('renders stat cards', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText('Dashboard')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
     await expect(page.getByText('Pending Triage')).toBeVisible();
     await expect(page.getByText('Triage Completed')).toBeVisible();
     await expect(page.getByText('Available Slots Today')).toBeVisible();

@@ -43,7 +43,7 @@ test.describe('Triage MFE', () => {
       await expect(page.getByText('John Smith')).toBeVisible();
       await expect(page.getByText('Alice Brown')).toBeVisible();
     } else {
-      await expect(page.getByText(/triage|failed to load|loading/i)).toBeVisible();
+      await expect(page.getByText(/failed to load|loading/i).first()).toBeVisible();
     }
   });
 

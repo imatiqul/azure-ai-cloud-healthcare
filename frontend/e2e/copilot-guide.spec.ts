@@ -37,7 +37,7 @@ test.describe('Copilot Guide', () => {
     const copilotBtn = page.getByRole('button', { name: /copilot|guide|assistant|chat/i });
     if (await copilotBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await copilotBtn.click();
-      await expect(page.getByText(/copilot|guide|assistant/i)).toBeVisible();
+      await expect(page.getByText(/copilot|guide|assistant/i).first()).toBeVisible();
     }
   });
 

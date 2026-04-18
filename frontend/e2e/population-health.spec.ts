@@ -33,7 +33,7 @@ test.describe('Population Health — Risk Panel', () => {
       await expect(page.getByText('Bob Wilson')).toBeVisible();
     } else {
       // Error boundary or loading state is acceptable
-      await expect(page.getByText(/population health|failed to load|loading/i)).toBeVisible();
+      await expect(page.getByText(/failed to load|loading/i).first()).toBeVisible();
     }
   });
 
