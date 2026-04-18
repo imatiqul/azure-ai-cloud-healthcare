@@ -98,6 +98,25 @@ paths:
       responses:
         "200":
           description: Patient risks
+  /api/v1/population-health/risks/calculate:
+    post:
+      operationId: CalculatePatientRisk
+      summary: Trigger on-demand risk score calculation for a patient
+      tags: [Population Health]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                patientId:
+                  type: string
+                  format: uuid
+              required: [patientId]
+      responses:
+        "200":
+          description: Calculated risk score
   /api/v1/population-health/care-gaps:
     get:
       operationId: GetCareGaps
@@ -122,6 +141,234 @@ paths:
       responses:
         "200":
           description: FHIR patient bundle
+    post:
+      operationId: CreateFhirPatient
+      summary: Create a FHIR Patient resource
+      tags: [FHIR]
+      requestBody:
+        required: true
+        content:
+          application/fhir+json:
+            schema:
+              type: object
+      responses:
+        "201":
+          description: Patient created
+  /api/v1/fhir/patients/{id}:
+    put:
+      operationId: UpdateFhirPatient
+      summary: Update a FHIR Patient resource
+      tags: [FHIR]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/fhir+json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Patient updated
+  /api/v1/fhir/encounters:
+    get:
+      operationId: SearchEncounters
+      summary: Search FHIR Encounter resources
+      tags: [FHIR]
+      responses:
+        "200":
+          description: FHIR Encounter bundle
+    post:
+      operationId: CreateFhirEncounter
+      summary: Create a FHIR Encounter resource
+      tags: [FHIR]
+      requestBody:
+        required: true
+        content:
+          application/fhir+json:
+            schema:
+              type: object
+      responses:
+        "201":
+          description: Encounter created
+  /api/v1/fhir/encounters/{id}:
+    put:
+      operationId: UpdateFhirEncounter
+      summary: Update a FHIR Encounter resource
+      tags: [FHIR]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/fhir+json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Encounter updated
+  /api/v1/fhir/metadata:
+    get:
+      operationId: GetFhirMetadata
+      summary: FHIR server capability statement (SMART on FHIR)
+      tags: [FHIR]
+      responses:
+        "200":
+          description: FHIR CapabilityStatement
+  /.well-known/smart-configuration:
+    get:
+      operationId: GetSmartConfiguration
+      summary: SMART on FHIR discovery endpoint
+      tags: [FHIR]
+      responses:
+        "200":
+          description: SMART configuration JSON
+  /.well-known/openid-configuration:
+    get:
+      operationId: GetOpenIdConfiguration
+      summary: OpenID Connect discovery endpoint
+      tags: [FHIR]
+      responses:
+        "200":
+          description: OpenID Connect configuration JSON
+  /api/v1/identity/patients/register:
+    post:
+      operationId: RegisterPatient
+      summary: Register a new patient account
+      tags: [Identity]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                dateOfBirth:
+                  type: string
+                  format: date
+              required: [firstName, lastName, email, dateOfBirth]
+      responses:
+        "201":
+          description: Patient account created
+  /api/v1/identity/patients/me:
+    get:
+      operationId: GetMyPatientProfile
+      summary: Get the authenticated patient's own profile
+      tags: [Identity]
+      responses:
+        "200":
+          description: Patient profile
+  /api/v1/voice/sessions/{id}/audio-chunk:
+    post:
+      operationId: UploadAudioChunk
+      summary: Upload a streaming audio chunk for an active voice session
+      tags: [Voice]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "202":
+          description: Chunk accepted
+  /api/v1/notifications/push-subscriptions:
+    post:
+      operationId: CreatePushSubscription
+      summary: Subscribe to web push notifications
+      tags: [Notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endpoint:
+                  type: string
+                p256dh:
+                  type: string
+                auth:
+                  type: string
+              required: [endpoint, p256dh, auth]
+      responses:
+        "201":
+          description: Subscription created
+    delete:
+      operationId: DeletePushSubscription
+      summary: Unsubscribe from web push notifications
+      tags: [Notifications]
+      responses:
+        "204":
+          description: Subscription removed
+  /api/v1/notifications/messages:
+    get:
+      operationId: GetNotificationMessages
+      summary: List notification messages for the authenticated patient
+      tags: [Notifications]
+      parameters:
+        - name: patientId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of notification messages
+  /api/v1/agents/escalations:
+    get:
+      operationId: ListEscalations
+      summary: List HITL escalation queue items
+      tags: [Agents]
+      responses:
+        "200":
+          description: Escalation queue items
+    post:
+      operationId: CreateEscalation
+      summary: Manually create an escalation queue item
+      tags: [Agents]
+      responses:
+        "201":
+          description: Escalation created
+  /api/v1/agents/escalations/{id}/resolve:
+    post:
+      operationId: ResolveEscalation
+      summary: Resolve an escalation queue item
+      tags: [Agents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Escalation resolved
   /api/v1/agents/demo/start:
     post:
       operationId: StartDemo

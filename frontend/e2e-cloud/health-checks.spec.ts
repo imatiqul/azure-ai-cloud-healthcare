@@ -7,6 +7,8 @@ const SWA_URLS: Record<string, string> = {
   scheduling: process.env.SCHEDULING_URL || 'https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net',
   pophealth: process.env.POPHEALTH_URL || 'https://orange-bay-00f28280f.7.azurestaticapps.net',
   revenue: process.env.REVENUE_URL || 'https://lemon-pond-067d2f40f.7.azurestaticapps.net',
+  encounters: process.env.ENCOUNTERS_URL || 'https://healthq-copilot-encounters-mfe.azurestaticapps.net',
+  engagement: process.env.ENGAGEMENT_URL || 'https://healthq-copilot-engagement-mfe.azurestaticapps.net',
 };
 
 const ACA_HEALTH_URLS: Record<string, string> = {
@@ -18,6 +20,8 @@ const ACA_HEALTH_URLS: Record<string, string> = {
   scheduling: process.env.SCHEDULING_ACA_URL || 'https://scheduling.gentletree-fe920881.eastus2.azurecontainerapps.io',
   notification: process.env.NOTIFICATION_ACA_URL || 'https://notification.gentletree-fe920881.eastus2.azurecontainerapps.io',
   'pop-health': process.env.POPHEALTH_ACA_URL || 'https://pop-health.gentletree-fe920881.eastus2.azurecontainerapps.io',
+  revenue: process.env.REVENUE_ACA_URL || 'https://revenue.gentletree-fe920881.eastus2.azurecontainerapps.io',
+  gateway: process.env.GATEWAY_ACA_URL || 'https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io',
 };
 
 test.describe('Frontend SWA Deployment Verification', () => {

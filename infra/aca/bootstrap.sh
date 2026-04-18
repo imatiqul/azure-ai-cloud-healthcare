@@ -28,8 +28,8 @@ REGISTRY="ghcr.io"
 IMAGE_OWNER="${GITHUB_REPOSITORY_OWNER:-imatiqul}"
 IMAGE_PREFIX="${REGISTRY}/${IMAGE_OWNER}/healthcare-ai/healthq-copilot"
 
-SERVICES=(voice ai-agent fhir identity ocr scheduling notification pop-health)
-MFE_APPS=(shell voice-mfe triage-mfe scheduling-mfe pophealth-mfe revenue-mfe)
+SERVICES=(voice ai-agent fhir identity ocr scheduling notification pop-health revenue gateway)
+MFE_APPS=(shell voice-mfe triage-mfe scheduling-mfe pophealth-mfe revenue-mfe encounters-mfe engagement-mfe)
 
 # ── Subscription ──────────────────────────────────────────────
 if [[ -n "${AZURE_SUBSCRIPTION_ID:-}" ]]; then
@@ -97,20 +97,37 @@ declare -A SERVICE_PORTS=(
   [scheduling]=5006
   [notification]=5007
   [pop-health]=5008
+  [revenue]=8080
+  [gateway]=8080
+)
+
+# Only the gateway is publicly reachable; all other services are internal.
+declare -A SERVICE_INGRESS=(
+  [voice]=internal
+  [ai-agent]=internal
+  [fhir]=internal
+  [identity]=internal
+  [ocr]=internal
+  [scheduling]=internal
+  [notification]=internal
+  [pop-health]=internal
+  [revenue]=internal
+  [gateway]=external
 )
 
 PLACEHOLDER_IMAGE="mcr.microsoft.com/k8se/quickstart:latest"
 
 for SERVICE in "${SERVICES[@]}"; do
   PORT="${SERVICE_PORTS[$SERVICE]:-8080}"
-  echo "→ Creating Container App: $SERVICE (port $PORT)"
+  INGRESS_TYPE="${SERVICE_INGRESS[$SERVICE]:-internal}"
+  echo "→ Creating Container App: $SERVICE (port $PORT, ingress=$INGRESS_TYPE)"
   az containerapp create \
     --name "$SERVICE" \
     --resource-group "$RG" \
     --environment "$ACA_ENV" \
     --image "$PLACEHOLDER_IMAGE" \
     --target-port "$PORT" \
-    --ingress internal \
+    --ingress "$INGRESS_TYPE" \
     --min-replicas 0 \
     --max-replicas 3 \
     --cpu 0.25 \

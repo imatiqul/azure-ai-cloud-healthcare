@@ -152,10 +152,17 @@ jobs:
             --resource-group ${{ env.ACA_RESOURCE_GROUP }} \
             --image ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }} \
             --min-replicas 1
+          # Only the gateway is internet-facing; all other services stay internal
+          # (reachable only from within the ACA environment via Dapr/service-to-service)
+          if [ "${{ matrix.service }}" = "gateway" ]; then
+            INGRESS_TYPE="external"
+          else
+            INGRESS_TYPE="internal"
+          fi
           az containerapp ingress update \
             --name ${{ matrix.service }} \
             --resource-group ${{ env.ACA_RESOURCE_GROUP }} \
-            --type external \
+            --type $INGRESS_TYPE \
             --target-port 8080
 
       - name: Update Helm image tag for GitOps (ArgoCD)

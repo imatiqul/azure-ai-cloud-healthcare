@@ -23,6 +23,8 @@ jobs:
       scheduling-mfe: ${{ steps.filter.outputs.scheduling-mfe }}
       pophealth-mfe: ${{ steps.filter.outputs.pophealth-mfe }}
       revenue-mfe: ${{ steps.filter.outputs.revenue-mfe }}
+      encounters-mfe: ${{ steps.filter.outputs.encounters-mfe }}
+      engagement-mfe: ${{ steps.filter.outputs.engagement-mfe }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -35,6 +37,8 @@ jobs:
             scheduling-mfe: ['frontend/apps/scheduling-mfe/**', 'frontend/packages/**']
             pophealth-mfe:  ['frontend/apps/pophealth-mfe/**', 'frontend/packages/**']
             revenue-mfe:    ['frontend/apps/revenue-mfe/**', 'frontend/packages/**']
+            encounters-mfe: ['frontend/apps/encounters-mfe/**', 'frontend/packages/**']
+            engagement-mfe: ['frontend/apps/engagement-mfe/**', 'frontend/packages/**']
 
   build-and-deploy:
     needs: detect-mfe-changes
@@ -61,6 +65,12 @@ jobs:
           - app: revenue-mfe
             changed: ${{ needs.detect-mfe-changes.outputs.revenue-mfe }}
             deploy_token_secret: REVENUE_MFE_DEPLOY_TOKEN
+          - app: encounters-mfe
+            changed: ${{ needs.detect-mfe-changes.outputs.encounters-mfe }}
+            deploy_token_secret: ENCOUNTERS_MFE_DEPLOY_TOKEN
+          - app: engagement-mfe
+            changed: ${{ needs.detect-mfe-changes.outputs.engagement-mfe }}
+            deploy_token_secret: ENGAGEMENT_MFE_DEPLOY_TOKEN
     if: always()
     steps:
       - uses: actions/checkout@v4
@@ -104,6 +114,8 @@ jobs:
           SCHEDULING_MFE_URL: https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net/remoteEntry.js
           POPHEALTH_MFE_URL: https://orange-bay-00f28280f.7.azurestaticapps.net/remoteEntry.js
           REVENUE_MFE_URL: https://lemon-pond-067d2f40f.7.azurestaticapps.net/remoteEntry.js
+          ENCOUNTERS_MFE_URL: ${{ secrets.ENCOUNTERS_MFE_URL || 'https://healthq-copilot-encounters-mfe.azurestaticapps.net/remoteEntry.js' }}
+          ENGAGEMENT_MFE_URL: ${{ secrets.ENGAGEMENT_MFE_URL || 'https://healthq-copilot-engagement-mfe.azurestaticapps.net/remoteEntry.js' }}
 
       - name: Copy SWA config to dist
         if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'

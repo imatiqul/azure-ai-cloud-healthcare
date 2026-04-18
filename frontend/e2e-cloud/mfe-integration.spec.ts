@@ -26,6 +26,16 @@ const MFE_PAGES = [
     route: '/revenue',
     expectedText: /revenue|claim|billing/i,
   },
+  {
+    name: 'encounters',
+    route: '/encounters',
+    expectedText: /encounter|visit|episode/i,
+  },
+  {
+    name: 'engagement',
+    route: '/engagement',
+    expectedText: /engagement|portal|notification|appointment/i,
+  },
 ];
 
 test.describe('MFE Module Federation — Cloud', () => {

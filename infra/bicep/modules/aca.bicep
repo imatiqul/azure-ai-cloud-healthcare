@@ -15,15 +15,16 @@ param managedIdentityId string
 
 @description('Container app definitions')
 param services array = [
-  { name: 'voice', port: 8080, minReplicas: 1, maxReplicas: 5 }
-  { name: 'ai-agent', port: 8080, minReplicas: 1, maxReplicas: 10 }
-  { name: 'fhir', port: 8080, minReplicas: 1, maxReplicas: 3 }
-  { name: 'identity', port: 8080, minReplicas: 1, maxReplicas: 3 }
-  { name: 'ocr', port: 8080, minReplicas: 0, maxReplicas: 10 }
-  { name: 'scheduling', port: 8080, minReplicas: 1, maxReplicas: 5 }
-  { name: 'notification', port: 8080, minReplicas: 0, maxReplicas: 5 }
-  { name: 'pop-health', port: 8080, minReplicas: 1, maxReplicas: 3 }
-  { name: 'revenue', port: 8080, minReplicas: 1, maxReplicas: 5 }
+  { name: 'voice',        port: 8080, minReplicas: 1, maxReplicas: 5,  external: false }
+  { name: 'ai-agent',    port: 8080, minReplicas: 1, maxReplicas: 10, external: false }
+  { name: 'fhir',        port: 8080, minReplicas: 1, maxReplicas: 3,  external: false }
+  { name: 'identity',    port: 8080, minReplicas: 1, maxReplicas: 3,  external: false }
+  { name: 'ocr',         port: 8080, minReplicas: 0, maxReplicas: 10, external: false }
+  { name: 'scheduling',  port: 8080, minReplicas: 1, maxReplicas: 5,  external: false }
+  { name: 'notification',port: 8080, minReplicas: 0, maxReplicas: 5,  external: false }
+  { name: 'pop-health',  port: 8080, minReplicas: 1, maxReplicas: 3,  external: false }
+  { name: 'revenue',     port: 8080, minReplicas: 1, maxReplicas: 5,  external: false }
+  { name: 'gateway',     port: 8080, minReplicas: 1, maxReplicas: 5,  external: true  }
 ]
 
 resource acaEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
@@ -59,7 +60,7 @@ resource containerApps 'Microsoft.App/containerApps@2024-03-01' = [for svc in se
     managedEnvironmentId: acaEnvironment.id
     configuration: {
       ingress: {
-        external: true
+        external: svc.external
         targetPort: svc.port
         transport: 'http'
         allowInsecure: false

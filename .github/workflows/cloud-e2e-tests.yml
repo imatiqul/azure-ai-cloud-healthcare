@@ -47,6 +47,8 @@ jobs:
           SCHEDULING_URL: https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net
           POPHEALTH_URL: https://orange-bay-00f28280f.7.azurestaticapps.net
           REVENUE_URL: https://lemon-pond-067d2f40f.7.azurestaticapps.net
+          ENCOUNTERS_URL: ${{ secrets.ENCOUNTERS_SWA_URL || 'https://healthq-copilot-encounters-mfe.azurestaticapps.net' }}
+          ENGAGEMENT_URL: ${{ secrets.ENGAGEMENT_SWA_URL || 'https://healthq-copilot-engagement-mfe.azurestaticapps.net' }}
           VOICE_ACA_URL: https://voice.gentletree-fe920881.eastus2.azurecontainerapps.io
           AGENT_ACA_URL: https://ai-agent.gentletree-fe920881.eastus2.azurecontainerapps.io
           FHIR_ACA_URL: https://fhir.gentletree-fe920881.eastus2.azurecontainerapps.io
@@ -56,6 +58,8 @@ jobs:
           NOTIFICATION_ACA_URL: https://notification.gentletree-fe920881.eastus2.azurecontainerapps.io
           POPHEALTH_ACA_URL: https://pop-health.gentletree-fe920881.eastus2.azurecontainerapps.io
           REVENUE_ACA_URL: https://revenue.gentletree-fe920881.eastus2.azurecontainerapps.io
+          GATEWAY_ACA_URL: https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io
+          API_BASE_URL: https://healthq-copilot-apim.azure-api.net
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}

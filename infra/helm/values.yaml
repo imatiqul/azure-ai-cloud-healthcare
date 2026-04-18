@@ -215,3 +215,42 @@ services:
     env:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
+
+  gateway:
+    name: gateway-service
+    port: 8080
+    replicas: 2
+    image:
+      repository: healthq-copilot/gateway
+      tag: latest
+    workloadIdentity:
+      clientId: "" # gateway managed identity client ID
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 512Mi
+    nodeSelector:
+      workload: api
+    env:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+    image:
+      repository: healthq-copilot/revenue
+      tag: latest
+    workloadIdentity:
+      clientId: "" # revenue managed identity client ID
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    nodeSelector:
+      workload: api
+    env:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
