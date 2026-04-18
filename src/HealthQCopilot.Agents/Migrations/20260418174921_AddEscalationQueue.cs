@@ -11,6 +11,14 @@ namespace HealthQCopilot.Agents.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // No-op: this migration was generated against a SQLite design-time context and
+            // contained AlterColumn operations with SQLite types (TEXT/INTEGER/REAL) that
+            // would fail on PostgreSQL.  The actual CreateTable escalation_queue is handled
+            // by the following FixPendingModelChanges migration.
+        }
+
+        private void _OriginalUp_DoNotRun(MigrationBuilder migrationBuilder)
+        {
             migrationBuilder.AlterColumn<string>(
                 name: "TranscriptText",
                 table: "triage_workflows",
@@ -497,6 +505,11 @@ namespace HealthQCopilot.Agents.Migrations
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            // No-op: mirrors the Up() no-op.
+        }
+
+        private void _OriginalDown_DoNotRun(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<string>(
                 name: "TranscriptText",
