@@ -4,6 +4,8 @@ import Typography from '@mui/material/Typography';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
 import { HitlEscalationModal } from './HitlEscalationModal';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 interface TriageWorkflow {
   id: string;
   sessionId: string;
@@ -26,7 +28,7 @@ export function TriageViewer() {
 
   async function fetchWorkflows() {
     try {
-      const res = await fetch('/api/v1/agents/triage');
+      const res = await fetch(`${API_BASE}/api/v1/agents/triage`);
       const data = await res.json();
       setWorkflows(data);
     } catch { /* no-op */ }
@@ -92,7 +94,7 @@ export function TriageViewer() {
         <HitlEscalationModal
           workflowId={selectedWorkflow}
           onApprove={async () => {
-            await fetch(`/api/v1/agents/triage/${selectedWorkflow}/approve`, { method: 'POST' });
+            await fetch(`${API_BASE}/api/v1/agents/triage/${selectedWorkflow}/approve`, { method: 'POST' });
             setShowEscalation(false);
             fetchWorkflows();
           }}

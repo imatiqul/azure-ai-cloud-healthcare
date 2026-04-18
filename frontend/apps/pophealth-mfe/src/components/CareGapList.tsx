@@ -4,6 +4,8 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 interface CareGap {
   id: string;
   patientId: string;
@@ -19,14 +21,14 @@ export function CareGapList() {
 
   async function fetchGaps() {
     try {
-      const res = await fetch('/api/v1/population-health/care-gaps?status=Open');
+      const res = await fetch(`${API_BASE}/api/v1/population-health/care-gaps?status=Open`);
       const data = await res.json();
       setGaps(data);
     } catch { /* no-op */ }
   }
 
   async function addressGap(id: string) {
-    await fetch(`/api/v1/population-health/care-gaps/${id}/address`, { method: 'POST' });
+    await fetch(`${API_BASE}/api/v1/population-health/care-gaps/${id}/address`, { method: 'POST' });
     fetchGaps();
   }
 

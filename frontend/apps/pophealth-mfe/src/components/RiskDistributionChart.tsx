@@ -4,6 +4,8 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { Card, CardHeader, CardTitle, CardContent } from '@healthcare/design-system';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 interface StatsData {
   HighRiskPatients: number;
   TotalPatients: number;
@@ -26,8 +28,8 @@ export function RiskDistributionChart() {
     async function load() {
       try {
         const [statsRes, risksRes] = await Promise.all([
-          fetch('/api/v1/population-health/stats'),
-          fetch('/api/v1/population-health/risks?top=200'),
+          fetch(`${API_BASE}/api/v1/population-health/stats`),
+          fetch(`${API_BASE}/api/v1/population-health/risks?top=200`),
         ]);
         if (statsRes.ok) setStats(await statsRes.json());
         if (risksRes.ok) {

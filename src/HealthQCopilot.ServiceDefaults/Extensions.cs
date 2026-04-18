@@ -25,6 +25,20 @@ public static class Extensions
             http.AddServiceDiscovery();
         });
 
+        // CORS — allow the shell SWA and localhost origins
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                policy.WithOrigins(
+                        "https://gentle-tree-03115af0f.7.azurestaticapps.net",
+                        "http://localhost:3000")
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials();
+            });
+        });
+
         // Redis distributed cache — only registers when ConnectionStrings__redis is configured
         if (!string.IsNullOrEmpty(builder.Configuration.GetConnectionString("redis")))
         {
@@ -87,6 +101,8 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
+        app.UseCors();
+
         app.MapHealthChecks("/health", new HealthCheckOptions
         {
             ResponseWriter = WriteHealthCheckResponse

@@ -7,6 +7,8 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 interface PatientRisk {
   id: string;
   patientId: string;
@@ -26,7 +28,7 @@ export function RiskPanel() {
   async function fetchRisks() {
     try {
       const query = filter ? `?riskLevel=${filter}&top=20` : '?top=20';
-      const res = await fetch(`/api/v1/population-health/risks${query}`);
+      const res = await fetch(`${API_BASE}/api/v1/population-health/risks${query}`);
       const data = await res.json();
       setRisks(data);
     } catch { /* no-op */ }

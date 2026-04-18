@@ -1,67 +1,8 @@
 {
   "routes": [
     {
-      "route": "/api/v1/voice/*",
-      "allowedRoles": ["authenticated", "anonymous"],
-      "headers": {
-        "X-Forwarded-Host": "voice.gentletree-fe920881.eastus2.azurecontainerapps.io"
-      }
-    },
-    {
-      "route": "/api/v1/agents/*",
-      "allowedRoles": ["authenticated", "anonymous"],
-      "headers": {
-        "X-Forwarded-Host": "ai-agent.gentletree-fe920881.eastus2.azurecontainerapps.io"
-      }
-    },
-    {
-      "route": "/api/v1/fhir/*",
-      "allowedRoles": ["authenticated", "anonymous"],
-      "headers": {
-        "X-Forwarded-Host": "fhir.gentletree-fe920881.eastus2.azurecontainerapps.io"
-      }
-    },
-    {
-      "route": "/api/v1/identity/*",
-      "allowedRoles": ["authenticated", "anonymous"],
-      "headers": {
-        "X-Forwarded-Host": "identity.gentletree-fe920881.eastus2.azurecontainerapps.io"
-      }
-    },
-    {
-      "route": "/api/v1/ocr/*",
-      "allowedRoles": ["authenticated", "anonymous"],
-      "headers": {
-        "X-Forwarded-Host": "ocr.gentletree-fe920881.eastus2.azurecontainerapps.io"
-      }
-    },
-    {
-      "route": "/api/v1/scheduling/*",
-      "allowedRoles": ["authenticated", "anonymous"],
-      "headers": {
-        "X-Forwarded-Host": "scheduling.gentletree-fe920881.eastus2.azurecontainerapps.io"
-      }
-    },
-    {
-      "route": "/api/v1/notifications/*",
-      "allowedRoles": ["authenticated", "anonymous"],
-      "headers": {
-        "X-Forwarded-Host": "notification.gentletree-fe920881.eastus2.azurecontainerapps.io"
-      }
-    },
-    {
-      "route": "/api/v1/population-health/*",
-      "allowedRoles": ["authenticated", "anonymous"],
-      "headers": {
-        "X-Forwarded-Host": "pop-health.gentletree-fe920881.eastus2.azurecontainerapps.io"
-      }
-    },
-    {
-      "route": "/api/v1/revenue/*",
-      "allowedRoles": ["authenticated", "anonymous"],
-      "headers": {
-        "X-Forwarded-Host": "revenue.gentletree-fe920881.eastus2.azurecontainerapps.io"
-      }
+      "route": "/api/*",
+      "statusCode": 404
     }
   ],
   "navigationFallback": {
@@ -72,7 +13,7 @@
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.azurestaticapps.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.azurecontainerapps.io https://*.azurestaticapps.net wss://*.azurecontainerapps.io; img-src 'self' data: https:; frame-src 'self' https://*.azurestaticapps.net",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.azurestaticapps.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.azurecontainerapps.io https://*.azurestaticapps.net https://healthq-copilot-apim.azure-api.net wss://*.azurecontainerapps.io; img-src 'self' data: https:; frame-src 'self' https://*.azurestaticapps.net",
     "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
     "X-DNS-Prefetch-Control": "on"
   },

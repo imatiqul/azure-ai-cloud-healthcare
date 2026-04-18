@@ -6,6 +6,8 @@ import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 interface Slot {
   id: string;
   practitionerId: string;
@@ -24,14 +26,14 @@ export function SlotCalendar() {
 
   async function fetchSlots() {
     try {
-      const res = await fetch(`/api/v1/scheduling/slots?date=${selectedDate}`);
+      const res = await fetch(`${API_BASE}/api/v1/scheduling/slots?date=${selectedDate}`);
       const data = await res.json();
       setSlots(data);
     } catch { /* no-op */ }
   }
 
   async function reserveSlot(slotId: string) {
-    await fetch(`/api/v1/scheduling/slots/${slotId}/reserve`, { method: 'POST' });
+    await fetch(`${API_BASE}/api/v1/scheduling/slots/${slotId}/reserve`, { method: 'POST' });
     window.dispatchEvent(new CustomEvent('mfe:slot:reserved', { detail: { slotId } }));
     fetchSlots();
   }

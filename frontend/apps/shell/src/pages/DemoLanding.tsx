@@ -10,7 +10,8 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import Alert from '@mui/material/Alert';
 
-const DEMO_API = '/api/v1/agents/demo';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const DEMO_API = `${API_BASE}/api/v1/agents/demo`;
 
 interface DemoStartResponse {
   sessionId: string;

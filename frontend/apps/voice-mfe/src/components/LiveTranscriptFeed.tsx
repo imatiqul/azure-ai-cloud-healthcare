@@ -18,7 +18,7 @@ interface LiveTranscriptFeedProps {
 
 const VOICE_HUB_URL = import.meta.env.VITE_VOICE_API_URL
   ? `${import.meta.env.VITE_VOICE_API_URL}/hubs/voice`
-  : '/hubs/voice';
+  : `${import.meta.env.VITE_API_BASE_URL || ''}/hubs/voice`;
 
 export function LiveTranscriptFeed({ sessionId, onTriageUpdate }: LiveTranscriptFeedProps) {
   const [entries, setEntries] = useState<TranscriptEntry[]>([]);

@@ -18,7 +18,8 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { FeedbackDialog } from '../components/FeedbackDialog';
 import { OverallFeedbackDialog } from '../components/OverallFeedbackDialog';
 
-const DEMO_API = '/api/v1/agents/demo';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const DEMO_API = `${API_BASE}/api/v1/agents/demo`;
 
 const STEP_LABELS = [
   'Welcome',

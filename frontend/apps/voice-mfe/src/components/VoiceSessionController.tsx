@@ -6,6 +6,8 @@ import { LiveTranscriptFeed } from './LiveTranscriptFeed';
 
 type SessionStatus = 'idle' | 'connecting' | 'live' | 'ended';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 export function VoiceSessionController() {
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -14,7 +16,7 @@ export function VoiceSessionController() {
   async function startSession() {
     setStatus('connecting');
     try {
-      const res = await fetch('/api/v1/voice/sessions', {
+      const res = await fetch(`${API_BASE}/api/v1/voice/sessions`, {
         method: 'POST',
         body: JSON.stringify({ patientId: '00000000-0000-0000-0000-000000000000' }),
         headers: { 'Content-Type': 'application/json' },
@@ -29,7 +31,7 @@ export function VoiceSessionController() {
 
   async function endSession() {
     if (!sessionId) return;
-    await fetch(`/api/v1/voice/sessions/${sessionId}/end`, { method: 'POST' });
+    await fetch(`${API_BASE}/api/v1/voice/sessions/${sessionId}/end`, { method: 'POST' });
     setStatus('ended');
   }
 

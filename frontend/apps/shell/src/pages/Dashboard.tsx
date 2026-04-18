@@ -5,6 +5,8 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import { Card, CardContent } from '@healthcare/design-system';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 interface DashboardStats {
   label: string;
   value: number | string;
@@ -13,7 +15,7 @@ interface DashboardStats {
 
 async function fetchSafe<T>(url: string, fallback: T): Promise<T> {
   try {
-    const res = await fetch(url);
+    const res = await fetch(`${API_BASE}${url}`);
     if (!res.ok) return fallback;
     return await res.json();
   } catch {

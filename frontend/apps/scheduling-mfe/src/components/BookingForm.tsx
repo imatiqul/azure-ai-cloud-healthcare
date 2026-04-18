@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import Stack from '@mui/material/Stack';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@healthcare/design-system';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 export function BookingForm() {
   const [slotId, setSlotId] = useState('');
   const [patientId, setPatientId] = useState('');
@@ -21,7 +23,7 @@ export function BookingForm() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await fetch('/api/v1/scheduling/bookings', {
+      await fetch(`${API_BASE}/api/v1/scheduling/bookings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slotId, patientId, practitionerId }),

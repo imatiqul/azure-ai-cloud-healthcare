@@ -31,7 +31,8 @@ interface GuideResponse {
   suggestedRoute: string | null;
 }
 
-const AGENT_API = '/api/v1/agents/guide';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const AGENT_API = `${API_BASE}/api/v1/agents/guide`;
 
 export function CopilotChat() {
   const [open, setOpen] = useState(false);
