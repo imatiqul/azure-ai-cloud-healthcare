@@ -36,7 +36,10 @@ public static class DatabaseExtensions
         {
             if (npgsqlDataSource is not null)
             {
-                opt.UseNpgsql(npgsqlDataSource);
+                opt.UseNpgsql(npgsqlDataSource, o => o.EnableRetryOnFailure(
+                    maxRetryCount: 3,
+                    maxRetryDelay: TimeSpan.FromSeconds(5),
+                    errorCodesToAdd: null));
             }
             else
             {
