@@ -10,7 +10,7 @@ services:
       tag: fe1eb4ce8e6544f76e17b6961c8615dbb08454dc
   scheduling:
     image:
-      tag: cbeecf95eed636e159a230172cad786bcf5c9cef
+      tag: ddd327837965a968009fb9a438240953d7b0dcba
   ai-agent:
     image:
       tag: 4ebafc7eaded65363ba63d6fe5585c3786ebf61b
