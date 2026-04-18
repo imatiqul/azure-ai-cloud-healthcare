@@ -11,17 +11,25 @@ const SWA_URLS: Record<string, string> = {
   engagement: process.env.ENGAGEMENT_URL || 'https://agreeable-hill-0d3115b0f.7.azurestaticapps.net',
 };
 
-const ACA_HEALTH_URLS: Record<string, string> = {
-  voice: process.env.VOICE_ACA_URL || 'https://voice.gentletree-fe920881.eastus2.azurecontainerapps.io',
-  'ai-agent': process.env.AGENT_ACA_URL || 'https://ai-agent.gentletree-fe920881.eastus2.azurecontainerapps.io',
-  fhir: process.env.FHIR_ACA_URL || 'https://fhir.gentletree-fe920881.eastus2.azurecontainerapps.io',
-  identity: process.env.IDENTITY_ACA_URL || 'https://identity.gentletree-fe920881.eastus2.azurecontainerapps.io',
-  ocr: process.env.OCR_ACA_URL || 'https://ocr.gentletree-fe920881.eastus2.azurecontainerapps.io',
-  scheduling: process.env.SCHEDULING_ACA_URL || 'https://scheduling.gentletree-fe920881.eastus2.azurecontainerapps.io',
-  notification: process.env.NOTIFICATION_ACA_URL || 'https://notification.gentletree-fe920881.eastus2.azurecontainerapps.io',
-  'pop-health': process.env.POPHEALTH_ACA_URL || 'https://pop-health.gentletree-fe920881.eastus2.azurecontainerapps.io',
-  revenue: process.env.REVENUE_ACA_URL || 'https://revenue.gentletree-fe920881.eastus2.azurecontainerapps.io',
-  gateway: process.env.GATEWAY_ACA_URL || 'https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io',
+// All backend services use internal ACA ingress — only the gateway is externally reachable.
+// Per-service health is verified by probing each service through the gateway.
+const GATEWAY_URL =
+  process.env.GATEWAY_ACA_URL || 'https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io';
+
+// Gateway-proxied paths that confirm each service is up.
+// A 2xx (data) or 401/403 (service up, auth required) response means the service is healthy.
+// Only a 5xx (or connection error) indicates a service is down.
+const SERVICE_SMOKE_PATHS: Record<string, string> = {
+  gateway:        '/health',
+  voice:          '/api/v1/voice/sessions',
+  'ai-agent':     '/api/v1/agents/escalations',
+  fhir:           '/api/v1/fhir/patients',
+  identity:       '/api/v1/identity/users',
+  ocr:            '/api/v1/ocr/jobs',
+  scheduling:     '/api/v1/scheduling/slots',
+  'pop-health':   '/api/v1/population-health/risks',
+  revenue:        '/api/v1/revenue/coding-jobs',
+  notification:   '/api/v1/notifications/messages',
 };
 
 test.describe('Frontend SWA Deployment Verification', () => {
@@ -34,17 +42,20 @@ test.describe('Frontend SWA Deployment Verification', () => {
 });
 
 test.describe('Backend ACA Health Endpoints', () => {
-  for (const [name, baseUrl] of Object.entries(ACA_HEALTH_URLS)) {
-    test(`${name} /health returns healthy`, async ({ request }) => {
-      const response = await request.get(`${baseUrl}/health`);
-      expect(response.status()).toBe(200);
-      const body = await response.text();
-      expect(body).toContain('Healthy');
-    });
+  // Gateway liveness — confirms the gateway itself is healthy
+  test('gateway /health returns healthy', async ({ request }) => {
+    const response = await request.get(`${GATEWAY_URL}/health`);
+    expect(response.status()).toBe(200);
+    const body = await response.text();
+    expect(body).toContain('Healthy');
+  });
 
-    test(`${name} /alive returns OK`, async ({ request }) => {
-      const response = await request.get(`${baseUrl}/alive`);
-      expect(response.status()).toBe(200);
+  // Per-service smoke checks via gateway — a <500 status means the service is reachable
+  for (const [name, path] of Object.entries(SERVICE_SMOKE_PATHS)) {
+    if (name === 'gateway') continue; // already checked above
+    test(`${name} is reachable via gateway`, async ({ request }) => {
+      const response = await request.get(`${GATEWAY_URL}${path}`);
+      expect(response.status()).toBeLessThan(500);
     });
   }
 });
