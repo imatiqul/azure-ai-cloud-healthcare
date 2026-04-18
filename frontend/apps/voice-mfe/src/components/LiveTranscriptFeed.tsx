@@ -5,6 +5,7 @@ import { Card, CardContent } from '@healthcare/design-system';
 import {
   createGlobalVoiceClient,
   disposeGlobalVoiceClient,
+  hasGlobalVoiceClient,
   type AgentResponseMessage,
   type TranscriptReceivedMessage,
 } from '@healthcare/web-pubsub-client';
@@ -39,6 +40,9 @@ export function LiveTranscriptFeed({ sessionId, onTriageUpdate }: LiveTranscript
   // Azure Web PubSub connection for live transcript + agent response events
   useEffect(() => {
     let cancelled = false;
+    // Track whether this component owns the global connection lifecycle.
+    // If VoiceSessionController already started the client, we only add handlers.
+    const ownsConnection = !hasGlobalVoiceClient();
 
     async function connect() {
       try {
@@ -62,8 +66,12 @@ export function LiveTranscriptFeed({ sessionId, onTriageUpdate }: LiveTranscript
         client.onConnected(() => { if (!cancelled) setConnected(true); });
         client.onDisconnected(() => { if (!cancelled) setConnected(false); });
 
-        await client.start();
-        await client.joinSession(sessionId);
+        if (ownsConnection) {
+          // Only start + join when this component owns the connection
+          await client.start();
+          await client.joinSession(sessionId);
+        }
+
         if (!cancelled) setConnected(true);
       } catch {
         if (!cancelled) setConnected(false);
@@ -74,7 +82,8 @@ export function LiveTranscriptFeed({ sessionId, onTriageUpdate }: LiveTranscript
 
     return () => {
       cancelled = true;
-      void disposeGlobalVoiceClient();
+      // Only dispose if this component created the connection
+      if (ownsConnection) void disposeGlobalVoiceClient();
     };
   }, [sessionId, addEntry, onTriageUpdate]);
 

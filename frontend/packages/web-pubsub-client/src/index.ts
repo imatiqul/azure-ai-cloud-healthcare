@@ -1,4 +1,8 @@
-import { WebPubSubClient, WebPubSubJsonReliableProtocol } from '@azure/web-pubsub-client';
+import {
+  WebPubSubClient,
+  WebPubSubJsonReliableProtocol,
+  type OnGroupDataMessageArgs,
+} from '@azure/web-pubsub-client';
 
 // ── Typed message payloads ────────────────────────────────────────────────────
 
@@ -51,20 +55,25 @@ export interface VoiceSessionClientOptions {
 export class VoiceSessionClient {
   private readonly inner: WebPubSubClient;
   private sessionGroupName = '';
+  private started = false;
 
   constructor(options: VoiceSessionClientOptions) {
     this.inner = new WebPubSubClient(
-      { getClientAccessUrl: () => Promise.resolve(options.clientAccessUrl) },
-      { protocol: new WebPubSubJsonReliableProtocol() },
+      options.clientAccessUrl,
+      { protocol: WebPubSubJsonReliableProtocol() },
     );
   }
 
   async start(): Promise<void> {
+    if (this.started) return;
     await this.inner.start();
+    this.started = true;
   }
 
   async stop(): Promise<void> {
-    await this.inner.stop();
+    if (!this.started) return;
+    this.inner.stop();
+    this.started = false;
   }
 
   async joinSession(sessionId: string): Promise<void> {
@@ -82,10 +91,12 @@ export class VoiceSessionClient {
    * Returns an unsubscribe function.
    */
   onMessage(handler: (msg: VoiceSessionMessage) => void): () => void {
-    const listener = (e: { message: { data: unknown; group: string } }) => {
+    const listener = (e: OnGroupDataMessageArgs) => {
       try {
-        const msg = e.message.data as VoiceSessionMessage;
-        if (msg?.type) handler(msg);
+        const data = e.message.data;
+        if (data && typeof data === 'object' && 'type' in data) {
+          handler(data as VoiceSessionMessage);
+        }
       } catch {
         // malformed message — ignore
       }
@@ -96,21 +107,32 @@ export class VoiceSessionClient {
   }
 
   onConnected(handler: () => void): void {
-    this.inner.on('connected', handler);
+    this.inner.on('connected', () => handler());
   }
 
   onDisconnected(handler: () => void): void {
-    this.inner.on('disconnected', handler);
+    this.inner.on('disconnected', () => handler());
   }
 
-  onReconnecting(handler: () => void): void {
-    this.inner.on('reconnecting', handler);
+  /**
+   * The Azure Web PubSub SDK does not emit a 'reconnecting' event.
+   * Auto-reconnect is handled internally; subscribe to onDisconnected/onConnected
+   * to react to connectivity state changes.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onReconnecting(_handler: () => void): void {
+    // no-op: SDK uses autoReconnect internally; onDisconnected + onConnected cover state changes
   }
 }
 
 // ── Global singleton ──────────────────────────────────────────────────────────
 
 let globalClient: VoiceSessionClient | null = null;
+
+/** Returns true if a global client has already been created and is running. */
+export function hasGlobalVoiceClient(): boolean {
+  return globalClient !== null;
+}
 
 /**
  * Creates (or returns existing) a global VoiceSessionClient.

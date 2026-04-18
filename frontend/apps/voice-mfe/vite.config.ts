@@ -17,7 +17,7 @@ export default defineConfig({
         react: { singleton: true },
         'react-dom': { singleton: true },
         zustand: { singleton: true },
-        '@microsoft/signalr': { singleton: true },
+        '@azure/web-pubsub-client': { singleton: true },
       },
     }),
   ],

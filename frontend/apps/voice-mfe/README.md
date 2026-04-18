@@ -1,13 +1,13 @@
 # Voice MFE
 
-Micro frontend for **real-time voice session management** — provides the clinical voice interface with live transcript streaming via SignalR.
+Micro frontend for **real-time voice session management** — provides the clinical voice interface with live transcript streaming via Azure Web PubSub.
 
 ## Exposed Components
 
 | Component | Path | Description |
 |---|---|---|
 | `VoiceSessionController` | `./src/components/VoiceSessionController.tsx` | Start/stop/manage voice recording sessions |
-| `LiveTranscriptFeed` | `./src/components/LiveTranscriptFeed.tsx` | Real-time transcript display with SignalR streaming |
+| `LiveTranscriptFeed` | `./src/components/LiveTranscriptFeed.tsx` | Real-time transcript display with Azure Web PubSub streaming |
 
 These components are consumed by the Shell host app via Module Federation at runtime.
 
