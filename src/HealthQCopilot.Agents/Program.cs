@@ -47,7 +47,14 @@ builder.Services.AddSingleton<PlatformGuidePlugin>();
 builder.Services.AddScoped<GuideOrchestrator>();
 builder.Services.AddScoped<DemoOrchestrator>();
 builder.Services.AddSingleton<DemoPlugin>();
-
+// WorkflowDispatcher: dispatches cross-service calls via APIM after triage completes
+var apiBase = builder.Configuration["Services:ApiBase"] ?? "https://healthq-copilot-apim.azure-api.net";
+builder.Services.AddHttpClient<WorkflowDispatcher>(client =>
+{
+    client.BaseAddress = new Uri(apiBase);
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+builder.Services.AddScoped<WorkflowDispatcher>();
 // Register Semantic Kernel plugins
 builder.Services.AddSingleton(sp =>
 {

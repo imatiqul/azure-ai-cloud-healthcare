@@ -7,6 +7,7 @@ using HealthQCopilot.Infrastructure.Observability;
 using HealthQCopilot.Infrastructure.Persistence;
 using HealthQCopilot.RevenueCycle.Endpoints;
 using HealthQCopilot.RevenueCycle.Infrastructure;
+using HealthQCopilot.RevenueCycle.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +24,7 @@ builder.Services.AddHealthcareDb<RevenueDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<RevenueDbContext>(builder.Configuration);
+builder.Services.AddSingleton<CodeSuggestionService>();
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<RevenueDbContext>("revenue");
 

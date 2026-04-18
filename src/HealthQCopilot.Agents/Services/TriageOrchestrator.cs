@@ -10,12 +10,14 @@ public sealed class TriageOrchestrator
 {
     private readonly Kernel _kernel;
     private readonly AgentDbContext _db;
+    private readonly WorkflowDispatcher _dispatcher;
     private readonly ILogger<TriageOrchestrator> _logger;
 
-    public TriageOrchestrator(Kernel kernel, AgentDbContext db, ILogger<TriageOrchestrator> logger)
+    public TriageOrchestrator(Kernel kernel, AgentDbContext db, WorkflowDispatcher dispatcher, ILogger<TriageOrchestrator> logger)
     {
         _kernel = kernel;
         _db = db;
+        _dispatcher = dispatcher;
         _logger = logger;
     }
 
@@ -57,6 +59,10 @@ public sealed class TriageOrchestrator
         _db.AgentDecisions.Add(decision);
 
         await _db.SaveChangesAsync(ct);
+
+        // Dispatch cross-service workflow events (fire-and-forget with structured error handling)
+        _ = Task.Run(() => _dispatcher.DispatchAsync(workflow, CancellationToken.None), CancellationToken.None);
+
         return workflow;
     }
 }

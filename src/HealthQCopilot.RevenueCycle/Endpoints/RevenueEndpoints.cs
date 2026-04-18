@@ -2,6 +2,7 @@ using System.Text.Json;
 using HealthQCopilot.Domain.RevenueCycle;
 using HealthQCopilot.Infrastructure.Validation;
 using HealthQCopilot.RevenueCycle.Infrastructure;
+using HealthQCopilot.RevenueCycle.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 
@@ -259,6 +260,28 @@ public static class RevenueEndpoints
             return Results.Ok(stats);
         });
 
+        // Auto-create coding job from triage result (called by Agents service WorkflowDispatcher)
+        group.MapPost("/coding-jobs/from-triage", async (
+            FromTriageRequest request,
+            RevenueDbContext db,
+            CodeSuggestionService codeSuggestion,
+            IDistributedCache cache,
+            CancellationToken ct) =>
+        {
+            var codes = codeSuggestion.SuggestCodes(request.TriageLevel, request.TriageReasoning);
+            var shortId = request.SessionId.Length >= 8 ? request.SessionId[..8] : request.SessionId;
+            var job = CodingJob.Create(
+                encounterId: $"ENC-{shortId}",
+                patientId: $"PAT-{shortId}",
+                patientName: "AI-Triaged Patient",
+                suggestedCodes: codes);
+            db.CodingJobs.Add(job);
+            await db.SaveChangesAsync(ct);
+            await cache.RemoveAsync("healthq:revenue:stats", ct);
+            return Results.Created($"/api/v1/revenue/coding-jobs/{job.Id}",
+                new { job.Id, job.EncounterId, job.Status, SuggestedCodes = codes });
+        });
+
         return app;
     }
 }
@@ -267,3 +290,4 @@ public record CreateCodingJobRequest(string EncounterId, string PatientId, strin
 public record ReviewCodingJobRequest(List<string> ApprovedCodes, string ReviewedBy);
 public record CreatePriorAuthRequest(string PatientId, string PatientName, string Procedure, string? ProcedureCode, string? InsurancePayer);
 public record DenyPriorAuthRequest(string Reason);
+public record FromTriageRequest(string SessionId, string TriageLevel, string TriageReasoning);

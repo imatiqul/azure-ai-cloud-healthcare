@@ -5,6 +5,7 @@ using HealthQCopilot.Infrastructure.Messaging;
 using HealthQCopilot.Infrastructure.Middleware;
 using HealthQCopilot.Infrastructure.Observability;
 using HealthQCopilot.Infrastructure.Persistence;
+using HealthQCopilot.Scheduling.BackgroundServices;
 using HealthQCopilot.Scheduling.Endpoints;
 using HealthQCopilot.Scheduling.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,7 @@ builder.Services.AddHealthcareDb<SchedulingDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<SchedulingDbContext>(builder.Configuration);
+builder.Services.AddHostedService<SlotGenerationService>();
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<SchedulingDbContext>("scheduling");
 
@@ -49,12 +51,16 @@ app.MapPost("/api/v1/scheduling/seed", async (SchedulingDbContext db) =>
     var slots = new List<Slot>();
     foreach (var practitioner in practitioners)
     {
-        for (var hour = 8; hour < 17; hour++)
+        for (var dayOffset = 0; dayOffset < 7; dayOffset++)
         {
-            slots.Add(Slot.Create(Guid.NewGuid(), practitioner,
-                today.AddHours(hour), today.AddHours(hour).AddMinutes(30)));
-            slots.Add(Slot.Create(Guid.NewGuid(), practitioner,
-                today.AddHours(hour).AddMinutes(30), today.AddHours(hour + 1)));
+            var date = today.AddDays(dayOffset);
+            for (var hour = 9; hour < 17; hour++)
+            {
+                slots.Add(Slot.Create(Guid.NewGuid(), practitioner,
+                    date.AddHours(hour), date.AddHours(hour).AddMinutes(30)));
+                slots.Add(Slot.Create(Guid.NewGuid(), practitioner,
+                    date.AddHours(hour).AddMinutes(30), date.AddHours(hour + 1)));
+            }
         }
     }
     db.Slots.AddRange(slots);
