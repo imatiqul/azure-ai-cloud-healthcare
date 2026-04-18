@@ -17,6 +17,8 @@ builder.Services.AddHealthcareObservability(builder.Configuration, "pophealth-se
 builder.Services.AddHealthcareAuth(builder.Configuration);
 builder.Services.AddHealthcareRateLimiting();
 builder.Services.AddControllers().AddDapr();
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(o =>
+    o.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
 builder.Services.AddOpenApi();
 builder.Services.AddHealthcareDb<PopHealthDbContext>(
     builder.Configuration, "PopHealthDb",
@@ -34,20 +36,6 @@ builder.Services.AddHttpClient<CareGapNotificationDispatcher>(client =>
     client.Timeout = TimeSpan.FromSeconds(15);
 });
 builder.Services.AddScoped<CareGapNotificationDispatcher>();
-
-builder.AddServiceDefaults();
-builder.Services.AddHealthcareObservability(builder.Configuration, "pophealth-service");
-builder.Services.AddHealthcareAuth(builder.Configuration);
-builder.Services.AddHealthcareRateLimiting();
-builder.Services.AddControllers().AddDapr();
-builder.Services.AddOpenApi();
-builder.Services.AddHealthcareDb<PopHealthDbContext>(
-    builder.Configuration, "PopHealthDb",
-    new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
-    new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
-builder.Services.AddOutboxRelay<PopHealthDbContext>(builder.Configuration);
-builder.Services.AddHealthChecks();
-builder.Services.AddDatabaseHealthCheck<PopHealthDbContext>("pophealth");
 
 var app = builder.Build();
 
