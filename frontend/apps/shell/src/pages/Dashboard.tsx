@@ -30,21 +30,21 @@ export default function Dashboard() {
   useEffect(() => {
     async function loadStats() {
       const [agents, scheduling, popHealth, revenue] = await Promise.all([
-        fetchSafe('/api/v1/agents/stats', { PendingTriage: 0, AwaitingReview: 0, Completed: 0 }),
+        fetchSafe('/api/v1/agents/stats', { pendingTriage: 0, awaitingReview: 0, completed: 0 }),
         fetchSafe('/api/v1/scheduling/stats', { AvailableToday: 0, BookedToday: 0, TotalBookings: 0 }),
         fetchSafe('/api/v1/population-health/stats', { HighRiskPatients: 0, TotalPatients: 0, OpenCareGaps: 0, ClosedCareGaps: 0 }),
-        fetchSafe('/api/v1/revenue/stats', { codingQueue: 0, codingReviewed: 0, codingSubmitted: 0, priorAuthsPending: 0, priorAuthsApproved: 0, priorAuthsDenied: 0 }),
+        fetchSafe('/api/v1/revenue/stats', { CodingQueue: 0, CodingReviewed: 0, CodingSubmitted: 0, PriorAuthsPending: 0, PriorAuthsApproved: 0, PriorAuthsDenied: 0 }),
       ]);
 
       setStats([
-        { label: 'Pending Triage', value: agents.PendingTriage + agents.AwaitingReview, color: 'warning.main' },
-        { label: 'Triage Completed', value: agents.Completed, color: 'success.main' },
+        { label: 'Pending Triage', value: agents.pendingTriage + agents.awaitingReview, color: 'warning.main' },
+        { label: 'Triage Completed', value: agents.completed, color: 'success.main' },
         { label: 'Available Slots Today', value: scheduling.AvailableToday, color: 'primary.main' },
         { label: 'Booked Today', value: scheduling.BookedToday, color: 'success.main' },
         { label: 'High-Risk Patients', value: popHealth.HighRiskPatients, color: 'error.main' },
         { label: 'Open Care Gaps', value: popHealth.OpenCareGaps, color: 'warning.main' },
-        { label: 'Coding Queue', value: revenue.codingQueue, color: 'secondary.main' },
-        { label: 'Prior Auths Pending', value: revenue.priorAuthsPending, color: 'info.main' },
+        { label: 'Coding Queue', value: revenue.CodingQueue, color: 'secondary.main' },
+        { label: 'Prior Auths Pending', value: revenue.PriorAuthsPending, color: 'info.main' },
       ]);
       setLoading(false);
     }
