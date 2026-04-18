@@ -10,4 +10,4 @@ services:
       tag: fe1eb4ce8e6544f76e17b6961c8615dbb08454dc
   scheduling:
     image:
-      tag: 4fadb82d7f87f25ee72f577723bd9d1a3e97f2a4
+      tag: cbeecf95eed636e159a230172cad786bcf5c9cef
