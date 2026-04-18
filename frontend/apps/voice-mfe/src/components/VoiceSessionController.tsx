@@ -6,6 +6,8 @@ import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import LinearProgress from '@mui/material/LinearProgress';
 import Chip from '@mui/material/Chip';
+import MicIcon from '@mui/icons-material/Mic';
+import StopIcon from '@mui/icons-material/Stop';
 import { Button, Badge, Card, CardHeader, CardTitle, CardContent } from '@healthcare/design-system';
 import {
   createGlobalVoiceClient,
@@ -18,6 +20,84 @@ import { emitAgentDecision, emitEscalationRequired } from '@healthcare/mfe-event
 import { AiThinkingPanel } from './AiThinkingPanel';
 
 type SessionStatus = 'idle' | 'connecting' | 'live' | 'ended';
+
+// ── PCM audio capture hook ──────────────────────────────────────────────────
+// Captures microphone audio as 16kHz 16-bit mono PCM, streaming chunks to the
+// voice service's audio-chunk endpoint for Azure Speech transcription.
+function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: (text: string) => void) {
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
+
+  const sendChunk = useCallback(async (pcmBuffer: ArrayBuffer) => {
+    if (!sessionId) return;
+    try {
+      const res = await fetch(`${apiBase}/api/v1/voice/sessions/${sessionId}/audio-chunk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: pcmBuffer,
+      });
+      if (res.ok) {
+        const data = await res.json() as { partialTranscript?: string };
+        if (data.partialTranscript) onTranscript(data.partialTranscript);
+      }
+    } catch { /* network errors are non-fatal */ }
+  }, [sessionId, apiBase, onTranscript]);
+
+  const startRecording = useCallback(async () => {
+    setMicError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      streamRef.current = stream;
+
+      // Use 16kHz to match Azure Speech SDK expectations
+      const audioContext = new AudioContext({ sampleRate: 16000 });
+      audioContextRef.current = audioContext;
+
+      const source = audioContext.createMediaStreamSource(stream);
+      // 4096-sample buffer = ~256ms at 16kHz
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
+
+      processor.onaudioprocess = (e) => {
+        const float32 = e.inputBuffer.getChannelData(0);
+        // Convert Float32 [-1,1] to Int16 PCM
+        const int16 = new Int16Array(float32.length);
+        for (let i = 0; i < float32.length; i++) {
+          const s = Math.max(-1, Math.min(1, float32[i]));
+          int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        void sendChunk(int16.buffer);
+      };
+
+      source.connect(processor);
+      processor.connect(audioContext.destination);
+      setRecording(true);
+    } catch (err) {
+      setMicError(err instanceof Error ? err.message : 'Microphone access denied');
+    }
+  }, [sendChunk]);
+
+  const stopRecording = useCallback(() => {
+    processorRef.current?.disconnect();
+    void audioContextRef.current?.close();
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    processorRef.current = null;
+    audioContextRef.current = null;
+    streamRef.current = null;
+    setRecording(false);
+  }, []);
+
+  // Auto-stop when session ends
+  useEffect(() => {
+    return () => { stopRecording(); };
+  }, [stopRecording]);
+
+  return { recording, micError, startRecording, stopRecording };
+}
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -50,6 +130,14 @@ export function VoiceSessionController() {
   const [aiDone, setAiDone]               = useState(false);
 
   const clientRef = useRef<VoiceSessionClient | null>(null);
+
+  // Append partial transcripts from audio-chunk responses
+  const handlePartialTranscript = useCallback((text: string) => {
+    setTranscriptText(prev => prev ? `${prev} ${text}` : text);
+  }, []);
+
+  const { recording, micError, startRecording, stopRecording } =
+    useMicCapture(sessionId, API_BASE, handlePartialTranscript);
 
   // -- Azure Web PubSub lifecycle ---------------------------------------------
   const connectPubSub = useCallback(async (sid: string) => {
@@ -132,6 +220,7 @@ export function VoiceSessionController() {
 
   async function endSession() {
     if (!sessionId) return;
+    stopRecording();
     await fetch(`${API_BASE}/api/v1/voice/sessions/${sessionId}/end`, { method: 'POST' });
     setStatus('ended');
     await disconnectPubSub();
@@ -210,8 +299,36 @@ export function VoiceSessionController() {
 
           {status === 'live' && (
             <Box>
+              {/* Microphone recording controls */}
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+                {!recording ? (
+                  <Button onClick={() => void startRecording()} size="sm">
+                    <MicIcon sx={{ mr: 0.5, fontSize: 16 }} />
+                    Record Audio
+                  </Button>
+                ) : (
+                  <Button onClick={stopRecording} variant="destructive" size="sm">
+                    <StopIcon sx={{ mr: 0.5, fontSize: 16 }} />
+                    Stop Recording
+                  </Button>
+                )}
+                {recording && (
+                  <Chip
+                    label="● Recording — audio streaming to AI"
+                    size="small"
+                    color="error"
+                    sx={{ height: 20, fontSize: 11, animation: 'pulse 1.5s infinite' }}
+                  />
+                )}
+              </Stack>
+              {micError && (
+                <Alert severity="warning" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>
+                  Microphone unavailable: {micError}. Use text input below.
+                </Alert>
+              )}
+
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Enter patient transcript for AI triage analysis:
+                Or type the patient transcript manually:
               </Typography>
               <TextField
                 multiline
@@ -219,7 +336,7 @@ export function VoiceSessionController() {
                 fullWidth
                 value={transcriptText}
                 onChange={(e) => setTranscriptText(e.target.value)}
-                placeholder="e.g. Patient reports chest pain, shortness of breath..."
+                placeholder="e.g. Patient reports chest pain, shortness of breath... (updates automatically from recorded audio)"
                 size="small"
                 sx={{ mb: 1 }}
               />

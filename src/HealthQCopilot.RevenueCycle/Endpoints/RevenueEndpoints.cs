@@ -114,12 +114,15 @@ public static class RevenueEndpoints
         // ── Prior Authorizations ──────────────────────────────
 
         group.MapGet("/prior-auths", async (
+            string? patientId,
             string? status,
             int? top,
             RevenueDbContext db,
             CancellationToken ct) =>
         {
             var query = db.PriorAuths.AsQueryable();
+            if (!string.IsNullOrWhiteSpace(patientId))
+                query = query.Where(a => a.PatientId == patientId);
             if (!string.IsNullOrEmpty(status) && Enum.TryParse<PriorAuthStatus>(status, true, out var s))
                 query = query.Where(a => a.Status == s);
             var auths = await query.OrderByDescending(a => a.CreatedAt).Take(top ?? 50)

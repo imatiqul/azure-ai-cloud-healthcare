@@ -6,10 +6,12 @@ import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
+import Divider from '@mui/material/Divider';
 import { AppointmentHistory } from './AppointmentHistory';
 import { CareGapSummary } from './CareGapSummary';
 import { NotificationInbox } from './NotificationInbox';
 import { PriorAuthStatus } from './PriorAuthStatus';
+import { PatientRegistrationForm } from './PatientRegistrationForm';
 
 interface PatientPortalProps {
   /** Initial patient ID — can be overridden via the search field. */
@@ -47,6 +49,9 @@ export function PatientPortal({ patientId: initialId = '' }: PatientPortalProps)
           Load Patient
         </Button>
       </Stack>
+
+      <Divider />
+      <PatientRegistrationForm onRegistered={(id) => { setInputValue(id); setActivePatientId(id); }} />
 
       {!activePatientId && (
         <Typography color="text.secondary">

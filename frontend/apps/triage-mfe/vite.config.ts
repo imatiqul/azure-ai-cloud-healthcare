@@ -12,6 +12,7 @@ export default defineConfig({
       exposes: {
         './TriageViewer': './src/components/TriageViewer.tsx',
         './HitlEscalationModal': './src/components/HitlEscalationModal.tsx',
+        './EscalationQueue': './src/components/EscalationQueue.tsx',
       },
       shared: {
         react: { singleton: true },

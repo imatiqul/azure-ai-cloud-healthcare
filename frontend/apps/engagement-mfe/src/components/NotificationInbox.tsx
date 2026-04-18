@@ -17,9 +17,11 @@ interface Props {
   patientId: string;
 }
 
-function channelColor(channel: string): 'default' | 'info' | 'warning' {
+type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'secondary';
+
+function channelColor(channel: string): BadgeVariant {
   switch (channel.toLowerCase()) {
-    case 'email': return 'info';
+    case 'email': return 'secondary';
     case 'sms':   return 'warning';
     default:      return 'default';
   }
