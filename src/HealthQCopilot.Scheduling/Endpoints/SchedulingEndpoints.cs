@@ -31,24 +31,25 @@ public static class SchedulingEndpoints
             if (practitionerId.HasValue)
                 query = query.Where(s => s.PractitionerId == practitionerId.Value.ToString());
             var slots = await query.OrderBy(s => s.StartTime).Take(100)
-                .Select(s => new { s.Id, s.PractitionerId, s.StartTime, s.EndTime, s.Status })
+                .Select(s => new { s.Id, s.PractitionerId, s.StartTime, s.EndTime, Status = s.Status.ToString() })
                 .ToListAsync(ct);
             return Results.Ok(slots);
         });
 
         group.MapPost("/slots/{id:guid}/reserve", async (
             Guid id,
-            ReserveSlotRequest request,
             SchedulingDbContext db,
             IDistributedCache cache,
-            CancellationToken ct) =>
+            CancellationToken ct,
+            ReserveSlotRequest? request = null) =>
         {
             var slot = await db.Slots.FindAsync([id], ct);
             if (slot is null) return Results.NotFound();
-            slot.Reserve(request.PatientId.ToString());
+            var patientId = request?.PatientId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+            slot.Reserve(patientId.ToString());
             await db.SaveChangesAsync(ct);
             await cache.RemoveAsync("healthq:scheduling:stats", ct);
-            return Results.Ok(new { slot.Id, slot.Status });
+            return Results.Ok(new { slot.Id, Status = slot.Status.ToString() });
         });
 
         group.MapDelete("/slots/{id:guid}/reserve", async (
