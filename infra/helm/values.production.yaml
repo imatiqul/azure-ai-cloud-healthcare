@@ -13,4 +13,4 @@ services:
       tag: ddd327837965a968009fb9a438240953d7b0dcba
   ai-agent:
     image:
-      tag: 4ebafc7eaded65363ba63d6fe5585c3786ebf61b
+      tag: 37e588475d67c5cbf55d027b65564dd896c068e0
