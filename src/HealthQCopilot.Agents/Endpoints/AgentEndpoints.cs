@@ -43,7 +43,7 @@ public static class AgentEndpoints
             if (workflow is null) return Results.NotFound();
             workflow.ApproveEscalation();
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { workflow.Id, workflow.Status, workflow.AssignedLevel });
+            return Results.Ok(new { workflow.Id, Status = workflow.Status.ToString(), AssignedLevel = workflow.AssignedLevel?.ToString() });
         });
 
         group.MapGet("/triage", async (
@@ -77,7 +77,7 @@ public static class AgentEndpoints
             var pending = await db.TriageWorkflows.CountAsync(w => w.Status == WorkflowStatus.Pending || w.Status == WorkflowStatus.Processing, ct);
             var awaitingReview = await db.TriageWorkflows.CountAsync(w => w.Status == WorkflowStatus.AwaitingHumanReview, ct);
             var completed = await db.TriageWorkflows.CountAsync(w => w.Status == WorkflowStatus.Completed, ct);
-            return Results.Ok(new { PendingTriage = pending, AwaitingReview = awaitingReview, Completed = completed });
+            return Results.Ok(new { pendingTriage = pending, awaitingReview, completed });
         });
 
         return app;
