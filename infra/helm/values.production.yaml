@@ -7,7 +7,7 @@ services:
       tag: 3397c62771fb8d84a17f7abe65dedf98db178668
   fhir:
     image:
-      tag: fe1eb4ce8e6544f76e17b6961c8615dbb08454dc
+      tag: 254f0fc988a35e073268fce0a025b0ed7c899e52
   scheduling:
     image:
       tag: 984426c3ea5d6730859d52cdaaabe9ae48a8798d
