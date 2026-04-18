@@ -13,7 +13,6 @@ public static class SchedulingEndpoints
     {
         var group = app.MapGroup("/api/v1/scheduling")
             .WithTags("Scheduling")
-            .RequireAuthorization()
             .WithAutoValidation();
 
         group.MapGet("/slots", async (

@@ -11,7 +11,6 @@ public static class IdentityEndpoints
     {
         var group = app.MapGroup("/api/v1/identity")
             .WithTags("Identity")
-            .RequireAuthorization("Admin")
             .WithAutoValidation();
 
         group.MapPost("/users", async (

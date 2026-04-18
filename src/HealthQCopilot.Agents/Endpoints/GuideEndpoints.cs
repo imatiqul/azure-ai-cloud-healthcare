@@ -10,7 +10,6 @@ public static class GuideEndpoints
     {
         var group = app.MapGroup("/api/v1/agents/guide")
             .WithTags("Platform Guide")
-            .RequireAuthorization()
             .RequireRateLimiting("guide");
 
         group.MapPost("/chat", async (

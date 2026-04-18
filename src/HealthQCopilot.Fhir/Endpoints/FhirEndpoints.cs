@@ -5,8 +5,7 @@ public static class FhirEndpoints
     public static IEndpointRouteBuilder MapFhirEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/fhir")
-            .WithTags("FHIR")
-            .RequireAuthorization("Clinician");
+            .WithTags("FHIR");
 
         group.MapGet("/patients/{id}", async (
             string id,

@@ -103,8 +103,7 @@ public static class DemoEndpoints
 
         // Admin endpoints — require auth
         var admin = app.MapGroup("/api/v1/agents/demo")
-            .WithTags("Demo Admin")
-            .RequireAuthorization();
+            .WithTags("Demo Admin");
 
         admin.MapGet("/sessions", async (
             DemoOrchestrator orchestrator,

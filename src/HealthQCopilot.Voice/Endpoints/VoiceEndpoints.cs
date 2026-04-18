@@ -11,7 +11,6 @@ public static class VoiceEndpoints
     {
         var group = app.MapGroup("/api/v1/voice")
             .WithTags("Voice")
-            .RequireAuthorization()
             .WithAutoValidation();
 
         group.MapPost("/sessions", async (

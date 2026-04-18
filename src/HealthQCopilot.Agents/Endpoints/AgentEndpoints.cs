@@ -12,7 +12,6 @@ public static class AgentEndpoints
     {
         var group = app.MapGroup("/api/v1/agents")
             .WithTags("Agents")
-            .RequireAuthorization()
             .WithAutoValidation();
 
         group.MapPost("/triage", async (

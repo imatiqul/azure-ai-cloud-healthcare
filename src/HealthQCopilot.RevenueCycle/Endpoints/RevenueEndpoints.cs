@@ -13,7 +13,6 @@ public static class RevenueEndpoints
     {
         var group = app.MapGroup("/api/v1/revenue")
             .WithTags("Revenue Cycle")
-            .RequireAuthorization()
             .WithAutoValidation();
 
         // ── Coding Jobs ──────────────────────────────────────

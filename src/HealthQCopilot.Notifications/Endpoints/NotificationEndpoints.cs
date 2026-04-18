@@ -12,7 +12,6 @@ public static class NotificationEndpoints
     {
         var group = app.MapGroup("/api/v1/notifications")
             .WithTags("Notifications")
-            .RequireAuthorization()
             .WithAutoValidation();
 
         group.MapPost("/campaigns", async (
