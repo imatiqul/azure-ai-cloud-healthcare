@@ -37,11 +37,11 @@ public class AuditDbContext(DbContextOptions<AuditDbContext> options) : DbContex
 
 public sealed class PhiAuditLog
 {
-    public Guid     Id            { get; set; }
-    public string   UserId        { get; set; } = string.Empty;
-    public string   HttpMethod    { get; set; } = string.Empty;
-    public string   ResourcePath  { get; set; } = string.Empty;
-    public int      StatusCode    { get; set; }
-    public string?  CorrelationId { get; set; }
-    public DateTime AccessedAt    { get; set; }
+    public Guid Id { get; set; }
+    public string UserId { get; set; } = string.Empty;
+    public string HttpMethod { get; set; } = string.Empty;
+    public string ResourcePath { get; set; } = string.Empty;
+    public int StatusCode { get; set; }
+    public string? CorrelationId { get; set; }
+    public DateTime AccessedAt { get; set; }
 }

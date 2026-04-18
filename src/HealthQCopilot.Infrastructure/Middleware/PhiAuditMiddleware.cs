@@ -42,15 +42,15 @@ public class PhiAuditMiddleware
                               IServiceScopeFactory scopeFactory,
                               IEventHubAuditService? eventHubAudit = null)
     {
-        _next           = next;
-        _logger         = logger;
-        _scopeFactory   = scopeFactory;
-        _eventHubAudit  = eventHubAudit;
+        _next = next;
+        _logger = logger;
+        _scopeFactory = scopeFactory;
+        _eventHubAudit = eventHubAudit;
     }
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var path        = context.Request.Path.Value ?? string.Empty;
+        var path = context.Request.Path.Value ?? string.Empty;
         var isPhiAccess = PhiPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
 
         if (!isPhiAccess)
@@ -59,9 +59,9 @@ public class PhiAuditMiddleware
             return;
         }
 
-        var userId        = context.User.FindFirst("oid")?.Value ?? "anonymous";
+        var userId = context.User.FindFirst("oid")?.Value ?? "anonymous";
         var correlationId = Activity.Current?.Id ?? context.TraceIdentifier;
-        var startedAt     = DateTime.UtcNow;
+        var startedAt = DateTime.UtcNow;
 
         _logger.LogInformation(
             "PHI_ACCESS: User={UserId} Method={Method} Path={Path} CorrelationId={CorrelationId}",
@@ -99,13 +99,13 @@ public class PhiAuditMiddleware
             var db = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
             db.PhiAuditLogs.Add(new PhiAuditLog
             {
-                Id            = Guid.NewGuid(),
-                UserId        = userId,
-                HttpMethod    = method,
-                ResourcePath  = path,
-                StatusCode    = statusCode,
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                HttpMethod = method,
+                ResourcePath = path,
+                StatusCode = statusCode,
                 CorrelationId = correlationId,
-                AccessedAt    = accessedAt,
+                AccessedAt = accessedAt,
             });
             await db.SaveChangesAsync();
         }

@@ -56,7 +56,7 @@ public static class ObservabilityExtensions
                     .AddMeter("HealthQCopilot.Business")
                     .AddPrometheusExporter();
 
-        services.AddSingleton<BusinessMetrics>();
+                services.AddSingleton<BusinessMetrics>();
 
                 var aiConnStr = config["ApplicationInsights:ConnectionString"];
                 if (!string.IsNullOrEmpty(aiConnStr))

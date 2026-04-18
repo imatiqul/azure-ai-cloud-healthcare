@@ -49,7 +49,7 @@ public sealed class DaprSecretProvider(DaprClient dapr, ILogger<DaprSecretProvid
     public async ValueTask<byte[]> GetPhiEncryptionKeyAsync(CancellationToken ct = default)
     {
         var base64Key = await GetSecretAsync("phi-encryption-key", ct);
-        var keyBytes  = Convert.FromBase64String(base64Key);
+        var keyBytes = Convert.FromBase64String(base64Key);
         if (keyBytes.Length != 32)
             throw new InvalidOperationException(
                 "PHI encryption key must be 32 bytes (AES-256). Regenerate 'phi-encryption-key' in Key Vault.");
