@@ -1,4 +1,5 @@
 using HealthQCopilot.Domain.Primitives;
+using HealthQCopilot.Domain.Scheduling.Events;
 
 namespace HealthQCopilot.Domain.Scheduling;
 
@@ -43,6 +44,7 @@ public class Slot : AggregateRoot<Guid>
             return Result.Failure("Slot must be reserved before booking");
 
         Status = SlotStatus.Booked;
+        RaiseDomainEvent(new SlotBooked(Id, ReservedByPatientId!, PractitionerId, StartTime));
         return Result.Success();
     }
 
@@ -50,5 +52,15 @@ public class Slot : AggregateRoot<Guid>
     {
         Status = SlotStatus.Available;
         ReservedByPatientId = null;
+    }
+
+    public Result Cancel()
+    {
+        if (Status == SlotStatus.Cancelled)
+            return Result.Failure("Slot is already cancelled");
+
+        Status = SlotStatus.Cancelled;
+        ReservedByPatientId = null;
+        return Result.Success();
     }
 }

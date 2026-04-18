@@ -1,3 +1,4 @@
+using Dapr.Client;
 using HealthQCopilot.Agents.Infrastructure;
 using HealthQCopilot.Agents.Plugins;
 using HealthQCopilot.Domain.Agents;
@@ -17,11 +18,13 @@ public sealed class TriageOrchestrator
     private readonly HallucinationGuardAgent _guard;
     private readonly IWebPubSubService _pubSub;
     private readonly IEventHubAuditService _auditService;
+    private readonly DaprClient _dapr;
     private readonly ILogger<TriageOrchestrator> _logger;
 
     public TriageOrchestrator(Kernel kernel, AgentDbContext db, WorkflowDispatcher dispatcher,
                                HallucinationGuardAgent guard, IWebPubSubService pubSub,
-                               IEventHubAuditService auditService, ILogger<TriageOrchestrator> logger)
+                               IEventHubAuditService auditService, DaprClient dapr,
+                               ILogger<TriageOrchestrator> logger)
     {
         _kernel       = kernel;
         _db           = db;
@@ -29,6 +32,7 @@ public sealed class TriageOrchestrator
         _guard        = guard;
         _pubSub       = pubSub;
         _auditService = auditService;
+        _dapr         = dapr;
         _logger       = logger;
     }
 
@@ -112,6 +116,29 @@ public sealed class TriageOrchestrator
 
         // Dispatch cross-service workflow events (fire-and-forget with structured error handling)
         _ = Task.Run(() => _dispatcher.DispatchAsync(workflow, CancellationToken.None), CancellationToken.None);
+
+        // Publish domain events to Dapr pub/sub so downstream subscribers can react
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var topicName = workflow.Status == WorkflowStatus.AwaitingHumanReview
+                    ? "escalation.required"
+                    : "triage.completed";
+                await _dapr.PublishEventAsync("pubsub", topicName, new
+                {
+                    WorkflowId = workflow.Id,
+                    SessionId = workflow.SessionId,
+                    Level = workflow.AssignedLevel?.ToString(),
+                    Reasoning = workflow.AgentReasoning
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to publish triage event to Dapr pub/sub for session {SessionId}",
+                    workflow.SessionId);
+            }
+        }, CancellationToken.None);
 
         return workflow;
     }

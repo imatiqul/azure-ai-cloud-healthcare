@@ -60,6 +60,8 @@ builder.Services.AddHttpClient<WorkflowDispatcher>(client =>
     client.Timeout = TimeSpan.FromSeconds(15);
 });
 builder.Services.AddScoped<WorkflowDispatcher>();
+// DaprClient for publishing events to pub/sub
+builder.Services.AddDaprClient();
 // Register Semantic Kernel plugins
 builder.Services.AddSingleton(sp =>
 {

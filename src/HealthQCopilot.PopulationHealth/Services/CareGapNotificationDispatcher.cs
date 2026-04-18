@@ -25,14 +25,18 @@ public sealed class CareGapNotificationDispatcher
     {
         try
         {
+            if (!Guid.TryParse(gap.PatientId, out var patientGuid))
+            {
+                _logger.LogWarning("CareGap {CareGapId} has non-GUID PatientId '{PatientId}'; skipping notification",
+                    gap.Id, gap.PatientId);
+                return;
+            }
+
             var campaign = new
             {
                 Name = $"Care Gap Follow-Up: {gap.MeasureId} — {gap.PatientId}",
-                PatientIds = new[] { gap.PatientId },
-                Message = $"Your {gap.MeasureId} care gap has been addressed by your care team. " +
-                          "Please schedule your follow-up appointment to complete this measure.",
-                CampaignType = "CareGapFollowUp",
-                Priority = "Normal",
+                Type = 2, // CampaignType.FollowUp
+                TargetPatientIds = new[] { patientGuid },
             };
 
             var res = await _http.PostAsJsonAsync("/api/v1/notifications/campaigns", campaign, ct);
@@ -70,15 +74,18 @@ public sealed class CareGapNotificationDispatcher
         {
             try
             {
+                if (!Guid.TryParse(group.Key, out var patientGuid))
+                {
+                    _logger.LogWarning("Skipping care gap campaign for non-GUID PatientId '{PatientId}'", group.Key);
+                    continue;
+                }
+
                 var measures = string.Join(", ", group.Select(g => g.MeasureId));
                 var campaign = new
                 {
                     Name = $"Open Care Gaps Outreach — {group.Key}",
-                    PatientIds = new[] { group.Key },
-                    Message = $"Our records show you have open care gaps for: {measures}. " +
-                              "Please contact your care team to schedule the required screenings.",
-                    CampaignType = "CareGapOutreach",
-                    Priority = "High",
+                    Type = 1, // CampaignType.CareGap
+                    TargetPatientIds = new[] { patientGuid },
                 };
 
                 var res = await _http.PostAsJsonAsync("/api/v1/notifications/campaigns", campaign, ct);

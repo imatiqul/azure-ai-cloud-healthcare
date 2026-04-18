@@ -33,6 +33,7 @@ builder.Services.AddDatabaseHealthCheck<SchedulingDbContext>("scheduling");
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "SchedulingDb");
 builder.Services.AddDaprSecretProvider();
 builder.Services.AddEventHubAudit();
+builder.Services.AddDaprClient();
 
 var app = builder.Build();
 
@@ -40,12 +41,14 @@ await app.InitializeDatabaseAsync<SchedulingDbContext>();
 await app.InitializeDatabaseAsync<AuditDbContext>();
 
 app.MapOpenApi();
+app.UseCloudEvents();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHealthcareRateLimiting();
 app.MapControllers();
+app.MapSubscribeHandler();
 app.MapDefaultEndpoints();
 app.MapSchedulingEndpoints();
 

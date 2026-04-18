@@ -19,10 +19,10 @@ public sealed class AcsNotificationSender : INotificationSender
     {
         var connectionString = _config["AzureCommunication:ConnectionString"];
 
-        if (string.IsNullOrEmpty(connectionString))
+        if (string.IsNullOrEmpty(connectionString) || string.IsNullOrEmpty(message.RecipientAddress))
         {
             _logger.LogWarning(
-                "ACS not configured; simulating send for message {MessageId} via {Channel}",
+                "ACS not configured or recipient address missing; simulating send for message {MessageId} via {Channel}",
                 message.Id, message.Channel);
             message.MarkSent();
             return true;
@@ -63,7 +63,7 @@ public sealed class AcsNotificationSender : INotificationSender
         await client.SendAsync(
             Azure.WaitUntil.Started,
             senderAddress,
-            message.PatientId,
+            message.RecipientAddress!,
             $"HealthQ Copilot - {message.Channel}",
             message.Content,
             cancellationToken: ct);
@@ -74,6 +74,6 @@ public sealed class AcsNotificationSender : INotificationSender
         var client = new SmsClient(connectionString);
         var senderPhone = _config["AzureCommunication:SenderPhone"] ?? "+18005551234";
 
-        await client.SendAsync(senderPhone, message.PatientId, message.Content, cancellationToken: ct);
+        await client.SendAsync(senderPhone, message.RecipientAddress!, message.Content, cancellationToken: ct);
     }
 }

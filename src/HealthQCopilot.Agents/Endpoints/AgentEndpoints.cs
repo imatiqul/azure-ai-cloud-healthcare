@@ -37,13 +37,33 @@ public static class AgentEndpoints
         group.MapPost("/triage/{id:guid}/approve", async (
             Guid id,
             AgentDbContext db,
+            WorkflowDispatcher dispatcher,
             CancellationToken ct) =>
         {
             var workflow = await db.TriageWorkflows.FindAsync([id], ct);
             if (workflow is null) return Results.NotFound();
+            if (workflow.Status != WorkflowStatus.AwaitingHumanReview)
+                return Results.BadRequest(new { error = "Workflow is not awaiting human review" });
             workflow.ApproveEscalation();
             await db.SaveChangesAsync(ct);
+            // Dispatch cross-service actions (scheduling, FHIR, notifications) after human approval
+            _ = Task.Run(() => dispatcher.DispatchAsync(workflow, CancellationToken.None), CancellationToken.None);
             return Results.Ok(new { workflow.Id, Status = workflow.Status.ToString(), AssignedLevel = workflow.AssignedLevel?.ToString() });
+        });
+
+        group.MapPost("/triage/{id:guid}/reject", async (
+            Guid id,
+            RejectTriageRequest request,
+            AgentDbContext db,
+            CancellationToken ct) =>
+        {
+            var workflow = await db.TriageWorkflows.FindAsync([id], ct);
+            if (workflow is null) return Results.NotFound();
+            if (workflow.Status != WorkflowStatus.AwaitingHumanReview)
+                return Results.BadRequest(new { error = "Workflow is not awaiting human review" });
+            workflow.Reject(request.Reason);
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(new { workflow.Id, Status = workflow.Status.ToString() });
         });
 
         group.MapGet("/triage", async (
@@ -85,3 +105,4 @@ public static class AgentEndpoints
 }
 
 public record StartTriageRequest(Guid SessionId, string TranscriptText);
+public record RejectTriageRequest(string Reason);

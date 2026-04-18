@@ -12,8 +12,11 @@ import Dashboard from './pages/Dashboard';
 const VoicePage = lazy(() => import('voice/VoiceSessionController').then(m => ({ default: m.VoiceSessionController })));
 const TriagePage = lazy(() => import('triage/TriageViewer').then(m => ({ default: m.TriageViewer })));
 const SchedulingPage = lazy(() => import('scheduling/SlotCalendar').then(m => ({ default: m.SlotCalendar })));
+const BookingFormPage = lazy(() => import('scheduling/BookingForm').then(m => ({ default: m.BookingForm })));
 const PopHealthPage = lazy(() => import('pophealth/RiskPanel').then(m => ({ default: m.RiskPanel })));
+const CareGapListPage = lazy(() => import('pophealth/CareGapList').then(m => ({ default: m.CareGapList })));
 const RevenuePage = lazy(() => import('revenue/CodingQueue').then(m => ({ default: m.CodingQueue })));
+const PriorAuthTrackerPage = lazy(() => import('revenue/PriorAuthTracker').then(m => ({ default: m.PriorAuthTracker })));
 const DemoLanding = lazy(() => import('./pages/DemoLanding'));
 const DemoLive = lazy(() => import('./pages/DemoLive'));
 
@@ -87,9 +90,24 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/voice" element={<MfeErrorBoundary name="Voice"><VoicePage /></MfeErrorBoundary>} />
               <Route path="/triage" element={<MfeErrorBoundary name="Triage"><TriagePage /></MfeErrorBoundary>} />
-              <Route path="/scheduling" element={<MfeErrorBoundary name="Scheduling"><SchedulingPage /></MfeErrorBoundary>} />
-              <Route path="/population-health" element={<MfeErrorBoundary name="Population Health"><PopHealthPage /></MfeErrorBoundary>} />
-              <Route path="/revenue" element={<MfeErrorBoundary name="Revenue"><RevenuePage /></MfeErrorBoundary>} />
+              <Route path="/scheduling" element={
+                <MfeErrorBoundary name="Scheduling">
+                  <SchedulingPage />
+                  <BookingFormPage />
+                </MfeErrorBoundary>
+              } />
+              <Route path="/population-health" element={
+                <MfeErrorBoundary name="Population Health">
+                  <PopHealthPage />
+                  <CareGapListPage />
+                </MfeErrorBoundary>
+              } />
+              <Route path="/revenue" element={
+                <MfeErrorBoundary name="Revenue">
+                  <RevenuePage />
+                  <PriorAuthTrackerPage />
+                </MfeErrorBoundary>
+              } />
             </Routes>
           </Suspense>
         </Box>

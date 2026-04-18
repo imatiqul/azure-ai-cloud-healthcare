@@ -5,7 +5,7 @@ namespace HealthQCopilot.Agents.Services;
 
 /// <summary>
 /// Dispatches cross-service workflow events via HTTP after triage completes.
-/// Calls downstream services (Revenue, Notifications) through the APIM gateway.
+/// Calls downstream services (Revenue, Notifications, Scheduling) through the APIM gateway.
 /// </summary>
 public sealed class WorkflowDispatcher
 {
@@ -28,6 +28,11 @@ public sealed class WorkflowDispatcher
         if (workflow.AssignedLevel is TriageLevel.P1_Immediate or TriageLevel.P2_Urgent)
         {
             tasks.Add(DispatchEscalationNotificationAsync(workflow, ct));
+        }
+        else
+        {
+            // For P3/P4, auto-schedule an appointment
+            tasks.Add(DispatchAutoScheduleAsync(workflow, ct));
         }
 
         await Task.WhenAll(tasks);
@@ -57,6 +62,51 @@ public sealed class WorkflowDispatcher
         }
     }
 
+    private async Task DispatchAutoScheduleAsync(TriageWorkflow workflow, CancellationToken ct)
+    {
+        try
+        {
+            // Find the first available slot and book it for the session patient
+            var slotsResp = await _http.GetAsync("/api/v1/scheduling/slots?date=" + DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd"), ct);
+            if (!slotsResp.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Scheduling service returned {Status} when fetching slots for session {SessionId}",
+                    slotsResp.StatusCode, workflow.SessionId);
+                return;
+            }
+
+            var slots = await slotsResp.Content.ReadFromJsonAsync<List<AvailableSlotResult>>(cancellationToken: ct);
+            var slot = slots?.FirstOrDefault();
+            if (slot is null)
+            {
+                _logger.LogInformation("No available slots found for session {SessionId}", workflow.SessionId);
+                return;
+            }
+
+            var bookingPayload = new
+            {
+                SlotId = slot.Id,
+                PatientId = workflow.SessionId,  // session GUID as patient identifier
+                PractitionerId = slot.PractitionerId
+            };
+
+            // Reserve then book
+            await _http.PostAsJsonAsync($"/api/v1/scheduling/slots/{slot.Id}/reserve",
+                new { PatientId = workflow.SessionId }, ct);
+
+            var bookingResp = await _http.PostAsJsonAsync("/api/v1/scheduling/bookings", bookingPayload, ct);
+            if (bookingResp.IsSuccessStatusCode)
+                _logger.LogInformation("Auto-scheduled slot {SlotId} for session {SessionId}", slot.Id, workflow.SessionId);
+            else
+                _logger.LogWarning("Auto-scheduling returned {Status} for session {SessionId}",
+                    bookingResp.StatusCode, workflow.SessionId);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Failed to auto-schedule for session {SessionId}", workflow.SessionId);
+        }
+    }
+
     private async Task DispatchEscalationNotificationAsync(TriageWorkflow workflow, CancellationToken ct)
     {
         try
@@ -65,7 +115,7 @@ public sealed class WorkflowDispatcher
             {
                 Name = $"URGENT: {workflow.AssignedLevel} Escalation - {workflow.SessionId[..8]}",
                 Type = 3, // CampaignType.Custom
-                TargetPatientIds = new[] { workflow.Id }
+                TargetPatientIds = new[] { workflow.SessionId }
             };
 
             var campaignResp = await _http.PostAsJsonAsync("/api/v1/notifications/campaigns", campaignPayload, ct);
@@ -93,4 +143,5 @@ public sealed class WorkflowDispatcher
     }
 
     private sealed record CampaignCreatedResult(Guid? Id, string? Status);
+    private sealed record AvailableSlotResult(Guid Id, string PractitionerId, DateTime StartTime, DateTime EndTime, string Status);
 }

@@ -32,4 +32,9 @@ public class UserAccount : AggregateRoot<Guid>
     public void RecordLogin() => LastLoginAt = DateTime.UtcNow;
     public void Deactivate() => IsActive = false;
     public void Activate() => IsActive = true;
+    public void UpdateProfile(string email, string displayName)
+    {
+        Email = email;
+        DisplayName = displayName;
+    }
 }

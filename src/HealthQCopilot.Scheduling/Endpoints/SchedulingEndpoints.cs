@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Dapr.Client;
 using HealthQCopilot.Domain.Scheduling;
 using HealthQCopilot.Infrastructure.Validation;
 using HealthQCopilot.Scheduling.Infrastructure;
@@ -69,6 +70,7 @@ public static class SchedulingEndpoints
         group.MapPost("/bookings", async (
             CreateBookingRequest request,
             SchedulingDbContext db,
+            DaprClient dapr,
             IDistributedCache cache,
             CancellationToken ct) =>
         {
@@ -81,6 +83,24 @@ public static class SchedulingEndpoints
             db.Bookings.Add(booking);
             await db.SaveChangesAsync(ct);
             await cache.RemoveAsync("healthq:scheduling:stats", ct);
+
+            // Publish event so Notifications and FHIR services can react
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await dapr.PublishEventAsync("pubsub", "scheduling.slot.booked", new
+                    {
+                        BookingId = booking.Id,
+                        SlotId = booking.SlotId,
+                        PatientId = booking.PatientId,
+                        PractitionerId = booking.PractitionerId,
+                        AppointmentTime = booking.AppointmentTime
+                    });
+                }
+                catch { /* non-critical — booking already saved */ }
+            }, CancellationToken.None);
+
             return Results.Created($"/api/v1/scheduling/bookings/{booking.Id}",
                 new { booking.Id, booking.SlotId, booking.PatientId });
         });

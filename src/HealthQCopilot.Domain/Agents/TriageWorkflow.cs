@@ -17,7 +17,9 @@ public enum WorkflowStatus
     Processing,
     AwaitingHumanReview,
     Completed,
-    Escalated
+    Escalated,
+    Failed,
+    Rejected
 }
 
 public class TriageWorkflow : AggregateRoot<Guid>
@@ -72,7 +74,22 @@ public class TriageWorkflow : AggregateRoot<Guid>
 
     public void Escalate()
     {
+        if (Status == WorkflowStatus.Escalated) return;
         Status = WorkflowStatus.Escalated;
         RaiseDomainEvent(new EscalationRequired(Id, SessionId, AssignedLevel ?? TriageLevel.P1_Immediate));
+    }
+
+    public void Fail(string reason)
+    {
+        Status = WorkflowStatus.Failed;
+        AgentReasoning = reason;
+    }
+
+    public void Reject(string reason)
+    {
+        if (Status != WorkflowStatus.AwaitingHumanReview)
+            return;
+        Status = WorkflowStatus.Rejected;
+        AgentReasoning = $"[REJECTED] {reason}";
     }
 }

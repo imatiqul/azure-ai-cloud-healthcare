@@ -72,10 +72,22 @@ public static class FhirEndpoints
             return Results.Content(responseBody, "application/fhir+json", statusCode: (int)response.StatusCode);
         });
 
-        group.MapPost("/events", (HttpRequest request) =>
+        group.MapPost("/events", async (HttpRequest request, CancellationToken ct) =>
         {
-            // Event Grid webhook endpoint for FHIR change events
-            return Results.Ok(new { status = "received" });
+            // Azure Event Grid webhook validation handshake
+            if (request.Headers.TryGetValue("aeg-event-type", out var eventType)
+                && eventType == "SubscriptionValidation")
+            {
+                using var reader = new System.IO.StreamReader(request.Body);
+                var body = await reader.ReadToEndAsync(ct);
+                var events = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement[]>(body);
+                var validationCode = events?[0].GetProperty("data").GetProperty("validationCode").GetString();
+                return Results.Ok(new { validationResponse = validationCode });
+            }
+
+            // FHIR change notification — acknowledge receipt
+            // Full event processing handled by Dapr subscribers
+            return Results.Ok(new { status = "accepted" });
         });
 
         return app;
