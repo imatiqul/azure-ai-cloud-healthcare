@@ -11,3 +11,6 @@ services:
   scheduling:
     image:
       tag: cbeecf95eed636e159a230172cad786bcf5c9cef
+  ai-agent:
+    image:
+      tag: 4ebafc7eaded65363ba63d6fe5585c3786ebf61b
