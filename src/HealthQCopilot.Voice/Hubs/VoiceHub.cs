@@ -1,59 +1,48 @@
+using HealthQCopilot.Infrastructure.RealTime;
 using HealthQCopilot.Voice.Services;
-using Microsoft.AspNetCore.SignalR;
 
 namespace HealthQCopilot.Voice.Hubs;
 
-public class VoiceHub : Hub
+/// <summary>
+/// Handles Azure Web PubSub negotiate requests, returning a time-limited
+/// client access URI scoped to the given voice session group.
+/// All server→client push (transcript chunks, AI thinking tokens, agent responses)
+/// flows through <see cref="IWebPubSubService"/> called by the individual services.
+/// </summary>
+public static class VoiceWebPubSubEndpoints
 {
-    private readonly ITranscriptionService _transcription;
-    private readonly ILogger<VoiceHub> _logger;
-
-    public VoiceHub(ITranscriptionService transcription, ILogger<VoiceHub> logger)
+    public static IEndpointRouteBuilder MapVoiceWebPubSubNegotiate(this IEndpointRouteBuilder app)
     {
-        _transcription = transcription;
-        _logger = logger;
-    }
-
-    public async Task JoinSession(string sessionId)
-    {
-        await Groups.AddToGroupAsync(Context.ConnectionId, sessionId);
-        _logger.LogInformation("Client {ConnectionId} joined session {SessionId}",
-            Context.ConnectionId, sessionId);
-    }
-
-    public async Task LeaveSession(string sessionId)
-    {
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, sessionId);
-        await _transcription.StopContinuousRecognitionAsync(Guid.Parse(sessionId));
-    }
-
-    public async Task StartTranscription(string sessionId)
-    {
-        var sid = Guid.Parse(sessionId);
-        await _transcription.StartContinuousRecognitionAsync(sid, Context.ConnectionAborted);
-        await Clients.Group(sessionId).SendAsync("TranscriptionStarted", sessionId);
-    }
-
-    public async Task SendAudio(string sessionId, byte[] audioData)
-    {
-        var sid = Guid.Parse(sessionId);
-        var transcript = await _transcription.TranscribeAudioChunkAsync(
-            sid, audioData, Context.ConnectionAborted);
-
-        if (!string.IsNullOrEmpty(transcript))
+        // GET /api/webpubsub/negotiate?sessionId=...&userId=...
+        app.MapGet("/api/webpubsub/negotiate", async (
+            string? sessionId,
+            string? userId,
+            IWebPubSubService pubSub,
+            ILogger<Program> logger,
+            CancellationToken ct) =>
         {
-            await Clients.Group(sessionId).SendAsync("TranscriptReceived", new
-            {
-                SessionId = sessionId,
-                Text = transcript,
-                Timestamp = DateTime.UtcNow
-            });
-        }
-    }
+            if (string.IsNullOrWhiteSpace(sessionId))
+                return Results.BadRequest(new { error = "sessionId is required" });
 
-    public async Task StopTranscription(string sessionId)
-    {
-        await _transcription.StopContinuousRecognitionAsync(Guid.Parse(sessionId));
-        await Clients.Group(sessionId).SendAsync("TranscriptionStopped", sessionId);
+            var uid = userId ?? "anonymous";
+            try
+            {
+                var url = await pubSub.GetClientAccessUriAsync(sessionId, uid, ct);
+                logger.LogInformation(
+                    "Web PubSub token issued for session {SessionId} user {UserId}", sessionId, uid);
+                return Results.Ok(new { url, sessionId, userId = uid });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to negotiate Web PubSub for session {SessionId}", sessionId);
+                return Results.Problem("Web PubSub negotiation failed", statusCode: 503);
+            }
+        })
+        .WithTags("Voice")
+        .WithName("NegotiateWebPubSub")
+        .RequireAuthorization();
+
+        return app;
     }
 }
+

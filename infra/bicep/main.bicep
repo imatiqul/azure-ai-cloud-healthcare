@@ -140,7 +140,32 @@ module appInsights 'modules/app-insights.bicep' = {
   }
 }
 
+// Azure Web PubSub – real-time server→client push (replaces SignalR)
+// Delivers AI thinking tokens, triage results and transcript chunks to the voice MFE
+module webPubSub 'modules/web-pubsub.bicep' = {
+  name: 'web-pubsub-deploy'
+  scope: rg
+  params: {
+    envName: envName
+    location: location
+    logAnalyticsWorkspaceId: logAnalytics.outputs.workspaceId
+  }
+}
+
+// Azure Event Hubs – HIPAA-compliant immutable audit stream for all PHI access + AI decisions
+module eventHubs 'modules/event-hubs.bicep' = {
+  name: 'event-hubs-deploy'
+  scope: rg
+  params: {
+    envName: envName
+    location: location
+    logAnalyticsWorkspaceId: logAnalytics.outputs.workspaceId
+  }
+}
+
 output aksClusterName string = aks.outputs.clusterName
 output acrLoginServer string = acr.outputs.loginServer
 output apimGatewayUrl string = apim.outputs.gatewayUrl
 output keyVaultName string = keyVault.outputs.keyVaultName
+output webPubSubEndpoint string = webPubSub.outputs.endpoint
+output eventHubsNamespace string = eventHubs.outputs.namespaceName

@@ -39,6 +39,7 @@ builder.Services.AddHttpClient<CareGapNotificationDispatcher>(client =>
 builder.Services.AddScoped<CareGapNotificationDispatcher>();
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "PopHealthDb");
 builder.Services.AddDaprSecretProvider();
+builder.Services.AddEventHubAudit();
 
 var app = builder.Build();
 

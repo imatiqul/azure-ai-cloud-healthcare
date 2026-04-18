@@ -32,6 +32,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<RevenueDbContext>("revenue");
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "RevenueDb");
 builder.Services.AddDaprSecretProvider();
+builder.Services.AddEventHubAudit();
 
 var app = builder.Build();
 

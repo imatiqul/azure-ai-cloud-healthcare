@@ -7,17 +7,23 @@ import Alert from '@mui/material/Alert';
 import LinearProgress from '@mui/material/LinearProgress';
 import Chip from '@mui/material/Chip';
 import { Button, Badge, Card, CardHeader, CardTitle, CardContent } from '@healthcare/design-system';
-import { createGlobalHub, disposeGlobalHub, type HubConnection } from '@healthcare/signalr-client';
+import {
+  createGlobalVoiceClient,
+  disposeGlobalVoiceClient,
+  type VoiceSessionClient,
+  type AiThinkingMessage,
+  type AgentResponseMessage,
+} from '@healthcare/web-pubsub-client';
 import { emitAgentDecision, emitEscalationRequired } from '@healthcare/mfe-events';
+import { AiThinkingPanel } from './AiThinkingPanel';
 
 type SessionStatus = 'idle' | 'connecting' | 'live' | 'ended';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-const HUB_TOKEN = import.meta.env.VITE_HUB_TOKEN || '';
 
 const DEMO_TRANSCRIPTS = [
   "Patient reports severe chest pain radiating to the left arm for the past 30 minutes, shortness of breath, and sweating.",
-  "Patient has a fever of 39.5Â°C for 3 days, sore throat, difficulty swallowing, and swollen lymph nodes.",
+  "Patient has a fever of 39.5\u00b0C for 3 days, sore throat, difficulty swallowing, and swollen lymph nodes.",
   "Patient complains of a persistent headache for 2 days, blurred vision, and mild nausea. No prior history.",
   "Patient has abdominal pain in the lower right quadrant, started 6 hours ago and is getting worse. Rebound tenderness present.",
   "Patient with known Type 2 diabetes reports blood sugar of 320 mg/dL, excessive thirst, and frequent urination.",
@@ -29,95 +35,96 @@ interface TriageResult {
   agentReasoning: string;
 }
 
-interface LiveUpdate {
-  type: 'AgentDecision' | 'EscalationRequired' | 'TranscriptUpdated';
-  payload: unknown;
-}
-
 export function VoiceSessionController() {
-  const [status, setStatus]           = useState<SessionStatus>('idle');
-  const [sessionId, setSessionId]     = useState<string | null>(null);
-  const [triage, setTriage]           = useState<string | null>(null);
-  const [transcriptText, setTranscriptText] = useState('');
-  const [submitting, setSubmitting]   = useState(false);
-  const [triageResult, setTriageResult] = useState<TriageResult | null>(null);
-  const [liveUpdates, setLiveUpdates] = useState<LiveUpdate[]>([]);
-  const [hubConnected, setHubConnected] = useState(false);
-  const hubRef = useRef<HubConnection | null>(null);
+  const [status, setStatus]                   = useState<SessionStatus>('idle');
+  const [sessionId, setSessionId]             = useState<string | null>(null);
+  const [triage, setTriage]                   = useState<string | null>(null);
+  const [transcriptText, setTranscriptText]   = useState('');
+  const [submitting, setSubmitting]           = useState(false);
+  const [triageResult, setTriageResult]       = useState<TriageResult | null>(null);
+  const [pubSubConnected, setPubSubConnected] = useState(false);
 
-  // â”€â”€ SignalR lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const connectHub = useCallback(async (sid: string) => {
+  // AI thinking / streaming state
+  const [aiThinkingText, setAiThinkingText] = useState('');
+  const [aiStreaming, setAiStreaming]       = useState(false);
+  const [aiDone, setAiDone]               = useState(false);
+
+  const clientRef = useRef<VoiceSessionClient | null>(null);
+
+  // -- Azure Web PubSub lifecycle ---------------------------------------------
+  const connectPubSub = useCallback(async (sid: string) => {
     try {
-      const hub = createGlobalHub(HUB_TOKEN);
-      hubRef.current = hub;
+      const client = await createGlobalVoiceClient(API_BASE, sid);
+      clientRef.current = client;
 
-      hub.on('AgentDecision', (sessionIdFromHub: string, decision: { triageLevel: string; reasoning: string }) => {
-        if (sessionIdFromHub !== sid) return;
-        setTriage(decision.triageLevel);
-        setTriageResult({
-          id: sid,
-          assignedLevel: decision.triageLevel,
-          agentReasoning: decision.reasoning,
-        });
-        setLiveUpdates(prev => [...prev, { type: 'AgentDecision', payload: decision }]);
-
-        // Broadcast to Triage MFE via typed event bus
-        emitAgentDecision({ sessionId: sid, triageLevel: decision.triageLevel, reasoning: decision.reasoning });
+      client.onMessage((msg) => {
+        switch (msg.type) {
+          case 'AiThinking': {
+            const m = msg as AiThinkingMessage;
+            setAiStreaming(true);
+            if (m.token) setAiThinkingText((prev) => prev + m.token);
+            if (m.isFinal) { setAiStreaming(false); setAiDone(true); }
+            break;
+          }
+          case 'AgentResponse': {
+            const m = msg as AgentResponseMessage;
+            const level = m.triageLevel ?? 'Unknown';
+            setTriage(level);
+            setTriageResult({ id: sid, assignedLevel: level, agentReasoning: m.text });
+            emitAgentDecision({ sessionId: sid, triageLevel: level, reasoning: m.text });
+            break;
+          }
+          case 'EscalationRequired':
+            emitEscalationRequired({ sessionId: sid });
+            break;
+          case 'TranscriptReceived':
+            setTranscriptText((prev) => prev ? `${prev} ${msg.text}` : msg.text);
+            break;
+          default:
+            break;
+        }
       });
 
-      hub.on('EscalationRequired', (sessionIdFromHub: string) => {
-        if (sessionIdFromHub !== sid) return;
-        setLiveUpdates(prev => [...prev, { type: 'EscalationRequired', payload: { sessionId: sid } }]);
-        emitEscalationRequired({ sessionId: sid });
-      });
+      client.onConnected(() => setPubSubConnected(true));
+      client.onDisconnected(() => setPubSubConnected(false));
+      client.onReconnecting(() => setPubSubConnected(false));
 
-      hub.on('TranscriptUpdated', (sessionIdFromHub: string, chunk: string) => {
-        if (sessionIdFromHub !== sid) return;
-        setTranscriptText(prev => prev + (prev ? ' ' : '') + chunk);
-        setLiveUpdates(prev => [...prev, { type: 'TranscriptUpdated', payload: chunk }]);
-      });
-
-      hub.onclose(() => setHubConnected(false));
-      hub.onreconnecting(() => setHubConnected(false));
-      hub.onreconnected(() => {
-        setHubConnected(true);
-        hub.invoke('JoinSession', sid).catch(() => {});
-      });
-
-      await hub.start();
-      await hub.invoke('JoinSession', sid);
-      setHubConnected(true);
+      await client.start();
+      await client.joinSession(sid);
+      setPubSubConnected(true);
     } catch {
-      // Hub unavailable in dev â€” degrade gracefully to polling
-      setHubConnected(false);
+      // Web PubSub unavailable in dev -- degrade gracefully
+      setPubSubConnected(false);
     }
   }, []);
 
-  const disconnectHub = useCallback(async () => {
-    hubRef.current = null;
-    setHubConnected(false);
-    await disposeGlobalHub();
+  const disconnectPubSub = useCallback(async () => {
+    clientRef.current = null;
+    setPubSubConnected(false);
+    await disposeGlobalVoiceClient();
   }, []);
 
   useEffect(() => {
-    return () => { void disconnectHub(); };
-  }, [disconnectHub]);
+    return () => { void disconnectPubSub(); };
+  }, [disconnectPubSub]);
 
-  // â”€â”€ Session control â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Session control --------------------------------------------------------
   async function startSession() {
     setStatus('connecting');
     setTriageResult(null);
-    setLiveUpdates([]);
+    setAiThinkingText('');
+    setAiStreaming(false);
+    setAiDone(false);
     try {
       const res = await fetch(`${API_BASE}/api/v1/voice/sessions`, {
         method: 'POST',
         body: JSON.stringify({ patientId: '00000000-0000-0000-0000-000000000001' }),
         headers: { 'Content-Type': 'application/json' },
       });
-      const data = await res.json();
+      const data = await res.json() as { id: string };
       setSessionId(data.id);
       setStatus('live');
-      await connectHub(data.id);
+      await connectPubSub(data.id);
     } catch {
       setStatus('idle');
     }
@@ -127,13 +134,16 @@ export function VoiceSessionController() {
     if (!sessionId) return;
     await fetch(`${API_BASE}/api/v1/voice/sessions/${sessionId}/end`, { method: 'POST' });
     setStatus('ended');
-    await disconnectHub();
+    await disconnectPubSub();
   }
 
   async function submitForTriage() {
     if (!sessionId || !transcriptText.trim()) return;
     setSubmitting(true);
     setTriageResult(null);
+    setAiThinkingText('');
+    setAiStreaming(false);
+    setAiDone(false);
     try {
       await fetch(`${API_BASE}/api/v1/voice/sessions/${sessionId}/transcript`, {
         method: 'POST',
@@ -146,14 +156,16 @@ export function VoiceSessionController() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, transcriptText }),
       });
-      const result = await triageRes.json();
-      // If not using SignalR, set the result from the HTTP response directly
-      if (!hubConnected) {
-        setTriage(result.assignedLevel);
-        setTriageResult(result);
-        emitAgentDecision({ sessionId, triageLevel: result.assignedLevel, reasoning: result.agentReasoning });
+      const result = await triageRes.json() as { assignedLevel: string; agentReasoning: string };
+
+      // When Web PubSub is NOT connected, use the HTTP response directly
+      if (!pubSubConnected) {
+        const level = result.assignedLevel ?? 'Unknown';
+        setTriage(level);
+        setTriageResult({ id: sessionId, assignedLevel: level, agentReasoning: result.agentReasoning });
+        emitAgentDecision({ sessionId, triageLevel: level, reasoning: result.agentReasoning });
       }
-      // If SignalR is connected, AgentDecision hub event will update state
+      // When Web PubSub IS connected, AgentResponse + AiThinking messages update state
     } catch {
       // silent
     } finally {
@@ -177,8 +189,8 @@ export function VoiceSessionController() {
                 {triage}
               </Badge>
             )}
-            {hubConnected && (
-              <Chip label="Live" size="small" color="success" sx={{ height: 18, fontSize: 10 }} />
+            {pubSubConnected && (
+              <Chip label="Web PubSub Live" size="small" color="success" sx={{ height: 18, fontSize: 10 }} />
             )}
           </Stack>
         </CardTitle>
@@ -231,10 +243,17 @@ export function VoiceSessionController() {
                 onClick={submitForTriage}
                 disabled={submitting || !transcriptText.trim()}
               >
-                {submitting ? 'Running AI Triage...' : 'Submit for AI Triage'}
+                {submitting ? 'Contacting AI...' : 'Submit for AI Triage'}
               </Button>
             </Box>
           )}
+
+          {/* Real-time AI thinking panel - shows streaming OpenAI reasoning */}
+          <AiThinkingPanel
+            thinkingText={aiThinkingText}
+            isStreaming={aiStreaming}
+            isDone={aiDone}
+          />
 
           {triageResult && (
             <Alert
@@ -247,28 +266,14 @@ export function VoiceSessionController() {
                 Triage Result: {triageResult.assignedLevel}
               </Typography>
               {triageResult.agentReasoning && (
-                <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
                   {triageResult.agentReasoning}
                 </Typography>
               )}
             </Alert>
-          )}
-
-          {liveUpdates.length > 0 && (
-            <Box sx={{ maxHeight: 120, overflowY: 'auto', bgcolor: 'grey.50', borderRadius: 1, p: 1 }}>
-              <Typography variant="caption" color="text.secondary" fontWeight="bold">
-                Live Updates ({liveUpdates.length})
-              </Typography>
-              {liveUpdates.slice(-5).map((u, i) => (
-                <Typography key={i} variant="caption" display="block" color="text.secondary">
-                  [{u.type}] {JSON.stringify(u.payload).slice(0, 80)}
-                </Typography>
-              ))}
-            </Box>
           )}
         </Stack>
       </CardContent>
     </Card>
   );
 }
-

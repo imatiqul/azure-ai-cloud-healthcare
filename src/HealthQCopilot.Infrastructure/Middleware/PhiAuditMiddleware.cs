@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using HealthQCopilot.Infrastructure.Messaging;
 using HealthQCopilot.Infrastructure.Persistence;
 
 namespace HealthQCopilot.Infrastructure.Middleware;
@@ -34,13 +35,17 @@ public class PhiAuditMiddleware
         "/api/v1/ocr/jobs"
     ];
 
+    private readonly IEventHubAuditService? _eventHubAudit;
+
     public PhiAuditMiddleware(RequestDelegate next,
                               ILogger<PhiAuditMiddleware> logger,
-                              IServiceScopeFactory scopeFactory)
+                              IServiceScopeFactory scopeFactory,
+                              IEventHubAuditService? eventHubAudit = null)
     {
-        _next         = next;
-        _logger       = logger;
-        _scopeFactory = scopeFactory;
+        _next           = next;
+        _logger         = logger;
+        _scopeFactory   = scopeFactory;
+        _eventHubAudit  = eventHubAudit;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -70,9 +75,18 @@ public class PhiAuditMiddleware
             "PHI_ACCESS_COMPLETE: Path={Path} Status={StatusCode} DurationMs={DurationMs}",
             path, statusCode, (DateTime.UtcNow - startedAt).TotalMilliseconds);
 
+
+        var durationMs = (long)(DateTime.UtcNow - startedAt).TotalMilliseconds;
+
         // Persist to append-only audit_log table (fire-and-forget; never block the response)
         _ = PersistAuditEntryAsync(userId, context.Request.Method, path,
             statusCode, correlationId, startedAt);
+
+        // Dual-write to Azure Event Hubs for immutable, time-ordered HIPAA audit stream
+        if (_eventHubAudit is not null)
+            _ = _eventHubAudit.PublishAsync(
+                AuditEvent.PhiAccess(path, context.Request.Method, userId,
+                    null, statusCode, durationMs, correlationId));
     }
 
     private async Task PersistAuditEntryAsync(string userId, string method, string path,

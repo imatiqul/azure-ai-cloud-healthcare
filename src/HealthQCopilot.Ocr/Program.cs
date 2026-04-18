@@ -30,6 +30,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<OcrDbContext>("ocr");
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "OcrDb");
 builder.Services.AddDaprSecretProvider();
+builder.Services.AddEventHubAudit();
 
 var app = builder.Build();
 

@@ -7,8 +7,6 @@ using HealthQCopilot.Voice.Infrastructure;
 using FluentAssertions;
 using Xunit;
 
-using HealthQCopilot.Voice.Hubs;
-
 namespace HealthQCopilot.Tests.Integration;
 
 public class VoiceEndpointTests : IClassFixture<PostgresFixture>
@@ -17,7 +15,7 @@ public class VoiceEndpointTests : IClassFixture<PostgresFixture>
 
     public VoiceEndpointTests(PostgresFixture postgres)
     {
-        var factory = new ServiceWebApplicationFactory<VoiceHub, VoiceDbContext>(postgres);
+        var factory = new ServiceWebApplicationFactory<VoiceDbContext, VoiceDbContext>(postgres);
         _client = factory.CreateClient();
     }
 

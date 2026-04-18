@@ -4,6 +4,7 @@ using HealthQCopilot.Infrastructure.Messaging;
 using HealthQCopilot.Infrastructure.Middleware;
 using HealthQCopilot.Infrastructure.Observability;
 using HealthQCopilot.Infrastructure.Persistence;
+using HealthQCopilot.Infrastructure.RealTime;
 using HealthQCopilot.Infrastructure.Security;
 using HealthQCopilot.Voice.Endpoints;
 using HealthQCopilot.Voice.Hubs;
@@ -30,7 +31,13 @@ builder.Services.AddOutboxRelay<VoiceDbContext>(builder.Configuration);
 builder.Services.AddSingleton<ITranscriptionService, AzureSpeechTranscriptionService>();
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<VoiceDbContext>("voice");
-builder.Services.AddSignalR();
+
+// Azure Web PubSub replaces SignalR for real-time server→client push
+builder.Services.AddWebPubSubService();
+
+// Azure Event Hubs for HIPAA-compliant immutable audit stream
+builder.Services.AddEventHubAudit();
+
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "VoiceDb");
 builder.Services.AddDaprSecretProvider();
 
@@ -47,9 +54,10 @@ app.UseAuthorization();
 app.UseHealthcareRateLimiting();
 app.MapControllers();
 app.MapDefaultEndpoints();
-app.MapHub<VoiceHub>("/hubs/voice");
+app.MapVoiceWebPubSubNegotiate();
 app.MapVoiceEndpoints();
 
 app.Run();
 
 public partial class Program { }
+

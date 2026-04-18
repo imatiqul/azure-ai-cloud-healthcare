@@ -30,6 +30,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<NotificationDbContext>("notification");
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "NotificationDb");
 builder.Services.AddDaprSecretProvider();
+builder.Services.AddEventHubAudit();
 
 var app = builder.Build();
 

@@ -32,6 +32,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<SchedulingDbContext>("scheduling");
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "SchedulingDb");
 builder.Services.AddDaprSecretProvider();
+builder.Services.AddEventHubAudit();
 
 var app = builder.Build();
 

@@ -27,6 +27,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<IdentityDbContext>("identity");
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "IdentityDb");
 builder.Services.AddDaprSecretProvider();
+builder.Services.AddEventHubAudit();
 
 var app = builder.Build();
 

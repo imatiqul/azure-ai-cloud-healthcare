@@ -27,6 +27,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<FhirDbContext>("fhir");
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "FhirDb");
 builder.Services.AddDaprSecretProvider();
+builder.Services.AddEventHubAudit();
 
 var app = builder.Build();
 

@@ -8,6 +8,7 @@ using HealthQCopilot.Infrastructure.Messaging;
 using HealthQCopilot.Infrastructure.Middleware;
 using HealthQCopilot.Infrastructure.Observability;
 using HealthQCopilot.Infrastructure.Persistence;
+using HealthQCopilot.Infrastructure.RealTime;
 using HealthQCopilot.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
@@ -71,6 +72,12 @@ builder.Services.AddSingleton(sp =>
 
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "AgentDb");
 builder.Services.AddDaprSecretProvider();
+
+// Azure Web PubSub — push AI thinking tokens + agent responses to frontend
+builder.Services.AddWebPubSubService();
+
+// Azure Event Hubs — HIPAA-compliant immutable audit trail
+builder.Services.AddEventHubAudit();
 
 var app = builder.Build();
 
