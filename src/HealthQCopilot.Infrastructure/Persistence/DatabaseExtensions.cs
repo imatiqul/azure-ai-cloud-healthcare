@@ -24,7 +24,10 @@ public static class DatabaseExtensions
         {
             if (!string.IsNullOrEmpty(connectionString))
             {
-                opt.UseNpgsql(connectionString);
+                var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
+                dataSourceBuilder.EnableDynamicJson();
+                var dataSource = dataSourceBuilder.Build();
+                opt.UseNpgsql(dataSource);
             }
             else
             {
