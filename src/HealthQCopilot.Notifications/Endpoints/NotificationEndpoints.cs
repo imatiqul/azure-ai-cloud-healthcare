@@ -23,7 +23,7 @@ public static class NotificationEndpoints
             db.OutreachCampaigns.Add(campaign);
             await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/notifications/campaigns/{campaign.Id}",
-                new { campaign.Id, campaign.Status });
+                new { campaign.Id, Status = campaign.Status.ToString() });
         });
 
         group.MapPost("/campaigns/{id:guid}/activate", async (
@@ -45,7 +45,7 @@ public static class NotificationEndpoints
             }
 
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { campaign.Id, campaign.Status, MessagesCreated = patientIds.Length });
+            return Results.Ok(new { campaign.Id, Status = campaign.Status.ToString(), MessagesCreated = patientIds.Length });
         });
 
         group.MapPost("/messages/{id:guid}/send", async (
@@ -58,7 +58,7 @@ public static class NotificationEndpoints
             if (message is null) return Results.NotFound();
             await sender.SendAsync(message, ct);
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { message.Id, message.Status });
+            return Results.Ok(new { message.Id, Status = message.Status.ToString() });
         });
 
         group.MapGet("/campaigns", async (
@@ -67,7 +67,7 @@ public static class NotificationEndpoints
         {
             var campaigns = await db.OutreachCampaigns
                 .OrderByDescending(c => c.CreatedAt).Take(50)
-                .Select(c => new { c.Id, c.Name, c.Type, c.Status, c.CreatedAt })
+                .Select(c => new { c.Id, c.Name, Type = c.Type.ToString(), Status = c.Status.ToString(), c.CreatedAt })
                 .ToListAsync(ct);
             return Results.Ok(campaigns);
         });
@@ -81,7 +81,7 @@ public static class NotificationEndpoints
             if (campaignId.HasValue)
                 query = query.Where(m => m.CampaignId == campaignId.Value);
             var messages = await query.OrderByDescending(m => m.CreatedAt).Take(100)
-                .Select(m => new { m.Id, m.CampaignId, m.Channel, m.Status, m.CreatedAt })
+                .Select(m => new { m.Id, m.CampaignId, Channel = m.Channel.ToString(), Status = m.Status.ToString(), m.CreatedAt })
                 .ToListAsync(ct);
             return Results.Ok(messages);
         });

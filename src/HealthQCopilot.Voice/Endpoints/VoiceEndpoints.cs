@@ -22,7 +22,7 @@ public static class VoiceEndpoints
             db.VoiceSessions.Add(session);
             await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/voice/sessions/{session.Id}",
-                new { session.Id, session.Status });
+                new { session.Id, Status = session.Status.ToString() });
         });
 
         group.MapGet("/sessions/{id:guid}", async (
@@ -56,7 +56,7 @@ public static class VoiceEndpoints
             if (session is null) return Results.NotFound();
             session.End();
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { session.Id, session.Status });
+            return Results.Ok(new { session.Id, Status = session.Status.ToString() });
         });
 
         group.MapGet("/sessions", async (
@@ -66,7 +66,7 @@ public static class VoiceEndpoints
             var sessions = await db.VoiceSessions
                 .OrderByDescending(s => s.StartedAt)
                 .Take(50)
-                .Select(s => new { s.Id, s.PatientId, s.Status, s.StartedAt })
+                .Select(s => new { s.Id, s.PatientId, Status = s.Status.ToString(), s.StartedAt })
                 .ToListAsync(ct);
             return Results.Ok(sessions);
         });
