@@ -16,7 +16,7 @@ services:
       tag: ea25cd5a713be61409d611dbf5b82988d55bb00b
   revenue:
     image:
-      tag: 929315a9ba04091610fa126bf94b6a842c5cf44d
+      tag: 4195a2ec0fa92bfea91f18a0be28b9e348ee4de0
   gateway:
     image:
       tag: 1806b5afef252e9116e47aa1472472bd88fa5e84
