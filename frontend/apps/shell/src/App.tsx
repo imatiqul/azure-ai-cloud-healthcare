@@ -25,8 +25,12 @@ const EncountersPage = lazy(() => import('encounters/EncounterList').then(m => (
 const EngagementPage = lazy(() => import('engagement/PatientPortal').then(m => ({ default: m.PatientPortal })));
 const DeliveryAnalyticsDashboardPage = lazy(() => import('engagement/DeliveryAnalyticsDashboard').then(m => ({ default: m.DeliveryAnalyticsDashboard })));
 const LabDeltaFlagsPanelPage = lazy(() => import('encounters/LabDeltaFlagsPanel').then(m => ({ default: m.LabDeltaFlagsPanel })));
+const DrugInteractionCheckerPage = lazy(() => import('encounters/DrugInteractionChecker').then(m => ({ default: m.DrugInteractionChecker })));
+const FhirObservationViewerPage = lazy(() => import('encounters/FhirObservationViewer').then(m => ({ default: m.FhirObservationViewer })));
 const ConsentManagementPanelPage = lazy(() => import('engagement/ConsentManagementPanel').then(m => ({ default: m.ConsentManagementPanel })));
 const VoiceSessionHistoryPage = lazy(() => import('voice/VoiceSessionHistory').then(m => ({ default: m.VoiceSessionHistory })));
+const SdohAssessmentPanelPage = lazy(() => import('pophealth/SdohAssessmentPanel').then(m => ({ default: m.SdohAssessmentPanel })));
+const CostPredictionPanelPage = lazy(() => import('pophealth/CostPredictionPanel').then(m => ({ default: m.CostPredictionPanel })));
 const ModelGovernanceDashboardPage = lazy(() => import('./pages/ModelGovernanceDashboard'));
 const DemoLive = lazy(() => import('./pages/DemoLive'));
 
@@ -118,6 +122,8 @@ export default function App() {
                     <PopHealthPage />
                     <CareGapListPage />
                     <RiskTrajectoryPanelPage />
+                    <SdohAssessmentPanelPage />
+                    <CostPredictionPanelPage />
                   </MfeErrorBoundary>
                 } />
                 <Route path="/revenue" element={
@@ -131,6 +137,8 @@ export default function App() {
                   <MfeErrorBoundary name="Encounters">
                     <EncountersPage />
                     <LabDeltaFlagsPanelPage />
+                    <DrugInteractionCheckerPage />
+                    <FhirObservationViewerPage />
                   </MfeErrorBoundary>
                 } />
                 <Route path="/patient-portal" element={

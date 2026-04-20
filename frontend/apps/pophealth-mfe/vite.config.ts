@@ -13,6 +13,8 @@ export default defineConfig({
         './RiskPanel': './src/components/RiskPanel.tsx',
         './CareGapList': './src/components/CareGapList.tsx',
         './RiskTrajectoryPanel': './src/components/RiskTrajectoryPanel.tsx',
+        './SdohAssessmentPanel': './src/components/SdohAssessmentPanel.tsx',
+        './CostPredictionPanel': './src/components/CostPredictionPanel.tsx',
       },
       shared: {
         react: { singleton: true, requiredVersion: '^19.0.0' },

@@ -13,6 +13,8 @@ export default defineConfig({
         './EncounterList': './src/components/EncounterList.tsx',
         './CreateEncounterModal': './src/components/CreateEncounterModal.tsx',
         './LabDeltaFlagsPanel': './src/components/LabDeltaFlagsPanel.tsx',
+        './DrugInteractionChecker': './src/components/DrugInteractionChecker.tsx',
+        './FhirObservationViewer': './src/components/FhirObservationViewer.tsx',
       },
       shared: {
         react: { singleton: true },

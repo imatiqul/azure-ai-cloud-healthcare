@@ -67,3 +67,15 @@ declare module 'engagement/ConsentManagementPanel' {
 declare module 'voice/VoiceSessionHistory' {
   export const VoiceSessionHistory: React.ComponentType;
 }
+declare module 'encounters/DrugInteractionChecker' {
+  export const DrugInteractionChecker: React.ComponentType;
+}
+declare module 'encounters/FhirObservationViewer' {
+  export const FhirObservationViewer: React.ComponentType;
+}
+declare module 'pophealth/SdohAssessmentPanel' {
+  export const SdohAssessmentPanel: React.ComponentType;
+}
+declare module 'pophealth/CostPredictionPanel' {
+  export const CostPredictionPanel: React.ComponentType;
+}
