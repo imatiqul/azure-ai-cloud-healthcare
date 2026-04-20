@@ -139,20 +139,20 @@ public static class PopHealthEndpoints
         {
             var input = new HedisMeasureCalculator.PatientMeasureInput
             {
-                PatientId               = patientId,
-                Age                     = body.Age,
-                Sex                     = body.Sex,
-                Conditions              = body.Conditions,
-                Procedures              = body.Procedures,
-                Observations            = body.Observations,
-                LastHbA1cDate           = body.LastHbA1cDate,
-                LastHbA1cValue          = body.LastHbA1cValue,
-                LastBpDate              = body.LastBpDate,
-                LastSystolicBp          = body.LastSystolicBp,
-                LastDiastolicBp         = body.LastDiastolicBp,
-                LastMammogramDate       = body.LastMammogramDate,
+                PatientId = patientId,
+                Age = body.Age,
+                Sex = body.Sex,
+                Conditions = body.Conditions,
+                Procedures = body.Procedures,
+                Observations = body.Observations,
+                LastHbA1cDate = body.LastHbA1cDate,
+                LastHbA1cValue = body.LastHbA1cValue,
+                LastBpDate = body.LastBpDate,
+                LastSystolicBp = body.LastSystolicBp,
+                LastDiastolicBp = body.LastDiastolicBp,
+                LastMammogramDate = body.LastMammogramDate,
                 LastColorectalScreenDate = body.LastColorectalScreenDate,
-                ColorectalScreenType    = body.ColorectalScreenType,
+                ColorectalScreenType = body.ColorectalScreenType,
             };
 
             var results = hedis.EvaluateAll(input);
@@ -160,10 +160,10 @@ public static class PopHealthEndpoints
 
             return Results.Ok(new
             {
-                PatientId     = patientId,
+                PatientId = patientId,
                 MeasureResults = results,
-                TotalMeasures  = results.Count(r => r.InDenominator),
-                CareGapCount   = careGaps.Count,
+                TotalMeasures = results.Count(r => r.InDenominator),
+                CareGapCount = careGaps.Count,
                 CompliantCount = results.Count(r => r.InDenominator && r.InNumerator),
             });
         })
@@ -220,8 +220,8 @@ public static class PopHealthEndpoints
                     assessment.TotalScore,
                     assessment.RiskLevel,
                     assessment.CompositeRiskWeight,
-                    DomainScores       = assessment.DomainScores,
-                    PrioritizedNeeds   = assessment.PrioritizedNeeds,
+                    DomainScores = assessment.DomainScores,
+                    PrioritizedNeeds = assessment.PrioritizedNeeds,
                     RecommendedActions = assessment.RecommendedActions,
                     assessment.AssessedAt,
                 });
@@ -252,8 +252,8 @@ public static class PopHealthEndpoints
                 latest.TotalScore,
                 latest.RiskLevel,
                 latest.CompositeRiskWeight,
-                DomainScores       = latest.DomainScores,
-                PrioritizedNeeds   = latest.PrioritizedNeeds,
+                DomainScores = latest.DomainScores,
+                PrioritizedNeeds = latest.PrioritizedNeeds,
                 RecommendedActions = latest.RecommendedActions,
                 latest.AssessedBy,
                 latest.AssessedAt,
@@ -285,8 +285,8 @@ public static class PopHealthEndpoints
             }
 
             var request = new CostPredictionRequest(
-                PatientId:  input.PatientId,
-                RiskLevel:  input.RiskLevel,
+                PatientId: input.PatientId,
+                RiskLevel: input.RiskLevel,
                 Conditions: input.Conditions,
                 SdohWeight: sdohWeight);
 
@@ -300,10 +300,10 @@ public static class PopHealthEndpoints
                     prediction.Id,
                     prediction.PatientId,
                     Predicted12mCostUsd = prediction.Predicted12mCost,
-                    LowerBound95Usd     = prediction.LowerBound95,
-                    UpperBound95Usd     = prediction.UpperBound95,
+                    LowerBound95Usd = prediction.LowerBound95,
+                    UpperBound95Usd = prediction.UpperBound95,
                     prediction.CostTier,
-                    CostDrivers         = prediction.CostDrivers,
+                    CostDrivers = prediction.CostDrivers,
                     prediction.ModelVersion,
                     prediction.PredictedAt,
                 });
@@ -331,10 +331,10 @@ public static class PopHealthEndpoints
                 latest.Id,
                 latest.PatientId,
                 Predicted12mCostUsd = latest.Predicted12mCost,
-                LowerBound95Usd     = latest.LowerBound95,
-                UpperBound95Usd     = latest.UpperBound95,
+                LowerBound95Usd = latest.LowerBound95,
+                UpperBound95Usd = latest.UpperBound95,
                 latest.CostTier,
-                CostDrivers         = latest.CostDrivers,
+                CostDrivers = latest.CostDrivers,
                 latest.ModelVersion,
                 latest.PredictedAt,
             });

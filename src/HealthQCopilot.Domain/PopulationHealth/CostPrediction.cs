@@ -49,15 +49,15 @@ public class CostPrediction : AggregateRoot<Guid>
     {
         return new CostPrediction
         {
-            Id               = Guid.NewGuid(),
-            PatientId        = patientId,
+            Id = Guid.NewGuid(),
+            PatientId = patientId,
             Predicted12mCost = predicted,
-            LowerBound95     = lower95,
-            UpperBound95     = upper95,
-            CostTier         = tier,
-            CostDriversJson  = JsonSerializer.Serialize(drivers),
-            ModelVersion     = modelVersion,
-            PredictedAt      = DateTime.UtcNow,
+            LowerBound95 = lower95,
+            UpperBound95 = upper95,
+            CostTier = tier,
+            CostDriversJson = JsonSerializer.Serialize(drivers),
+            ModelVersion = modelVersion,
+            PredictedAt = DateTime.UtcNow,
         };
     }
 }

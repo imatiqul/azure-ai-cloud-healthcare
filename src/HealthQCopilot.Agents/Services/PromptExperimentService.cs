@@ -83,14 +83,14 @@ public sealed class PromptExperimentService
                 var challengerObs = await challengerFunc(ct);
                 var outcome = new PromptExperimentOutcome
                 {
-                    ExperimentId      = experimentId,
-                    ControlLatencyMs  = controlObs.LatencyMs,
+                    ExperimentId = experimentId,
+                    ControlLatencyMs = controlObs.LatencyMs,
                     ChallengerLatencyMs = challengerObs.LatencyMs,
-                    ControlGuardPassed   = controlObs.GuardPassed,
+                    ControlGuardPassed = controlObs.GuardPassed,
                     ChallengerGuardPassed = challengerObs.GuardPassed,
-                    ControlOutput        = controlObs.Output[..Math.Min(500, controlObs.Output.Length)],
-                    ChallengerOutput     = challengerObs.Output[..Math.Min(500, challengerObs.Output.Length)],
-                    RecordedAt           = DateTime.UtcNow,
+                    ControlOutput = controlObs.Output[..Math.Min(500, controlObs.Output.Length)],
+                    ChallengerOutput = challengerObs.Output[..Math.Min(500, challengerObs.Output.Length)],
+                    RecordedAt = DateTime.UtcNow,
                 };
                 _db.PromptExperimentOutcomes.Add(outcome);
                 await _db.SaveChangesAsync(CancellationToken.None);
@@ -121,14 +121,14 @@ public sealed class PromptExperimentService
         var isChallenger = variant == ExperimentVariant.Challenger;
         var outcome = new PromptExperimentOutcome
         {
-            ExperimentId             = experimentId,
-            ControlLatencyMs         = isChallenger ? 0 : observation.LatencyMs,
-            ChallengerLatencyMs      = isChallenger ? observation.LatencyMs : 0,
-            ControlGuardPassed       = !isChallenger && observation.GuardPassed,
-            ChallengerGuardPassed    = isChallenger && observation.GuardPassed,
-            ControlOutput            = isChallenger ? string.Empty : observation.Output[..Math.Min(500, observation.Output.Length)],
-            ChallengerOutput         = isChallenger ? observation.Output[..Math.Min(500, observation.Output.Length)] : string.Empty,
-            RecordedAt               = DateTime.UtcNow,
+            ExperimentId = experimentId,
+            ControlLatencyMs = isChallenger ? 0 : observation.LatencyMs,
+            ChallengerLatencyMs = isChallenger ? observation.LatencyMs : 0,
+            ControlGuardPassed = !isChallenger && observation.GuardPassed,
+            ChallengerGuardPassed = isChallenger && observation.GuardPassed,
+            ControlOutput = isChallenger ? string.Empty : observation.Output[..Math.Min(500, observation.Output.Length)],
+            ChallengerOutput = isChallenger ? observation.Output[..Math.Min(500, observation.Output.Length)] : string.Empty,
+            RecordedAt = DateTime.UtcNow,
         };
         _db.PromptExperimentOutcomes.Add(outcome);
         await _db.SaveChangesAsync(ct);
@@ -150,13 +150,13 @@ public sealed class PromptExperimentService
         if (outcomes.Count == 0)
             return new ExperimentSummary(experimentId, 0, 0, 0, 0, 0, 0, "no-data", false);
 
-        var controlObs    = outcomes.Where(o => o.ControlLatencyMs > 0).ToList();
+        var controlObs = outcomes.Where(o => o.ControlLatencyMs > 0).ToList();
         var challengerObs = outcomes.Where(o => o.ChallengerLatencyMs > 0).ToList();
 
-        double controlGuardRate    = controlObs.Count > 0    ? controlObs.Count(o => o.ControlGuardPassed) / (double)controlObs.Count : 0;
+        double controlGuardRate = controlObs.Count > 0 ? controlObs.Count(o => o.ControlGuardPassed) / (double)controlObs.Count : 0;
         double challengerGuardRate = challengerObs.Count > 0 ? challengerObs.Count(o => o.ChallengerGuardPassed) / (double)challengerObs.Count : 0;
 
-        double controlAvgMs    = controlObs.Count > 0    ? controlObs.Average(o => o.ControlLatencyMs) : 0;
+        double controlAvgMs = controlObs.Count > 0 ? controlObs.Average(o => o.ControlLatencyMs) : 0;
         double challengerAvgMs = challengerObs.Count > 0 ? challengerObs.Average(o => o.ChallengerLatencyMs) : 0;
 
         // Simple z-test for proportions (guard pass rate)

@@ -7,21 +7,21 @@ namespace HealthQCopilot.ServiceDefaults.Features;
 public static class HealthQFeatures
 {
     // AI / Agentic
-    public const string AgenticPlanning    = "HealthQ:AgenticPlanning";
-    public const string WearableStreaming  = "HealthQ:WearableStreaming";
-    public const string LlmClinicalCoding  = "HealthQ:LlmClinicalCoding";
-    public const string EpisodicMemory     = "HealthQ:EpisodicMemory";
+    public const string AgenticPlanning = "HealthQ:AgenticPlanning";
+    public const string WearableStreaming = "HealthQ:WearableStreaming";
+    public const string LlmClinicalCoding = "HealthQ:LlmClinicalCoding";
+    public const string EpisodicMemory = "HealthQ:EpisodicMemory";
 
     // Revenue Cycle
-    public const string AutoPriorAuth      = "HealthQ:AutoPriorAuth";
-    public const string ShadowModeCoding   = "HealthQ:ShadowModeCoding";
+    public const string AutoPriorAuth = "HealthQ:AutoPriorAuth";
+    public const string ShadowModeCoding = "HealthQ:ShadowModeCoding";
 
     // Patient Engagement
-    public const string MfaEnforced        = "HealthQ:MfaEnforced";
+    public const string MfaEnforced = "HealthQ:MfaEnforced";
     public const string PatientRegistration = "HealthQ:PatientRegistration";
 
     // Platform
-    public const string BreakGlassAlert    = "HealthQ:BreakGlassAlert";
-    public const string AuditExport        = "HealthQ:AuditExport";
-    public const string BillingMetering    = "HealthQ:BillingMetering";
+    public const string BreakGlassAlert = "HealthQ:BreakGlassAlert";
+    public const string AuditExport = "HealthQ:AuditExport";
+    public const string BillingMetering = "HealthQ:BillingMetering";
 }

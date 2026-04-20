@@ -17,7 +17,7 @@ namespace HealthQCopilot.PopulationHealth.Services;
 public sealed class RiskCalculationService
 {
     private const double RulesWeight = 0.55;
-    private const double MlWeight    = 0.45;
+    private const double MlWeight = 0.45;
 
     private readonly ReadmissionRiskPredictor? _mlPredictor;
     private readonly ILogger<RiskCalculationService> _logger;
@@ -104,28 +104,28 @@ public sealed class RiskCalculationService
                 var conditionWeightSum = ComputeBaseScore(conditions); // reuse for ML feature
                 var mlInput = new ReadmissionRiskPredictor.ReadmissionInput
                 {
-                    Age                  = age,
-                    ComorbidityCount     = conditions.Count,
-                    TriageLevel          = triageLevel,
-                    PriorAdmissions12M   = priorAdmissions,
-                    LengthOfStayDays     = los,
+                    Age = age,
+                    ComorbidityCount = conditions.Count,
+                    TriageLevel = triageLevel,
+                    PriorAdmissions12M = priorAdmissions,
+                    LengthOfStayDays = los,
                     DischargeDisposition = dischargeDisposition,
-                    ConditionWeightSum   = conditionWeightSum,
+                    ConditionWeightSum = conditionWeightSum,
                 };
                 var mlResult = _mlPredictor.Predict(mlInput);
-                score        = RulesWeight * rulesScore + MlWeight * mlResult.Probability;
+                score = RulesWeight * rulesScore + MlWeight * mlResult.Probability;
                 modelVersion = "hybrid-v1.0";
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "ML model prediction failed; falling back to rule-based scoring");
-                score        = rulesScore;
+                score = rulesScore;
                 modelVersion = "rule-v1.0-fallback";
             }
         }
         else
         {
-            score        = rulesScore;
+            score = rulesScore;
             modelVersion = "rule-v1.0";
         }
 

@@ -47,14 +47,14 @@ public sealed class ReasoningAuditEntry : Entity<Guid>
     {
         return new ReasoningAuditEntry
         {
-            Id               = Guid.NewGuid(),
-            AgentDecisionId  = agentDecisionId,
-            AgentName        = agentName,
-            RagChunkIdsJson  = JsonSerializer.Serialize(ragChunkIds),
+            Id = Guid.NewGuid(),
+            AgentDecisionId = agentDecisionId,
+            AgentName = agentName,
+            RagChunkIdsJson = JsonSerializer.Serialize(ragChunkIds),
             ReasoningStepsJson = JsonSerializer.Serialize(reasoningSteps),
-            GuardVerdict     = guardVerdict,
-            ConfidenceScore  = Math.Clamp(confidenceScore, 0.0, 1.0),
-            CreatedAt        = DateTime.UtcNow,
+            GuardVerdict = guardVerdict,
+            ConfidenceScore = Math.Clamp(confidenceScore, 0.0, 1.0),
+            CreatedAt = DateTime.UtcNow,
         };
     }
 

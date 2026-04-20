@@ -13,11 +13,11 @@ namespace HealthQCopilot.Domain.PopulationHealth;
 /// </summary>
 public class PatientRiskHistory : AggregateRoot<Guid>
 {
-    public string   PatientId    { get; private set; } = string.Empty;
-    public RiskLevel Level       { get; private set; }
-    public double   RiskScore    { get; private set; }
-    public string   ModelVersion { get; private set; } = string.Empty;
-    public DateTime AssessedAt   { get; private set; }
+    public string PatientId { get; private set; } = string.Empty;
+    public RiskLevel Level { get; private set; }
+    public double RiskScore { get; private set; }
+    public string ModelVersion { get; private set; } = string.Empty;
+    public DateTime AssessedAt { get; private set; }
 
     // ── Trajectory metadata ────────────────────────────────────────────────
 
@@ -33,31 +33,31 @@ public class PatientRiskHistory : AggregateRoot<Guid>
     private PatientRiskHistory() { }
 
     public static PatientRiskHistory Create(
-        string    patientId,
+        string patientId,
         RiskLevel level,
-        double    riskScore,
-        string    modelVersion,
+        double riskScore,
+        string modelVersion,
         IEnumerable<string> riskFactors,
-        double?   scoreDelta)
+        double? scoreDelta)
     {
         var trend = scoreDelta switch
         {
-            null         => RiskTrend.Stable,
-            < -2.0       => RiskTrend.Improving,
-            > 2.0        => RiskTrend.Worsening,
-            _            => RiskTrend.Stable
+            null => RiskTrend.Stable,
+            < -2.0 => RiskTrend.Improving,
+            > 2.0 => RiskTrend.Worsening,
+            _ => RiskTrend.Stable
         };
 
         return new PatientRiskHistory
         {
-            Id                  = Guid.NewGuid(),
-            PatientId           = patientId,
-            Level               = level,
-            RiskScore           = riskScore,
-            ModelVersion        = modelVersion,
-            AssessedAt          = DateTime.UtcNow,
-            ScoreDelta          = scoreDelta,
-            Trend               = trend,
+            Id = Guid.NewGuid(),
+            PatientId = patientId,
+            Level = level,
+            RiskScore = riskScore,
+            ModelVersion = modelVersion,
+            AssessedAt = DateTime.UtcNow,
+            ScoreDelta = scoreDelta,
+            Trend = trend,
             RiskFactorsSnapshot = string.Join(", ", riskFactors)
         };
     }

@@ -22,7 +22,7 @@ public class Edi835Parser
             return Result<RemittanceAdvice>.Failure("Document is too short to be a valid 835.");
 
         var segTerm = edi835Content[105];
-        var eleSep  = edi835Content[3];
+        var eleSep = edi835Content[3];
 
         var segments = edi835Content
             .Split(segTerm, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -44,7 +44,7 @@ public class Edi835Parser
         {
             "ACH" or "FWT" => PaymentMethod.Eft,
             "VCP" or "VCK" => PaymentMethod.VirtualCard,
-            _               => PaymentMethod.Check,
+            _ => PaymentMethod.Check,
         };
 
         var paymentDateStr = bpr.ElementAt(16, DateTime.UtcNow.ToString("yyyyMMdd"));
@@ -88,10 +88,10 @@ public class Edi835Parser
                 currentLine = new RemittanceClaimLine
                 {
                     ClearinghouseClaimId = seg.ElementAt(1, string.Empty),
-                    ClpStatusCode        = seg.ElementAt(2, "1"),
-                    BilledAmountCents    = (long)(billedAmt * 100),
-                    PaidAmountCents      = (long)(paidAmt * 100),
-                    PatientId            = string.Empty,  // resolved via NM1*QC below
+                    ClpStatusCode = seg.ElementAt(2, "1"),
+                    BilledAmountCents = (long)(billedAmt * 100),
+                    PaidAmountCents = (long)(paidAmt * 100),
+                    PatientId = string.Empty,  // resolved via NM1*QC below
                 };
                 continue;
             }
@@ -126,8 +126,8 @@ public class Edi835Parser
                 svcLines.Add(new RemittanceServiceLine
                 {
                     ProcedureCode = svcCode,
-                    BilledCents   = (long)(svcBilled * 100),
-                    PaidCents     = (long)(svcPaid * 100),
+                    BilledCents = (long)(svcBilled * 100),
+                    PaidCents = (long)(svcPaid * 100),
                 });
                 continue;
             }

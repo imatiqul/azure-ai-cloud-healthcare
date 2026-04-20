@@ -22,9 +22,9 @@ public sealed class CostPredictionService
     // Annual base cost by clinical risk tier (2024 USD, AHRQ MEPS calibrated)
     private static readonly Dictionary<string, decimal> BaseCostByTier = new()
     {
-        ["Low"]      = 3_200m,
+        ["Low"] = 3_200m,
         ["Moderate"] = 11_500m,
-        ["High"]     = 28_000m,
+        ["High"] = 28_000m,
         ["Critical"] = 62_000m,
     };
 
@@ -60,9 +60,9 @@ public sealed class CostPredictionService
         var tierKey = request.RiskLevel switch
         {
             "Critical" => "Critical",
-            "High"     => "High",
+            "High" => "High",
             "Moderate" => "Moderate",
-            _          => "Low",
+            _ => "Low",
         };
         decimal baseCost = BaseCostByTier[tierKey];
 
@@ -90,10 +90,10 @@ public sealed class CostPredictionService
         // 5. Cost tier classification
         string costTier = predicted switch
         {
-            < 5_000m  => "Low",
+            < 5_000m => "Low",
             < 20_000m => "Moderate",
             < 50_000m => "High",
-            _         => "VeryHigh",
+            _ => "VeryHigh",
         };
 
         // 6. Narrative cost drivers (up to 5)
@@ -112,12 +112,12 @@ public sealed class CostPredictionService
             drivers.Add($"SDOH social complexity ({request.SdohWeight:P0} weight)");
 
         return CostPrediction.Create(
-            patientId:   request.PatientId,
-            predicted:   predicted,
-            lower95:     lower,
-            upper95:     upper,
-            tier:        costTier,
-            drivers:     [.. drivers],
+            patientId: request.PatientId,
+            predicted: predicted,
+            lower95: lower,
+            upper95: upper,
+            tier: costTier,
+            drivers: [.. drivers],
             modelVersion: "cost-rules-v1.0");
     }
 }

@@ -34,11 +34,11 @@ public static class FhirEndpoints
                 return Results.Ok(new
                 {
                     studyInstanceUid = studyId,
-                    studyDate        = DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                    modality         = "OT",
-                    description      = "Imaging study (metadata unavailable)",
-                    seriesCount      = 0,
-                    instanceCount    = 0,
+                    studyDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                    modality = "OT",
+                    description = "Imaging study (metadata unavailable)",
+                    seriesCount = 0,
+                    instanceCount = 0,
                 });
             }
 
@@ -201,13 +201,13 @@ public static class FhirEndpoints
             IHttpClientFactory httpClientFactory,
             CancellationToken ct) =>
         {
-            var client  = httpClientFactory.CreateClient("FhirServer");
+            var client = httpClientFactory.CreateClient("FhirServer");
             var content = new StringContent(
                 body.GetRawText(),
                 System.Text.Encoding.UTF8,
                 "application/fhir+json");
             var response = await client.PostAsync("Observation", content, ct);
-            var result   = await response.Content.ReadAsStringAsync(ct);
+            var result = await response.Content.ReadAsStringAsync(ct);
             return Results.Content(result, "application/fhir+json", statusCode: (int)response.StatusCode);
         });
 
@@ -218,12 +218,12 @@ public static class FhirEndpoints
             IHttpClientFactory httpClientFactory,
             CancellationToken ct) =>
         {
-            var client  = httpClientFactory.CreateClient("FhirServer");
-            var query   = $"Observation?patient={Uri.EscapeDataString(patientId)}";
+            var client = httpClientFactory.CreateClient("FhirServer");
+            var query = $"Observation?patient={Uri.EscapeDataString(patientId)}";
             if (!string.IsNullOrWhiteSpace(category))
                 query += $"&category={Uri.EscapeDataString(category)}";
             var response = await client.GetAsync(query, ct);
-            var result   = await response.Content.ReadAsStringAsync(ct);
+            var result = await response.Content.ReadAsStringAsync(ct);
             return Results.Content(result, "application/fhir+json");
         });
 
@@ -269,8 +269,8 @@ public static class FhirPayerEndpoints
             var client = httpClientFactory.CreateClient("FhirServer");
             var qs = new System.Text.StringBuilder("Coverage?");
             if (!string.IsNullOrEmpty(patient)) qs.Append($"patient={Uri.EscapeDataString(patient)}&");
-            if (!string.IsNullOrEmpty(payor))   qs.Append($"payor={Uri.EscapeDataString(payor)}&");
-            if (!string.IsNullOrEmpty(status))  qs.Append($"status={Uri.EscapeDataString(status)}&");
+            if (!string.IsNullOrEmpty(payor)) qs.Append($"payor={Uri.EscapeDataString(payor)}&");
+            if (!string.IsNullOrEmpty(status)) qs.Append($"status={Uri.EscapeDataString(status)}&");
             var response = await client.GetAsync(qs.ToString().TrimEnd('?', '&'), ct);
             if (!response.IsSuccessStatusCode)
                 return Results.StatusCode((int)response.StatusCode);
@@ -339,9 +339,9 @@ public static class FhirPayerEndpoints
             var client = httpClientFactory.CreateClient("FhirServer");
             var qs = new System.Text.StringBuilder("ExplanationOfBenefit?");
             if (!string.IsNullOrEmpty(patient)) qs.Append($"patient={Uri.EscapeDataString(patient)}&");
-            if (!string.IsNullOrEmpty(claim))   qs.Append($"claim={Uri.EscapeDataString(claim)}&");
-            if (!string.IsNullOrEmpty(status))  qs.Append($"status={Uri.EscapeDataString(status)}&");
-            if (!string.IsNullOrEmpty(type))    qs.Append($"type={Uri.EscapeDataString(type)}&");
+            if (!string.IsNullOrEmpty(claim)) qs.Append($"claim={Uri.EscapeDataString(claim)}&");
+            if (!string.IsNullOrEmpty(status)) qs.Append($"status={Uri.EscapeDataString(status)}&");
+            if (!string.IsNullOrEmpty(type)) qs.Append($"type={Uri.EscapeDataString(type)}&");
             var response = await client.GetAsync(qs.ToString().TrimEnd('?', '&'), ct);
             if (!response.IsSuccessStatusCode)
                 return Results.StatusCode((int)response.StatusCode);
@@ -401,11 +401,11 @@ public static class FhirPayerEndpoints
         {
             var client = httpClientFactory.CreateClient("FhirServer");
             var qs = new System.Text.StringBuilder("Observation?");
-            if (!string.IsNullOrEmpty(patient))  qs.Append($"patient={Uri.EscapeDataString(patient)}&");
-            if (!string.IsNullOrEmpty(code))     qs.Append($"code={Uri.EscapeDataString(code)}&");
-            if (!string.IsNullOrEmpty(date))     qs.Append($"date={Uri.EscapeDataString(date)}&");
+            if (!string.IsNullOrEmpty(patient)) qs.Append($"patient={Uri.EscapeDataString(patient)}&");
+            if (!string.IsNullOrEmpty(code)) qs.Append($"code={Uri.EscapeDataString(code)}&");
+            if (!string.IsNullOrEmpty(date)) qs.Append($"date={Uri.EscapeDataString(date)}&");
             if (!string.IsNullOrEmpty(category)) qs.Append($"category={Uri.EscapeDataString(category)}&");
-            if (!string.IsNullOrEmpty(status))   qs.Append($"status={Uri.EscapeDataString(status)}&");
+            if (!string.IsNullOrEmpty(status)) qs.Append($"status={Uri.EscapeDataString(status)}&");
             var response = await client.GetAsync(qs.ToString().TrimEnd('?', '&'), ct);
             if (!response.IsSuccessStatusCode)
                 return Results.StatusCode((int)response.StatusCode);
@@ -440,8 +440,8 @@ public static class FhirPayerEndpoints
             var client = httpClientFactory.CreateClient("FhirServer");
             var qs = new System.Text.StringBuilder($"Patient/{id}/$everything?");
             if (!string.IsNullOrEmpty(start)) qs.Append($"start={Uri.EscapeDataString(start)}&");
-            if (!string.IsNullOrEmpty(end))   qs.Append($"end={Uri.EscapeDataString(end)}&");
-            if (!string.IsNullOrEmpty(type))  qs.Append($"_type={Uri.EscapeDataString(type)}&");
+            if (!string.IsNullOrEmpty(end)) qs.Append($"end={Uri.EscapeDataString(end)}&");
+            if (!string.IsNullOrEmpty(type)) qs.Append($"_type={Uri.EscapeDataString(type)}&");
             var response = await client.GetAsync(qs.ToString().TrimEnd('?', '&'), ct);
             if (!response.IsSuccessStatusCode)
                 return Results.StatusCode((int)response.StatusCode);

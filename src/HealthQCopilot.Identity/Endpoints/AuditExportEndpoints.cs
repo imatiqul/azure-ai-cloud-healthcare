@@ -34,8 +34,8 @@ public static class AuditExportEndpoints
             int pageSize = 5000,
             CancellationToken ct = default) =>
         {
-            var toDate   = to   is not null ? DateTimeOffset.Parse(to,   CultureInfo.InvariantCulture) : DateTimeOffset.UtcNow;
-            var fromDate = from  is not null ? DateTimeOffset.Parse(from, CultureInfo.InvariantCulture) : toDate.AddDays(-30);
+            var toDate = to is not null ? DateTimeOffset.Parse(to, CultureInfo.InvariantCulture) : DateTimeOffset.UtcNow;
+            var fromDate = from is not null ? DateTimeOffset.Parse(from, CultureInfo.InvariantCulture) : toDate.AddDays(-30);
 
             // Enforce max window
             if ((toDate - fromDate).TotalDays > MaxExportDays)

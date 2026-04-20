@@ -115,7 +115,7 @@ jobs:
 
       - name: Trivy vulnerability scan
         if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: fs
           scan-ref: src/${{ matrix.project }}
@@ -145,6 +145,15 @@ jobs:
       - name: Deploy to Azure Container Apps
         if: (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         run: |
+          # Ensure ACA has GHCR pull credentials (idempotent — safe on every deploy).
+          # Requires a long-lived GitHub PAT with read:packages scope stored as GHCR_PULL_TOKEN.
+          az containerapp registry set \
+            --name ${{ matrix.service }} \
+            --resource-group ${{ env.ACA_RESOURCE_GROUP }} \
+            --server ghcr.io \
+            --username ${{ github.repository_owner }} \
+            --password ${{ secrets.GHCR_PULL_TOKEN }}
+
           az containerapp update \
             --name ${{ matrix.service }} \
             --resource-group ${{ env.ACA_RESOURCE_GROUP }} \

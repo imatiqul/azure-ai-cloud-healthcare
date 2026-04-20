@@ -79,13 +79,13 @@ public sealed class Hl7v2Message
 
         // Populate convenience properties from MSH
         var mshFields = msg.GetFields("MSH", 0);
-        msg.MessageType        = mshFields.Get(8, 0, 0);  // MSH-9.1 message code
-        msg.EventTrigger       = mshFields.Get(8, 0, 1);  // MSH-9.2 trigger event
-        msg.MessageControlId   = mshFields.Get(9, 0, 0);
+        msg.MessageType = mshFields.Get(8, 0, 0);  // MSH-9.1 message code
+        msg.EventTrigger = mshFields.Get(8, 0, 1);  // MSH-9.2 trigger event
+        msg.MessageControlId = mshFields.Get(9, 0, 0);
         msg.SendingApplication = mshFields.Get(2, 0, 0);
-        msg.SendingFacility    = mshFields.Get(3, 0, 0);
-        msg.Timestamp          = mshFields.Get(6, 0, 0);
-        msg.Version            = mshFields.Get(11, 0, 0);
+        msg.SendingFacility = mshFields.Get(3, 0, 0);
+        msg.Timestamp = mshFields.Get(6, 0, 0);
+        msg.Version = mshFields.Get(11, 0, 0);
 
         return msg;
     }

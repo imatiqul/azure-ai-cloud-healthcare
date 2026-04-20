@@ -109,9 +109,9 @@ public sealed class KnowledgeIngestionService : BackgroundService
 
                 await store.UpsertAsync(new KnowledgeChunk
                 {
-                    Id       = chunk.Id,
-                    Text     = chunk.Text,
-                    Source   = chunk.Source,
+                    Id = chunk.Id,
+                    Text = chunk.Text,
+                    Source = chunk.Source,
                     Category = chunk.Category,
                     Embedding = embeddingArray,
                 }, ct);
@@ -166,9 +166,9 @@ public sealed class KnowledgeIngestionService : BackgroundService
         var id = DeterministicId($"{source}:{index}:{text[..Math.Min(64, text.Length)]}");
         return new KnowledgeChunk
         {
-            Id       = id,
-            Text     = text,
-            Source   = source,
+            Id = id,
+            Text = text,
+            Source = source,
             Category = category,
             Embedding = [],
         };

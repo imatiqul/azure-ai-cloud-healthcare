@@ -83,13 +83,13 @@ public sealed class HedisMeasureCalculator
 
         var measurementYear = DateTime.UtcNow.Year;
         var recentHbA1c = input.LastHbA1cDate?.Year == measurementYear && input.LastHbA1cValue.HasValue;
-        var controlled  = recentHbA1c && input.LastHbA1cValue!.Value < 8.0;
+        var controlled = recentHbA1c && input.LastHbA1cValue!.Value < 8.0;
 
         return new(
             id, name,
-            InDenominator : true,
-            InNumerator   : controlled,
-            HasCareGap    : !controlled,
+            InDenominator: true,
+            InNumerator: controlled,
+            HasCareGap: !controlled,
             GapDescription: controlled
                 ? null
                 : recentHbA1c
@@ -125,9 +125,9 @@ public sealed class HedisMeasureCalculator
 
         return new(
             id, name,
-            InDenominator : true,
-            InNumerator   : controlled,
-            HasCareGap    : !controlled,
+            InDenominator: true,
+            InNumerator: controlled,
+            HasCareGap: !controlled,
             GapDescription: controlled
                 ? null
                 : input.LastSystolicBp.HasValue
@@ -153,15 +153,15 @@ public sealed class HedisMeasureCalculator
         if (!inDenominator)
             return new(id, name, false, false, false, null, null);
 
-        var twoYearsAgo  = DateTime.UtcNow.AddYears(-2);
+        var twoYearsAgo = DateTime.UtcNow.AddYears(-2);
         var hadMammogram = input.LastMammogramDate.HasValue &&
                            input.LastMammogramDate.Value >= twoYearsAgo;
 
         return new(
             id, name,
-            InDenominator : true,
-            InNumerator   : hadMammogram,
-            HasCareGap    : !hadMammogram,
+            InDenominator: true,
+            InNumerator: hadMammogram,
+            HasCareGap: !hadMammogram,
             GapDescription: hadMammogram ? null : "No mammogram recorded in the past 2 years",
             RecommendedAction: hadMammogram
                 ? null
@@ -188,20 +188,20 @@ public sealed class HedisMeasureCalculator
             var lastScreen = input.LastColorectalScreenDate.Value;
             compliant = input.ColorectalScreenType.ToLowerInvariant() switch
             {
-                "fobt"          => lastScreen >= DateTime.UtcNow.AddYears(-1),
-                "fitdna"        => lastScreen >= DateTime.UtcNow.AddYears(-3),
+                "fobt" => lastScreen >= DateTime.UtcNow.AddYears(-1),
+                "fitdna" => lastScreen >= DateTime.UtcNow.AddYears(-3),
                 "sigmoidoscopy" => lastScreen >= DateTime.UtcNow.AddYears(-5),
-                "ctc"           => lastScreen >= DateTime.UtcNow.AddYears(-5),
-                "colonoscopy"   => lastScreen >= DateTime.UtcNow.AddYears(-10),
-                _               => false
+                "ctc" => lastScreen >= DateTime.UtcNow.AddYears(-5),
+                "colonoscopy" => lastScreen >= DateTime.UtcNow.AddYears(-10),
+                _ => false
             };
         }
 
         return new(
             id, name,
-            InDenominator : true,
-            InNumerator   : compliant,
-            HasCareGap    : !compliant,
+            InDenominator: true,
+            InNumerator: compliant,
+            HasCareGap: !compliant,
             GapDescription: compliant ? null : "Patient is overdue for colorectal cancer screening",
             RecommendedAction: compliant
                 ? null

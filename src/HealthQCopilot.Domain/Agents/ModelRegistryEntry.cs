@@ -41,23 +41,23 @@ public sealed class ModelRegistryEntry : AggregateRoot<Guid>
 
         return new ModelRegistryEntry
         {
-            Id               = Guid.NewGuid(),
-            ModelName        = modelName,
-            ModelVersion     = modelVersion,
-            DeploymentName   = deploymentName,
-            SkVersion        = skVersion,
-            PromptHash       = promptHash,
-            PluginManifest   = pluginManifest,
+            Id = Guid.NewGuid(),
+            ModelName = modelName,
+            ModelVersion = modelVersion,
+            DeploymentName = deploymentName,
+            SkVersion = skVersion,
+            PromptHash = promptHash,
+            PluginManifest = pluginManifest,
             DeployedByUserId = deployedByUserId,
-            DeployedAt       = DateTime.UtcNow,
-            IsActive         = true,
+            DeployedAt = DateTime.UtcNow,
+            IsActive = true,
         };
     }
 
     public void RecordEvaluation(double score, string? notes = null)
     {
         LastEvalScore = Math.Clamp(score, 0.0, 1.0);
-        EvalNotes     = notes;
+        EvalNotes = notes;
     }
 
     public void Deactivate() => IsActive = false;

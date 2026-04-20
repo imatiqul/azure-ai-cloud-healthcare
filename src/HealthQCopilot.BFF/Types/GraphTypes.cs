@@ -109,10 +109,10 @@ public sealed class MutationType
     {
         var payload = new
         {
-            patientId    = input.PatientId,
+            patientId = input.PatientId,
             domainScores = input.DomainScores,
-            assessedBy   = input.AssessedBy,
-            notes        = input.Notes,
+            assessedBy = input.AssessedBy,
+            notes = input.Notes,
         };
         var result = await popHealth.ScoreSdohAsync(payload, ct)
             ?? throw new GraphQLException("SDOH scoring returned no result.");
@@ -132,8 +132,8 @@ public sealed class MutationType
     {
         var payload = new
         {
-            patientId  = input.PatientId,
-            riskLevel  = input.RiskLevel,
+            patientId = input.PatientId,
+            riskLevel = input.RiskLevel,
             conditions = input.Conditions,
             sdohWeight = input.SdohWeight,
         };

@@ -57,10 +57,10 @@ public sealed class ClinicianFeedbackService(
                     var embedding = embResult[0].Vector;
                     var chunk = new KnowledgeChunk
                     {
-                        Id        = $"feedback:{record.Id}",
-                        Text      = textToIngest,
-                        Source    = $"clinician-feedback:{input.ClinicianId}",
-                        Category  = input.Category ?? "clinician-validated",
+                        Id = $"feedback:{record.Id}",
+                        Text = textToIngest,
+                        Source = $"clinician-feedback:{input.ClinicianId}",
+                        Category = input.Category ?? "clinician-validated",
                         Embedding = embedding.ToArray()
                     };
                     await knowledgeStore.UpsertAsync(chunk, ct);
@@ -86,10 +86,10 @@ public sealed class ClinicianFeedbackService(
                 var embedding2 = embResult2[0].Vector;
                 var chunk = new KnowledgeChunk
                 {
-                    Id        = $"feedback-correction:{record.Id}",
-                    Text      = input.CorrectedText,
-                    Source    = $"clinician-correction:{input.ClinicianId}",
-                    Category  = input.Category ?? "clinician-correction",
+                    Id = $"feedback-correction:{record.Id}",
+                    Text = input.CorrectedText,
+                    Source = $"clinician-correction:{input.ClinicianId}",
+                    Category = input.Category ?? "clinician-correction",
                     Embedding = embedding2.ToArray()
                 };
                 await knowledgeStore.UpsertAsync(chunk, ct);
@@ -138,7 +138,7 @@ public sealed record ClinicianFeedbackInput(
     string? Category = null);
 
 public sealed record ClinicianFeedbackResult(
-    Guid   FeedbackId,
+    Guid FeedbackId,
     string Action,        // logged | ingested-into-qdrant | correction-ingested | logged-qdrant-failed
     DateTime CreatedAt);
 
@@ -173,8 +173,8 @@ public sealed class ClinicianFeedbackRepository(ILogger<ClinicianFeedbackReposit
         List<FeedbackRecord> snapshot;
         lock (_records) { snapshot = _records.Where(r => r.CreatedAt >= since).ToList(); }
 
-        int total    = snapshot.Count;
-        double avg   = total > 0 ? snapshot.Average(r => r.Input.Rating) : 0;
+        int total = snapshot.Count;
+        double avg = total > 0 ? snapshot.Average(r => r.Input.Rating) : 0;
         int positive = snapshot.Count(r => r.Input.Rating >= 4);
         int negative = snapshot.Count(r => r.Input.Rating <= 2);
         int ingested = snapshot.Count(r => r.Input.Rating >= 4 || (r.Input.Rating <= 2 && r.Input.CorrectedText != null));

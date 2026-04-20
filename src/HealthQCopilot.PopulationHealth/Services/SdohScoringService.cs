@@ -27,13 +27,13 @@ public sealed class SdohScoringService
     private static readonly Dictionary<string, string> DomainLabel = new()
     {
         ["HousingInstability"] = "Housing instability or homelessness risk",
-        ["FoodInsecurity"]     = "Food insecurity or inadequate nutrition",
-        ["Transportation"]     = "Transportation barrier limiting access to care",
-        ["SocialIsolation"]    = "Social isolation or lack of social support network",
-        ["FinancialStrain"]    = "Financial strain or inability to afford healthcare costs",
-        ["Employment"]         = "Unemployment or hazardous / unstable work conditions",
-        ["Education"]          = "Low health literacy or education-related care barrier",
-        ["DigitalAccess"]      = "Lack of digital access for telehealth or health apps",
+        ["FoodInsecurity"] = "Food insecurity or inadequate nutrition",
+        ["Transportation"] = "Transportation barrier limiting access to care",
+        ["SocialIsolation"] = "Social isolation or lack of social support network",
+        ["FinancialStrain"] = "Financial strain or inability to afford healthcare costs",
+        ["Employment"] = "Unemployment or hazardous / unstable work conditions",
+        ["Education"] = "Low health literacy or education-related care barrier",
+        ["DigitalAccess"] = "Lack of digital access for telehealth or health apps",
     };
 
     private static readonly Dictionary<string, string[]> DomainInterventions = new()
@@ -107,9 +107,9 @@ public sealed class SdohScoringService
 
         var riskLevel = total switch
         {
-            <= 4  => "Low",
+            <= 4 => "Low",
             <= 12 => "Moderate",
-            _     => "High",
+            _ => "High",
         };
 
         // [0, 24] → [0.0, 0.30]
@@ -132,15 +132,15 @@ public sealed class SdohScoringService
             .ToList();
 
         return PatientSdohAssessment.Create(
-            patientId:          request.PatientId,
-            totalScore:         total,
-            riskLevel:          riskLevel,
+            patientId: request.PatientId,
+            totalScore: total,
+            riskLevel: riskLevel,
             compositeRiskWeight: compositeWeight,
-            domainScores:       scores,
-            prioritizedNeeds:   prioritized,
+            domainScores: scores,
+            prioritizedNeeds: prioritized,
             recommendedActions: interventions,
-            assessedBy:         request.AssessedBy,
-            notes:              request.Notes);
+            assessedBy: request.AssessedBy,
+            notes: request.Notes);
     }
 }
 

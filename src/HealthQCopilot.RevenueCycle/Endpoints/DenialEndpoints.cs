@@ -49,8 +49,8 @@ public static class DenialEndpoints
                     d.PayerName,
                     d.DenialReasonCode,
                     d.DenialReasonDescription,
-                    Category   = d.Category.ToString(),
-                    Status     = d.Status.ToString(),
+                    Category = d.Category.ToString(),
+                    Status = d.Status.ToString(),
                     Resolution = d.Resolution.HasValue ? d.Resolution.Value.ToString() : null,
                     d.DeniedAmount,
                     d.DeniedAt,
@@ -75,12 +75,25 @@ public static class DenialEndpoints
             if (d is null) return Results.NotFound();
             return Results.Ok(new
             {
-                d.Id, d.CodingJobId, d.ClaimNumber, d.PatientId,
-                d.PayerId, d.PayerName, d.DenialReasonCode, d.DenialReasonDescription,
-                Category = d.Category.ToString(), Status = d.Status.ToString(),
+                d.Id,
+                d.CodingJobId,
+                d.ClaimNumber,
+                d.PatientId,
+                d.PayerId,
+                d.PayerName,
+                d.DenialReasonCode,
+                d.DenialReasonDescription,
+                Category = d.Category.ToString(),
+                Status = d.Status.ToString(),
                 Resolution = d.Resolution?.ToString(),
-                d.DeniedAmount, d.DeniedAt, d.AppealDeadline, d.AppealedAt,
-                d.AppealNotes, d.ResubmissionCount, d.LastResubmittedAt, d.ResolvedAt,
+                d.DeniedAmount,
+                d.DeniedAt,
+                d.AppealDeadline,
+                d.AppealedAt,
+                d.AppealNotes,
+                d.ResubmissionCount,
+                d.LastResubmittedAt,
+                d.ResolvedAt,
                 DaysUntilDeadline = (int)(d.AppealDeadline - DateTime.UtcNow).TotalDays,
             });
         })
@@ -183,14 +196,14 @@ public static class DenialEndpoints
         {
             var all = await db.ClaimDenials.ToListAsync(ct);
 
-            var total           = all.Count;
-            var totalDenied     = all.Sum(d => d.DeniedAmount);
-            var overturned      = all.Count(d => d.Resolution == DenialResolution.Overturned);
-            var overturnedAmt   = all.Where(d => d.Resolution == DenialResolution.Overturned).Sum(d => d.DeniedAmount);
-            var writtenOff      = all.Count(d => d.Resolution == DenialResolution.WriteOff);
-            var open            = all.Count(d => d.Status == DenialStatus.Open);
-            var nearDeadline    = all.Count(d => d.Status == DenialStatus.Open && (d.AppealDeadline - DateTime.UtcNow).TotalDays <= 30);
-            var overturnRate    = total > 0 ? Math.Round((double)overturned / total * 100, 1) : 0;
+            var total = all.Count;
+            var totalDenied = all.Sum(d => d.DeniedAmount);
+            var overturned = all.Count(d => d.Resolution == DenialResolution.Overturned);
+            var overturnedAmt = all.Where(d => d.Resolution == DenialResolution.Overturned).Sum(d => d.DeniedAmount);
+            var writtenOff = all.Count(d => d.Resolution == DenialResolution.WriteOff);
+            var open = all.Count(d => d.Status == DenialStatus.Open);
+            var nearDeadline = all.Count(d => d.Status == DenialStatus.Open && (d.AppealDeadline - DateTime.UtcNow).TotalDays <= 30);
+            var overturnRate = total > 0 ? Math.Round((double)overturned / total * 100, 1) : 0;
 
             var byCategory = all
                 .GroupBy(d => d.Category.ToString())
@@ -200,15 +213,15 @@ public static class DenialEndpoints
 
             return Results.Ok(new
             {
-                TotalDenials     = total,
+                TotalDenials = total,
                 TotalDeniedAmount = totalDenied,
-                OpenDenials      = open,
-                NearDeadline     = nearDeadline, // appeal due ≤30 days
-                OverturnedCount  = overturned,
+                OpenDenials = open,
+                NearDeadline = nearDeadline, // appeal due ≤30 days
+                OverturnedCount = overturned,
                 OverturnedAmount = overturnedAmt,
-                WrittenOffCount  = writtenOff,
-                OverturnRatePct  = overturnRate,
-                ByCategory       = byCategory,
+                WrittenOffCount = writtenOff,
+                OverturnRatePct = overturnRate,
+                ByCategory = byCategory,
             });
         })
         .WithSummary("Denial analytics summary")

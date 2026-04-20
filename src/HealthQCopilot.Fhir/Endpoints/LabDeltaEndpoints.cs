@@ -64,8 +64,8 @@ public static class LabDeltaEndpoints
             {
                 [$"{patientId}:2160-0"] = new(patientId, "2160-0", 1.1, "mg/dL", DateTime.UtcNow.AddDays(-7)),
                 [$"{patientId}:2823-3"] = new(patientId, "2823-3", 4.0, "mEq/L", DateTime.UtcNow.AddDays(-7)),
-                [$"{patientId}:2345-7"] = new(patientId, "2345-7", 90,  "mg/dL", DateTime.UtcNow.AddDays(-7)),
-                [$"{patientId}:718-7"]  = new(patientId, "718-7",  12.0,"g/dL",  DateTime.UtcNow.AddDays(-7)),
+                [$"{patientId}:2345-7"] = new(patientId, "2345-7", 90, "mg/dL", DateTime.UtcNow.AddDays(-7)),
+                [$"{patientId}:718-7"] = new(patientId, "718-7", 12.0, "g/dL", DateTime.UtcNow.AddDays(-7)),
             };
 
             var result = svc.Check(current, prior);

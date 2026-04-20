@@ -117,14 +117,14 @@ public sealed class XaiExplainabilityService
             var deviation = Math.Abs(featureValues[i] - meanValues[i]);
             var normalizedRange = featureNames[i] switch
             {
-                "Age Bucket"            => 4.0,
-                "Comorbidity Count"     => 10.0,
-                "Triage Level"          => 3.0,
-                "Prior Admissions (12m)"=> 5.0,
+                "Age Bucket" => 4.0,
+                "Comorbidity Count" => 10.0,
+                "Triage Level" => 3.0,
+                "Prior Admissions (12m)" => 5.0,
                 "Length of Stay (days)" => 30.0,
                 "Discharge Disposition" => 4.0,
-                "Condition Weight Sum"  => 2.0,
-                _                       => 1.0
+                "Condition Weight Sum" => 2.0,
+                _ => 1.0
             };
 
             var relativeDeviation = normalizedRange > 0 ? deviation / normalizedRange : 0;
@@ -184,7 +184,7 @@ public sealed class XaiExplainabilityService
 
         // 1. Boundary distance: [0.5, 1.0] → confidence [0.50, 0.95]
         double boundaryDistance = Math.Abs(probability - 0.5) * 2.0; // [0, 1]
-        double baseConfidence   = 0.50 + boundaryDistance * 0.45;    // [0.50, 0.95]
+        double baseConfidence = 0.50 + boundaryDistance * 0.45;    // [0.50, 0.95]
 
         // 2. Feature-stability adjustment (LIME-style locality)
         double stabilityPenalty = 0.0;
@@ -217,7 +217,7 @@ public sealed class XaiExplainabilityService
         {
             >= 0.85 => "High",
             >= 0.70 => "Moderate",
-            _       => "Low",
+            _ => "Low",
         };
 
         string interpretation = featureValues is null
@@ -225,13 +225,13 @@ public sealed class XaiExplainabilityService
             : $"Confidence derived from boundary distance ({boundaryDistance:P0}) and feature-stability analysis.";
 
         return new PredictionConfidenceResult(
-            PredictedProbability:    Math.Round(probability, 3),
-            LowerBound95:            lower,
-            UpperBound95:            upper,
-            ConfidenceLevel:         Math.Round(adjustedConfidence, 3),
-            DecisionConfidence:      decisionConfidence,
-            Method:                  featureValues is null ? "LIME-fallback" : "boundary-distance+feature-stability",
-            Interpretation:          interpretation);
+            PredictedProbability: Math.Round(probability, 3),
+            LowerBound95: lower,
+            UpperBound95: upper,
+            ConfidenceLevel: Math.Round(adjustedConfidence, 3),
+            DecisionConfidence: decisionConfidence,
+            Method: featureValues is null ? "LIME-fallback" : "boundary-distance+feature-stability",
+            Interpretation: interpretation);
     }
 
     /// <summary>
@@ -253,16 +253,16 @@ public sealed class XaiExplainabilityService
     /// </param>
     public PredictionConfidenceResult ComputeLlmConfidence(
         string guardVerdict,
-        int    ragChunkCount,
-        int    planningIterations,
+        int ragChunkCount,
+        int planningIterations,
         double? avgLogProbability = null)
     {
         // 1. Base confidence from hallucination guard verdict
         double baseConf = guardVerdict.ToLowerInvariant() switch
         {
-            "safe"     => 0.80,
+            "safe" => 0.80,
             "fallback" => 0.65,
-            _          => 0.50,  // rejected or unknown
+            _ => 0.50,  // rejected or unknown
         };
 
         // 2. RAG grounding bonus: each additional chunk adds +2% up to +10%
@@ -290,16 +290,16 @@ public sealed class XaiExplainabilityService
         {
             >= 0.80 => "High",
             >= 0.65 => "Moderate",
-            _       => "Low",
+            _ => "Low",
         };
 
         return new PredictionConfidenceResult(
-            PredictedProbability:    confidence,
-            LowerBound95:            Math.Max(0.0, Math.Round(confidence - halfWidth, 3)),
-            UpperBound95:            Math.Min(1.0, Math.Round(confidence + halfWidth, 3)),
-            ConfidenceLevel:         Math.Round(confidence, 3),
-            DecisionConfidence:      level,
-            Method:                  avgLogProbability.HasValue ? "guard+rag+logprob" : "guard+rag (LIME-fallback)",
+            PredictedProbability: confidence,
+            LowerBound95: Math.Max(0.0, Math.Round(confidence - halfWidth, 3)),
+            UpperBound95: Math.Min(1.0, Math.Round(confidence + halfWidth, 3)),
+            ConfidenceLevel: Math.Round(confidence, 3),
+            DecisionConfidence: level,
+            Method: avgLogProbability.HasValue ? "guard+rag+logprob" : "guard+rag (LIME-fallback)",
             Interpretation:
                 $"Guard: {guardVerdict}, RAG chunks: {ragChunkCount}, iterations: {planningIterations}" +
                 (avgLogProbability.HasValue ? $", avgLogP: {avgLogProbability:F3}" : " (log-prob unavailable)"));

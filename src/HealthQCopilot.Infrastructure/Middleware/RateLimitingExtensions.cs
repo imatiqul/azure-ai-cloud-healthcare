@@ -14,20 +14,20 @@ namespace HealthQCopilot.Infrastructure.Middleware;
 public enum TenantTier
 {
     /// <summary>Full clinical platform — FHIR, scheduling, agents (1 000 req/min).</summary>
-    Clinical    = 1000,
+    Clinical = 1000,
     /// <summary>Revenue cycle and billing workloads (500 req/min).</summary>
-    Revenue     = 500,
+    Revenue = 500,
     /// <summary>Patient engagement portal and notifications (200 req/min).</summary>
-    Engagement  = 200,
+    Engagement = 200,
     /// <summary>Sandbox / trial / unknown tenant (100 req/min).</summary>
-    Sandbox     = 100,
+    Sandbox = 100,
 }
 
 public static class RateLimitingExtensions
 {
     // Header / claim names used to resolve the tenant
     private const string TenantIdHeader = "X-Tenant-Id";
-    private const string TenantIdClaim  = "tid";
+    private const string TenantIdClaim = "tid";
 
     /// <summary>
     /// Known tenant → tier mapping.  In production this should be loaded from
@@ -81,33 +81,33 @@ public static class RateLimitingExtensions
             // traffic budget so one noisy tenant cannot starve others.
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
             {
-                var tier     = ResolveTier(ctx);
+                var tier = ResolveTier(ctx);
                 var tenantId = ctx.Request.Headers[TenantIdHeader].FirstOrDefault()
                                ?? ctx.User?.FindFirstValue(TenantIdClaim)
                                ?? "anonymous";
                 var remoteIp = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-                var key      = $"{tenantId}:{remoteIp}";
+                var key = $"{tenantId}:{remoteIp}";
 
                 return RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: key,
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         // Convert per-minute budget to a 10-second window
-                        PermitLimit              = (int)tier / 6,
-                        Window                   = TimeSpan.FromSeconds(10),
-                        QueueProcessingOrder     = QueueProcessingOrder.OldestFirst,
-                        QueueLimit               = Math.Max(1, (int)tier / 60),
-                        AutoReplenishment        = true,
+                        PermitLimit = (int)tier / 6,
+                        Window = TimeSpan.FromSeconds(10),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = Math.Max(1, (int)tier / 60),
+                        AutoReplenishment = true,
                     });
             });
 
             // ── Named per-tier policies (opt-in via [EnableRateLimiting]) ─────
             // Endpoints can apply a stricter policy by decorating with
             // .RequireRateLimiting("tenant:clinical") etc.
-            AddTenantPolicy(options, "tenant:clinical",  TenantTier.Clinical);
-            AddTenantPolicy(options, "tenant:revenue",   TenantTier.Revenue);
+            AddTenantPolicy(options, "tenant:clinical", TenantTier.Clinical);
+            AddTenantPolicy(options, "tenant:revenue", TenantTier.Revenue);
             AddTenantPolicy(options, "tenant:engagement", TenantTier.Engagement);
-            AddTenantPolicy(options, "tenant:sandbox",   TenantTier.Sandbox);
+            AddTenantPolicy(options, "tenant:sandbox", TenantTier.Sandbox);
 
             // ── Legacy named policies (unchanged) ─────────────────────────────
             // Named policy for tighter limits on triage (AI-intensive)
@@ -154,11 +154,11 @@ public static class RateLimitingExtensions
                 partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 factory: _ => new FixedWindowRateLimiterOptions
                 {
-                    PermitLimit          = (int)tier / 6,  // 10-second window
-                    Window               = TimeSpan.FromSeconds(10),
+                    PermitLimit = (int)tier / 6,  // 10-second window
+                    Window = TimeSpan.FromSeconds(10),
                     QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    QueueLimit           = Math.Max(1, (int)tier / 60),
-                    AutoReplenishment    = true,
+                    QueueLimit = Math.Max(1, (int)tier / 60),
+                    AutoReplenishment = true,
                 }));
     }
 }

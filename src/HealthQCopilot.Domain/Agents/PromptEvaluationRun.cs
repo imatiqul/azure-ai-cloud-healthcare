@@ -37,15 +37,15 @@ public sealed class PromptEvaluationRun : AggregateRoot<Guid>
         var score = totalCases > 0 ? (double)passedCases / totalCases : 0.0;
         return new PromptEvaluationRun
         {
-            Id                   = Guid.NewGuid(),
+            Id = Guid.NewGuid(),
             ModelRegistryEntryId = modelRegistryEntryId,
-            TotalCases           = totalCases,
-            PassedCases          = passedCases,
-            Score                = Math.Round(score, 4),
-            ResultsJson          = resultsJson,
-            EvaluatedAt          = DateTime.UtcNow,
-            EvaluatedByUserId    = evaluatedByUserId,
-            PassedThreshold      = score >= threshold,
+            TotalCases = totalCases,
+            PassedCases = passedCases,
+            Score = Math.Round(score, 4),
+            ResultsJson = resultsJson,
+            EvaluatedAt = DateTime.UtcNow,
+            EvaluatedByUserId = evaluatedByUserId,
+            PassedThreshold = score >= threshold,
         };
     }
 }

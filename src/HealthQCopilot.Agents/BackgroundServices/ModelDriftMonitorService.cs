@@ -106,12 +106,12 @@ public sealed class ModelDriftMonitorService : BackgroundService
             {
                 await _dapr.PublishEventAsync("pubsub", "model.drift.detected", new
                 {
-                    DetectedAt      = DateTime.UtcNow,
-                    AvgLatencyMs    = avgLatency,
+                    DetectedAt = DateTime.UtcNow,
+                    AvgLatencyMs = avgLatency,
                     GuardRejectionRate = guardRejectionRate,
-                    DecisionCount   = recentDecisions.Count,
-                    DriftSignals    = driftSignals,
-                    Severity        = guardRejectionRate > 0.30 ? "Critical" : "Warning",
+                    DecisionCount = recentDecisions.Count,
+                    DriftSignals = driftSignals,
+                    Severity = guardRejectionRate > 0.30 ? "Critical" : "Warning",
                 }, ct);
             }
             catch (Exception ex)

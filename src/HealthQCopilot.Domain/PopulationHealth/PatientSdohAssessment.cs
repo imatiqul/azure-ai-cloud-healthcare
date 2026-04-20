@@ -23,12 +23,12 @@ public class PatientSdohAssessment : AggregateRoot<Guid>
     public double CompositeRiskWeight { get; private set; }
 
     // Serialised JSON columns ─────────────────────────────────────────────────
-    public string DomainScoresJson          { get; private set; } = "{}";
-    public string PrioritizedNeedsJson      { get; private set; } = "[]";
-    public string RecommendedActionsJson    { get; private set; } = "[]";
+    public string DomainScoresJson { get; private set; } = "{}";
+    public string PrioritizedNeedsJson { get; private set; } = "[]";
+    public string RecommendedActionsJson { get; private set; } = "[]";
 
     public string? AssessedBy { get; private set; }
-    public string? Notes      { get; private set; }
+    public string? Notes { get; private set; }
     public DateTime AssessedAt { get; private set; }
 
     // Computed deserialised properties (not persisted) ────────────────────────
@@ -56,17 +56,17 @@ public class PatientSdohAssessment : AggregateRoot<Guid>
     {
         return new PatientSdohAssessment
         {
-            Id                     = Guid.NewGuid(),
-            PatientId              = patientId,
-            TotalScore             = totalScore,
-            RiskLevel              = riskLevel,
-            CompositeRiskWeight    = compositeRiskWeight,
-            DomainScoresJson       = JsonSerializer.Serialize(domainScores),
-            PrioritizedNeedsJson   = JsonSerializer.Serialize(prioritizedNeeds),
+            Id = Guid.NewGuid(),
+            PatientId = patientId,
+            TotalScore = totalScore,
+            RiskLevel = riskLevel,
+            CompositeRiskWeight = compositeRiskWeight,
+            DomainScoresJson = JsonSerializer.Serialize(domainScores),
+            PrioritizedNeedsJson = JsonSerializer.Serialize(prioritizedNeeds),
             RecommendedActionsJson = JsonSerializer.Serialize(recommendedActions),
-            AssessedBy             = assessedBy,
-            Notes                  = notes,
-            AssessedAt             = DateTime.UtcNow,
+            AssessedBy = assessedBy,
+            Notes = notes,
+            AssessedAt = DateTime.UtcNow,
         };
     }
 }

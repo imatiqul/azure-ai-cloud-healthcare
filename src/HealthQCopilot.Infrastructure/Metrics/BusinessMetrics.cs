@@ -18,13 +18,15 @@ public sealed class BusinessMetrics
     // ── Scheduling ───────────────────────────────────────
     public Counter<long> BookingsCreatedTotal { get; }
     public Counter<long> SlotsReservedTotal { get; }
-    public Counter<long> BookingCancellationsTotal { get; }    public Counter<long> WaitlistEnqueuedTotal { get; }    // Phase 12
+    public Counter<long> BookingCancellationsTotal { get; }
+    public Counter<long> WaitlistEnqueuedTotal { get; }    // Phase 12
     public Counter<long> WaitlistPromotedTotal { get; }    // Phase 12
     // ── Revenue Cycle ────────────────────────────────────
     public Counter<long> CodingJobsCreatedTotal { get; }
     public Counter<long> CodingJobsSubmittedTotal { get; }
     public Counter<long> PriorAuthsSubmittedTotal { get; }
-    public Counter<long> PriorAuthsDeniedTotal { get; }    public Counter<long> DenialOpenedTotal { get; }        // Phase 12
+    public Counter<long> PriorAuthsDeniedTotal { get; }
+    public Counter<long> DenialOpenedTotal { get; }        // Phase 12
     public Counter<long> DenialAppealedTotal { get; }      // Phase 12
     // ── OCR ──────────────────────────────────────────────
     public Counter<long> OcrJobsCreatedTotal { get; }
@@ -35,7 +37,8 @@ public sealed class BusinessMetrics
     // ── Notifications ────────────────────────────────────
     public Counter<long> CampaignsActivatedTotal { get; }
     public Counter<long> MessagesSentTotal { get; }
-    public Counter<long> MessagesFailedTotal { get; }    public Counter<long> NotificationDeliveredTotal { get; } // Phase 12 delivery confirmation
+    public Counter<long> MessagesFailedTotal { get; }
+    public Counter<long> NotificationDeliveredTotal { get; } // Phase 12 delivery confirmation
     public Counter<long> NotificationFailedTotal { get; }    // Phase 12 delivery failure
     // ── Voice ────────────────────────────────────────────
     public Counter<long> VoiceSessionsStartedTotal { get; }
@@ -49,11 +52,13 @@ public sealed class BusinessMetrics
 
     // ── Identity ─────────────────────────────────────────
     public Counter<long> UserLoginsTotal { get; }
-    public Counter<long> UsersCreatedTotal { get; }    public Counter<long> BreakGlassGrantedTotal { get; }    // Phase 16 — HIPAA §164.312 audit event
+    public Counter<long> UsersCreatedTotal { get; }
+    public Counter<long> BreakGlassGrantedTotal { get; }    // Phase 16 — HIPAA §164.312 audit event
     public Counter<long> GdprErasureRequestedTotal { get; } // Phase 16 — GDPR Art. 17 erasure
     // ── Guide ────────────────────────────────────────────
     public Counter<long> GuideConversationsTotal { get; }
-    public Histogram<double> GuideResponseLatencyMs { get; }    public Counter<long> GuideStreamingSessionsTotal { get; } // Phase 16 SSE streaming
+    public Histogram<double> GuideResponseLatencyMs { get; }
+    public Counter<long> GuideStreamingSessionsTotal { get; } // Phase 16 SSE streaming
     public Counter<long> GuideStreamingTokensTotal { get; }   // Phase 16 token throughput
     // ── AI Hallucination Guard ───────────────────────────
     /// <summary>

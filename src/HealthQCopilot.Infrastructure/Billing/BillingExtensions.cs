@@ -21,7 +21,7 @@ public static class UsageMeteringExtensions
     {
         var options = new UsageMeteringOptions(
             ResourceId: configuration["AzureMarketplace:ResourceId"] ?? string.Empty,
-            PlanId:     configuration["AzureMarketplace:PlanId"] ?? "standard");
+            PlanId: configuration["AzureMarketplace:PlanId"] ?? "standard");
 
         services.AddSingleton(options);
         services.AddSingleton<IUsageMeteringService, UsageMeteringService>();

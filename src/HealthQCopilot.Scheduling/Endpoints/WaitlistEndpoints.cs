@@ -56,7 +56,7 @@ public static class WaitlistEndpoints
                 e.PatientId,
                 e.PractitionerId,
                 PreferredDateFrom = e.PreferredDateFrom.ToString("yyyy-MM-dd"),
-                PreferredDateTo   = e.PreferredDateTo.ToString("yyyy-MM-dd"),
+                PreferredDateTo = e.PreferredDateTo.ToString("yyyy-MM-dd"),
                 e.Priority,
                 e.Reason,
                 Status = e.Status.ToString(),

@@ -73,8 +73,8 @@ public sealed class RiskTrajectoryService(PopHealthDbContext db, ILogger<RiskTra
 
         var scores = history.Select(h => h.RiskScore).ToArray();
 
-        double min  = scores.Min();
-        double max  = scores.Max();
+        double min = scores.Min();
+        double max = scores.Max();
         double mean = scores.Average();
 
         // Linear regression slope (least squares) over time-indexed scores
@@ -82,8 +82,8 @@ public sealed class RiskTrajectoryService(PopHealthDbContext db, ILogger<RiskTra
         var overallTrend = slope switch
         {
             < -0.5 => RiskTrend.Improving,
-            > 0.5  => RiskTrend.Worsening,
-            _      => RiskTrend.Stable
+            > 0.5 => RiskTrend.Worsening,
+            _ => RiskTrend.Stable
         };
 
         var dataPoints = history
@@ -101,11 +101,11 @@ public sealed class RiskTrajectoryService(PopHealthDbContext db, ILogger<RiskTra
     {
         if (values.Length < 2) return 0;
         int n = values.Length;
-        double sumX  = 0, sumY  = 0, sumXY = 0, sumX2 = 0;
+        double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
         for (int i = 0; i < n; i++)
         {
-            sumX  += i;
-            sumY  += values[i];
+            sumX += i;
+            sumY += values[i];
             sumXY += i * values[i];
             sumX2 += i * i;
         }
@@ -122,13 +122,13 @@ public sealed record RiskTrajectoryResult(
     double? MinScore,
     double? MaxScore,
     double? MeanScore,
-    double  TrendSlope,    // > 0 = worsening, < 0 = improving
+    double TrendSlope,    // > 0 = worsening, < 0 = improving
     RiskTrend OverallTrend);
 
 public sealed record RiskTrajectoryPoint(
     DateTime AssessedAt,
-    double   RiskScore,
-    string   RiskLevel,
-    string   Trend,
-    double?  ScoreDelta,
-    string   RiskFactors);
+    double RiskScore,
+    string RiskLevel,
+    string Trend,
+    double? ScoreDelta,
+    string RiskFactors);

@@ -6,11 +6,11 @@ namespace HealthQCopilot.PopulationHealth.Infrastructure;
 
 public class PopHealthDbContext : OutboxDbContext
 {
-public DbSet<PatientRisk>           PatientRisks          => Set<PatientRisk>();
-    public DbSet<CareGap>               CareGaps              => Set<CareGap>();
-    public DbSet<PatientSdohAssessment> SdohAssessments       => Set<PatientSdohAssessment>();
-    public DbSet<CostPrediction>        CostPredictions       => Set<CostPrediction>();
-    public DbSet<PatientRiskHistory>    PatientRiskHistories  => Set<PatientRiskHistory>();
+    public DbSet<PatientRisk> PatientRisks => Set<PatientRisk>();
+    public DbSet<CareGap> CareGaps => Set<CareGap>();
+    public DbSet<PatientSdohAssessment> SdohAssessments => Set<PatientSdohAssessment>();
+    public DbSet<CostPrediction> CostPredictions => Set<CostPrediction>();
+    public DbSet<PatientRiskHistory> PatientRiskHistories => Set<PatientRiskHistory>();
 
     public PopHealthDbContext(DbContextOptions<PopHealthDbContext> options) : base(options) { }
 

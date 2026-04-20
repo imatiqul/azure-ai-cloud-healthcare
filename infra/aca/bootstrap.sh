@@ -154,7 +154,18 @@ for APP in "${MFE_APPS[@]}"; do
     --resource-group "$RG" \
     --query "properties.apiKey" -o tsv)
   
-  SECRET_VAR="AZURE_STATIC_WEB_APPS_API_TOKEN_$(echo "$APP" | tr '[:lower:]-' '[:upper:]_')"
+  # Map app name to the secret name expected by frontend-deploy.yml matrix
+  case "$APP" in
+    shell)           SECRET_VAR="SHELL_DEPLOY_TOKEN" ;;
+    voice-mfe)       SECRET_VAR="VOICE_MFE_DEPLOY_TOKEN" ;;
+    triage-mfe)      SECRET_VAR="TRIAGE_MFE_DEPLOY_TOKEN" ;;
+    scheduling-mfe)  SECRET_VAR="SCHEDULING_MFE_DEPLOY_TOKEN" ;;
+    pophealth-mfe)   SECRET_VAR="POPHEALTH_MFE_DEPLOY_TOKEN" ;;
+    revenue-mfe)     SECRET_VAR="REVENUE_MFE_DEPLOY_TOKEN" ;;
+    encounters-mfe)  SECRET_VAR="ENCOUNTERS_MFE_DEPLOY_TOKEN" ;;
+    engagement-mfe)  SECRET_VAR="ENGAGEMENT_MFE_DEPLOY_TOKEN" ;;
+    *)               SECRET_VAR="AZURE_STATIC_WEB_APPS_API_TOKEN_$(echo "$APP" | tr '[:lower:]-' '[:upper:]_')" ;;
+  esac
   echo "  ↳ Add GitHub secret: ${SECRET_VAR}=${TOKEN}"
 done
 
@@ -174,9 +185,13 @@ echo "✅ Bootstrap complete."
 echo ""
 echo "Next steps:"
 echo "  1. Add the GitHub secrets printed above for each SWA deploy token."
-echo "  2. Set the OIDC secrets in GitHub:"
-echo "       AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID"
-echo "  3. Make GHCR packages public (or add GHCR_TOKEN secret) so ACA can pull:"
-echo "       https://github.com/orgs/<owner>/packages"
+echo "     Secret names match the frontend-deploy.yml matrix (e.g. SHELL_DEPLOY_TOKEN)."
+echo "  2. Set the OIDC federation secrets in GitHub:"
+echo "       AZURE_CLIENT_ID      — App Registration client ID with Federated Credential"
+echo "       AZURE_TENANT_ID      — Entra ID tenant ID"
+echo "       AZURE_SUBSCRIPTION_ID — Azure subscription ID"
+echo "  3. Create a GitHub PAT with 'read:packages' scope and add it as:"
+echo "       GHCR_PULL_TOKEN      — Used by ACA to pull images from ghcr.io"
+echo "     OR make GHCR packages public: https://github.com/orgs/<owner>/packages"
 echo "  4. Trigger the microservice-deploy workflow to push initial images."
 echo "  5. Trigger the frontend-deploy workflow to publish MFE bundles."

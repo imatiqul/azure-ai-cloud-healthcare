@@ -14,5 +14,14 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['../../vitest.setup.ts'],
     css: false,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'cobertura'],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+      },
+    },
   },
 });

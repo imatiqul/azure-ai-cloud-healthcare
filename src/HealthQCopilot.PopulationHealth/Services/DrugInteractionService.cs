@@ -218,11 +218,11 @@ public sealed class DrugInteractionService
                     if ((drugI_matchesA && drugJ_matchesB) || (drugI_matchesB && drugJ_matchesA))
                     {
                         interactions.Add(new DetectedInteraction(
-                            DrugA:          drugs[i],
-                            DrugB:          drugs[j],
-                            Severity:       rule.Severity,
+                            DrugA: drugs[i],
+                            DrugB: drugs[j],
+                            Severity: rule.Severity,
                             ClinicalEffect: rule.ClinicalEffect,
-                            Management:     rule.Management));
+                            Management: rule.Management));
                         break; // one highest-severity rule per pair
                     }
                 }
@@ -232,11 +232,11 @@ public sealed class DrugInteractionService
         interactions.Sort((a, b) => SeverityOrder(a.Severity).CompareTo(SeverityOrder(b.Severity)));
 
         bool hasContra = interactions.Any(i => i.Severity == "Contraindicated");
-        bool hasMajor  = interactions.Any(i => i.Severity == "Major");
+        bool hasMajor = interactions.Any(i => i.Severity == "Major");
 
         return new DrugInteractionCheckResult(
-            Drugs:              drugs,
-            Interactions:       interactions,
+            Drugs: drugs,
+            Interactions: interactions,
             HasContraindication: hasContra,
             HasMajorInteraction: hasMajor,
             AlertLevel: hasContra ? "Contraindicated"
@@ -251,9 +251,9 @@ public sealed class DrugInteractionService
     private static int SeverityOrder(string severity) => severity switch
     {
         "Contraindicated" => 0,
-        "Major"           => 1,
-        "Moderate"        => 2,
-        _                 => 3,
+        "Major" => 1,
+        "Moderate" => 2,
+        _ => 3,
     };
 }
 

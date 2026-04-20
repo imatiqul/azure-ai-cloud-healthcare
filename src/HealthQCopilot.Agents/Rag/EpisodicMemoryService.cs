@@ -92,7 +92,7 @@ public sealed class EpisodicMemoryService : IEpisodicMemoryService
 
             var point = new PointStruct
             {
-                Id      = new PointId { Uuid = Guid.NewGuid().ToString() },
+                Id = new PointId { Uuid = Guid.NewGuid().ToString() },
                 Vectors = vector,
                 Payload =
                 {

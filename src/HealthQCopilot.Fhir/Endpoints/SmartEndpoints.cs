@@ -284,11 +284,11 @@ public static class SmartEndpoints
             using var client = httpClientFactory.CreateClient("SmartTokenExchange");
             var body = new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                ["grant_type"]    = "authorization_code",
-                ["client_id"]     = b2cClientId,
+                ["grant_type"] = "authorization_code",
+                ["client_id"] = b2cClientId,
                 ["client_secret"] = b2cClientSecret,
-                ["code"]          = code,
-                ["redirect_uri"]  = callbackUri,
+                ["code"] = code,
+                ["redirect_uri"] = callbackUri,
                 ["code_verifier"] = pkce.codeVerifier,
             });
 
@@ -312,18 +312,18 @@ public static class SmartEndpoints
             // SMART token response per https://hl7.org/fhir/smart-app-launch/app-launch.html#response-5
             return Results.Ok(new
             {
-                access_token  = GetString("access_token"),
-                token_type    = "Bearer",
-                expires_in    = GetInt("expires_in", 3600),
+                access_token = GetString("access_token"),
+                token_type = "Bearer",
+                expires_in = GetInt("expires_in", 3600),
                 refresh_token = GetString("refresh_token"),
-                id_token      = GetString("id_token"),
-                scope         = GetString("scope"),
+                id_token = GetString("id_token"),
+                scope = GetString("scope"),
                 // Hint to the app which patient context was selected — populated from claims
                 // if the EHR passes patient context in the launch token
-                patient       = (string?)null,
+                patient = (string?)null,
                 // fhirUser claim is populated from the id_token; the SMART app resolves
                 // the full Patient resource URL from this value
-                fhirUser      = (string?)null,
+                fhirUser = (string?)null,
             });
         })
         .WithTags("SMART on FHIR")

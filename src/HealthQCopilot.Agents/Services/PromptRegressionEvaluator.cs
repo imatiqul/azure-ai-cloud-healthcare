@@ -101,12 +101,12 @@ public sealed class PromptRegressionEvaluator
 
             caseResults.Add(new
             {
-                Prompt           = testCase.Prompt[..Math.Min(80, testCase.Prompt.Length)] + "...",
-                ExpectedUrgency  = testCase.ExpectedUrgency,
-                Response         = response[..Math.Min(200, response.Length)],
-                LatencyMs        = (int)latency.TotalMilliseconds,
-                Passed           = casePassed,
-                Criteria         = criteriaResults,
+                Prompt = testCase.Prompt[..Math.Min(80, testCase.Prompt.Length)] + "...",
+                ExpectedUrgency = testCase.ExpectedUrgency,
+                Response = response[..Math.Min(200, response.Length)],
+                LatencyMs = (int)latency.TotalMilliseconds,
+                Passed = casePassed,
+                Criteria = criteriaResults,
             });
         }
 

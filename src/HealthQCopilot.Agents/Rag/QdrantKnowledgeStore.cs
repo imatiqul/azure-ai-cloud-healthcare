@@ -75,9 +75,9 @@ public sealed class QdrantKnowledgeStore : IClinicalKnowledgeStore
 
         return results.Select(r => new KnowledgeChunk
         {
-            Id       = r.Id.Uuid,
-            Text     = r.Payload.GetValueOrDefault("text")?.StringValue ?? string.Empty,
-            Source   = r.Payload.GetValueOrDefault("source")?.StringValue ?? string.Empty,
+            Id = r.Id.Uuid,
+            Text = r.Payload.GetValueOrDefault("text")?.StringValue ?? string.Empty,
+            Source = r.Payload.GetValueOrDefault("source")?.StringValue ?? string.Empty,
             Category = r.Payload.GetValueOrDefault("category")?.StringValue ?? string.Empty,
             Embedding = [],  // not returned from search result
         }).ToList();

@@ -429,9 +429,16 @@ public static class RevenueEndpoints
                 .Take(top ?? 50)
                 .Select(c => new
                 {
-                    c.Id, c.CodingJobId, c.PatientId, c.EncounterId, c.InsurancePayer,
-                    Status = c.Status.ToString(), c.ClearinghouseClaimId,
-                    c.TotalChargesCents, c.CreatedAt, c.SubmittedAt
+                    c.Id,
+                    c.CodingJobId,
+                    c.PatientId,
+                    c.EncounterId,
+                    c.InsurancePayer,
+                    Status = c.Status.ToString(),
+                    c.ClearinghouseClaimId,
+                    c.TotalChargesCents,
+                    c.CreatedAt,
+                    c.SubmittedAt
                 })
                 .ToListAsync(ct);
             return Results.Ok(claims);

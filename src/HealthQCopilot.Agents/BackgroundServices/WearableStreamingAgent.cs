@@ -27,24 +27,24 @@ public sealed class WearableStreamingAgent : BackgroundService
     // Alert thresholds — move to Azure App Config for tenant-specific overrides
     private static readonly Dictionary<string, (double Low, double High)> Thresholds = new()
     {
-        ["heart_rate"]     = (40, 130),
-        ["spo2"]           = (90, 101),
-        ["systolic_bp"]    = (80, 180),
-        ["diastolic_bp"]   = (50, 110),
-        ["temperature"]    = (35.0, 38.5),
-        ["respiratory"]    = (8, 30),
-        ["glucose"]        = (3.5, 13.9),   // mmol/L
+        ["heart_rate"] = (40, 130),
+        ["spo2"] = (90, 101),
+        ["systolic_bp"] = (80, 180),
+        ["diastolic_bp"] = (50, 110),
+        ["temperature"] = (35.0, 38.5),
+        ["respiratory"] = (8, 30),
+        ["glucose"] = (3.5, 13.9),   // mmol/L
     };
 
     private static readonly Dictionary<string, string> LoincCodes = new()
     {
-        ["heart_rate"]  = "8867-4",
-        ["spo2"]        = "2708-6",
+        ["heart_rate"] = "8867-4",
+        ["spo2"] = "2708-6",
         ["systolic_bp"] = "8480-6",
-        ["diastolic_bp"]= "8462-4",
+        ["diastolic_bp"] = "8462-4",
         ["temperature"] = "8310-5",
         ["respiratory"] = "9279-1",
-        ["glucose"]     = "15074-8",
+        ["glucose"] = "15074-8",
     };
 
     public WearableStreamingAgent(
@@ -60,7 +60,7 @@ public sealed class WearableStreamingAgent : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var connectionString = _config["EventHubs:ConnectionString"];
-        var eventHubName     = _config.GetValue("EventHubs:WearableHub", "clinical-events");
+        var eventHubName = _config.GetValue("EventHubs:WearableHub", "clinical-events");
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
@@ -136,13 +136,13 @@ public sealed class WearableStreamingAgent : BackgroundService
         var observation = new
         {
             resourceType = "Observation",
-            status       = "final",
-            category     = new[] { new { coding = new[] { new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "vital-signs" } } } },
-            code         = new { coding = new[] { new { system = "http://loinc.org", code = loincCode, display = reading.VitalType } } },
-            subject      = new { reference = $"Patient/{reading.PatientId}" },
+            status = "final",
+            category = new[] { new { coding = new[] { new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "vital-signs" } } } },
+            code = new { coding = new[] { new { system = "http://loinc.org", code = loincCode, display = reading.VitalType } } },
+            subject = new { reference = $"Patient/{reading.PatientId}" },
             effectiveDateTime = reading.Timestamp.ToString("O"),
             valueQuantity = new { value = reading.Value, unit = reading.Unit ?? "unit", system = "http://unitsofmeasure.org" },
-            device       = string.IsNullOrWhiteSpace(reading.DeviceId) ? null : new { reference = $"Device/{reading.DeviceId}" },
+            device = string.IsNullOrWhiteSpace(reading.DeviceId) ? null : new { reference = $"Device/{reading.DeviceId}" },
         };
 
         try
@@ -164,7 +164,7 @@ public sealed class WearableStreamingAgent : BackgroundService
     private async Task PublishAlertAsync(WearableReading reading, double low, double high, CancellationToken ct)
     {
         var daprBase = _config.GetValue("Dapr:HttpEndpoint", "http://localhost:3500");
-        var client   = _httpFactory.CreateClient("dapr");
+        var client = _httpFactory.CreateClient("dapr");
         client.BaseAddress = new Uri(daprBase);
 
         var direction = reading.Value < low ? "below" : "above";
@@ -172,15 +172,15 @@ public sealed class WearableStreamingAgent : BackgroundService
 
         var alert = new
         {
-            PatientId   = reading.PatientId,
-            DeviceId    = reading.DeviceId,
-            VitalType   = reading.VitalType,
-            Value       = reading.Value,
-            Unit        = reading.Unit,
-            Direction   = direction,
-            Threshold   = threshold,
-            Timestamp   = reading.Timestamp,
-            Severity    = ComputeSeverity(reading.VitalType, reading.Value, low, high),
+            PatientId = reading.PatientId,
+            DeviceId = reading.DeviceId,
+            VitalType = reading.VitalType,
+            Value = reading.Value,
+            Unit = reading.Unit,
+            Direction = direction,
+            Threshold = threshold,
+            Timestamp = reading.Timestamp,
+            Severity = ComputeSeverity(reading.VitalType, reading.Value, low, high),
         };
 
         _logger.LogWarning(

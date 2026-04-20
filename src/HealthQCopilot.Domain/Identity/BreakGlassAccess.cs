@@ -86,7 +86,7 @@ public sealed class BreakGlassAccess : AggregateRoot<Guid>
     public Result Revoke(Guid revokedByUserId, string? reason = null)
     {
         if (Status == BreakGlassStatus.Revoked) return Result.Failure("Access already revoked.");
-        if (Status == BreakGlassStatus.Expired)  return Result.Failure("Access already expired.");
+        if (Status == BreakGlassStatus.Expired) return Result.Failure("Access already expired.");
 
         Status = BreakGlassStatus.Revoked;
         RevokedByUserId = revokedByUserId;

@@ -34,22 +34,22 @@ public sealed class LabDeltaFlaggingService(ILogger<LabDeltaFlaggingService> log
     // LOINC code → (absoluteThreshold, relativeThresholdFraction, criticalLow, criticalHigh)
     private static readonly Dictionary<string, LabThreshold> Thresholds = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["2345-7"]  = new("Glucose",           AbsoluteΔ: 70,   RelativeΔ: 0.30, CriticalLow: 50,   CriticalHigh: 500),
-        ["2160-0"]  = new("Creatinine",        AbsoluteΔ: 0.5,  RelativeΔ: 0.50, CriticalLow: null, CriticalHigh: 10.0),
-        ["2951-2"]  = new("Sodium",            AbsoluteΔ: 10,   RelativeΔ: null, CriticalLow: 120,  CriticalHigh: 160),
-        ["2823-3"]  = new("Potassium",         AbsoluteΔ: 1.0,  RelativeΔ: null, CriticalLow: 2.5,  CriticalHigh: 6.5),
-        ["718-7"]   = new("Hemoglobin",        AbsoluteΔ: 2.0,  RelativeΔ: null, CriticalLow: 7.0,  CriticalHigh: null),
-        ["6690-2"]  = new("WBC",               AbsoluteΔ: 4.0,  RelativeΔ: null, CriticalLow: 2.0,  CriticalHigh: 30.0),
-        ["13056-7"] = new("Platelets",         AbsoluteΔ: 50,   RelativeΔ: null, CriticalLow: 50,   CriticalHigh: 1000),
-        ["1742-6"]  = new("ALT",               AbsoluteΔ: null, RelativeΔ: 0.50, CriticalLow: null, CriticalHigh: 1000),
-        ["1920-8"]  = new("AST",               AbsoluteΔ: null, RelativeΔ: 0.50, CriticalLow: null, CriticalHigh: 1000),
-        ["6768-6"]  = new("ALP",               AbsoluteΔ: null, RelativeΔ: 0.50, CriticalLow: null, CriticalHigh: null),
-        ["2157-6"]  = new("CK",                AbsoluteΔ: null, RelativeΔ: 0.50, CriticalLow: null, CriticalHigh: null),
-        ["14627-4"] = new("Bicarbonate",       AbsoluteΔ: 5,    RelativeΔ: null, CriticalLow: 10,   CriticalHigh: 40),
-        ["2075-0"]  = new("Chloride",          AbsoluteΔ: 10,   RelativeΔ: null, CriticalLow: null, CriticalHigh: null),
-        ["21000-5"] = new("HbA1c",             AbsoluteΔ: 1.0,  RelativeΔ: null, CriticalLow: null, CriticalHigh: null),
-        ["2093-3"]  = new("TotalCholesterol",  AbsoluteΔ: 40,   RelativeΔ: null, CriticalLow: null, CriticalHigh: null),
-        ["2085-9"]  = new("HDL",               AbsoluteΔ: 10,   RelativeΔ: null, CriticalLow: null, CriticalHigh: null),
+        ["2345-7"] = new("Glucose", AbsoluteΔ: 70, RelativeΔ: 0.30, CriticalLow: 50, CriticalHigh: 500),
+        ["2160-0"] = new("Creatinine", AbsoluteΔ: 0.5, RelativeΔ: 0.50, CriticalLow: null, CriticalHigh: 10.0),
+        ["2951-2"] = new("Sodium", AbsoluteΔ: 10, RelativeΔ: null, CriticalLow: 120, CriticalHigh: 160),
+        ["2823-3"] = new("Potassium", AbsoluteΔ: 1.0, RelativeΔ: null, CriticalLow: 2.5, CriticalHigh: 6.5),
+        ["718-7"] = new("Hemoglobin", AbsoluteΔ: 2.0, RelativeΔ: null, CriticalLow: 7.0, CriticalHigh: null),
+        ["6690-2"] = new("WBC", AbsoluteΔ: 4.0, RelativeΔ: null, CriticalLow: 2.0, CriticalHigh: 30.0),
+        ["13056-7"] = new("Platelets", AbsoluteΔ: 50, RelativeΔ: null, CriticalLow: 50, CriticalHigh: 1000),
+        ["1742-6"] = new("ALT", AbsoluteΔ: null, RelativeΔ: 0.50, CriticalLow: null, CriticalHigh: 1000),
+        ["1920-8"] = new("AST", AbsoluteΔ: null, RelativeΔ: 0.50, CriticalLow: null, CriticalHigh: 1000),
+        ["6768-6"] = new("ALP", AbsoluteΔ: null, RelativeΔ: 0.50, CriticalLow: null, CriticalHigh: null),
+        ["2157-6"] = new("CK", AbsoluteΔ: null, RelativeΔ: 0.50, CriticalLow: null, CriticalHigh: null),
+        ["14627-4"] = new("Bicarbonate", AbsoluteΔ: 5, RelativeΔ: null, CriticalLow: 10, CriticalHigh: 40),
+        ["2075-0"] = new("Chloride", AbsoluteΔ: 10, RelativeΔ: null, CriticalLow: null, CriticalHigh: null),
+        ["21000-5"] = new("HbA1c", AbsoluteΔ: 1.0, RelativeΔ: null, CriticalLow: null, CriticalHigh: null),
+        ["2093-3"] = new("TotalCholesterol", AbsoluteΔ: 40, RelativeΔ: null, CriticalLow: null, CriticalHigh: null),
+        ["2085-9"] = new("HDL", AbsoluteΔ: 10, RelativeΔ: null, CriticalLow: null, CriticalHigh: null),
     };
 
     /// <summary>
@@ -122,14 +122,14 @@ public sealed class LabDeltaFlaggingService(ILogger<LabDeltaFlaggingService> log
             if (flags_for_obs.Count > 0)
             {
                 flags.Add(new LabDeltaFlag(
-                    PatientId:   obs.PatientId,
-                    LoincCode:   obs.LoincCode,
+                    PatientId: obs.PatientId,
+                    LoincCode: obs.LoincCode,
                     AnalyteName: threshold.AnalyteName,
-                    CurrentValue:   obs.Value,
-                    Unit:           obs.Unit,
-                    CollectedAt:    obs.CollectedAt,
-                    Severity:       severity,
-                    FlagReasons:    flags_for_obs.ToArray()));
+                    CurrentValue: obs.Value,
+                    Unit: obs.Unit,
+                    CollectedAt: obs.CollectedAt,
+                    Severity: severity,
+                    FlagReasons: flags_for_obs.ToArray()));
 
                 logger.LogWarning(
                     "LabDelta [{Severity}] patient={PatientId} analyte={Analyte}: {Reason}",
@@ -139,9 +139,9 @@ public sealed class LabDeltaFlaggingService(ILogger<LabDeltaFlaggingService> log
 
         return new LabDeltaCheckResult(
             ObservationsChecked: newObservations.Count,
-            FlagCount:           flags.Count,
-            HasCriticalFlags:    flags.Any(f => f.Severity == DeltaFlagSeverity.Critical),
-            Flags:               flags.ToArray());
+            FlagCount: flags.Count,
+            HasCriticalFlags: flags.Any(f => f.Severity == DeltaFlagSeverity.Critical),
+            Flags: flags.ToArray());
     }
 }
 
@@ -176,7 +176,7 @@ public enum DeltaFlagSeverity { None, DeltaExceeded, Critical }
 // ── Internal threshold model ─────────────────────────────────────────────────
 
 sealed record LabThreshold(
-    string  AnalyteName,
+    string AnalyteName,
     double? AbsoluteΔ,
     double? RelativeΔ,
     double? CriticalLow,

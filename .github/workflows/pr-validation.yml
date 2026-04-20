@@ -74,7 +74,7 @@ jobs:
       - run: pnpm type-check
         working-directory: frontend
       - name: Run frontend unit tests with coverage
-        run: pnpm --filter shell vitest run --coverage --coverage.thresholds.lines=80 --coverage.thresholds.functions=80 --coverage.thresholds.branches=80
+        run: pnpm --filter shell run test -- --coverage
         working-directory: frontend
       - run: pnpm build
         working-directory: frontend

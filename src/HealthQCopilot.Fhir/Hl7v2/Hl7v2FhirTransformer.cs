@@ -114,7 +114,7 @@ public sealed class Hl7v2FhirTransformer(
                     if (doc.RootElement.TryGetProperty("id", out var idProp))
                     {
                         encounter["subject"] = new Dictionary<string, string>
-                            { ["reference"] = $"Patient/{idProp.GetString()}" };
+                        { ["reference"] = $"Patient/{idProp.GetString()}" };
                     }
                 }
             }
@@ -226,10 +226,10 @@ public sealed class Hl7v2FhirTransformer(
     {
         var pid = msg.GetFields("PID");
         var familyName = pid.Get(4, 0, 0); // PID-5.1 family name
-        var givenName  = pid.Get(4, 0, 1); // PID-5.2 given name
-        var dob        = pid.Get(6, 0, 0); // PID-7 date of birth (YYYYMMDD)
-        var gender     = pid.Get(7, 0, 0); // PID-8 sex
-        var mrn        = pid.Get(2, 0, 0); // PID-3 patient identifier
+        var givenName = pid.Get(4, 0, 1); // PID-5.2 given name
+        var dob = pid.Get(6, 0, 0); // PID-7 date of birth (YYYYMMDD)
+        var gender = pid.Get(7, 0, 0); // PID-8 sex
+        var mrn = pid.Get(2, 0, 0); // PID-3 patient identifier
 
         return new Dictionary<string, object>
         {
@@ -279,10 +279,10 @@ public sealed class Hl7v2FhirTransformer(
     {
         var loincCode = obx.Get(2, 0, 0); // OBX-3.1
         var loincText = obx.Get(2, 0, 1); // OBX-3.2
-        var value     = obx.Get(4, 0, 0); // OBX-5.1
-        var unit      = obx.Get(5, 0, 0); // OBX-6.1
-        var status    = obx.Get(10, 0, 0); // OBX-11 (F=final, P=preliminary)
-        var obsTs     = obx.Get(13, 0, 0); // OBX-14 date/time
+        var value = obx.Get(4, 0, 0); // OBX-5.1
+        var unit = obx.Get(5, 0, 0); // OBX-6.1
+        var status = obx.Get(10, 0, 0); // OBX-11 (F=final, P=preliminary)
+        var obsTs = obx.Get(13, 0, 0); // OBX-14 date/time
 
         var obs = new Dictionary<string, object>
         {

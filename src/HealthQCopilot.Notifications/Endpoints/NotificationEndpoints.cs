@@ -74,8 +74,8 @@ public static class NotificationEndpoints
                 message.Id,
                 message.CampaignId,
                 message.PatientId,
-                Channel  = message.Channel.ToString(),
-                Status   = message.Status.ToString(),
+                Channel = message.Channel.ToString(),
+                Status = message.Status.ToString(),
                 message.CreatedAt,
                 message.SentAt,
             });
@@ -93,21 +93,21 @@ public static class NotificationEndpoints
                 query = query.Where(m => m.CampaignId == campaignId.Value);
 
             var messages = await query.ToListAsync(ct);
-            var total     = messages.Count;
-            var sent      = messages.Count(m => m.Status == MessageStatus.Sent);
+            var total = messages.Count;
+            var sent = messages.Count(m => m.Status == MessageStatus.Sent);
             var delivered = messages.Count(m => m.Status == MessageStatus.Delivered);
-            var failed    = messages.Count(m => m.Status == MessageStatus.Failed);
-            var pending   = messages.Count(m => m.Status == MessageStatus.Pending);
+            var failed = messages.Count(m => m.Status == MessageStatus.Failed);
+            var pending = messages.Count(m => m.Status == MessageStatus.Pending);
 
             return Results.Ok(new
             {
-                Total         = total,
-                Pending       = pending,
-                Sent          = sent,
-                Delivered     = delivered,
-                Failed        = failed,
-                DeliveryRate  = total > 0 ? Math.Round((double)delivered / total * 100, 1) : 0,
-                FailureRate   = total > 0 ? Math.Round((double)failed    / total * 100, 1) : 0,
+                Total = total,
+                Pending = pending,
+                Sent = sent,
+                Delivered = delivered,
+                Failed = failed,
+                DeliveryRate = total > 0 ? Math.Round((double)delivered / total * 100, 1) : 0,
+                FailureRate = total > 0 ? Math.Round((double)failed / total * 100, 1) : 0,
             });
         })
         .WithSummary("Delivery analytics — sent/delivered/failed breakdown");

@@ -46,16 +46,16 @@ public sealed class CareGapPlugin(ILogger<CareGapPlugin> logger)
             var applicable = code switch
             {
                 "CDC-HbA1c" => summary.Contains("diabetes") || summary.Contains("hba1c") || summary.Contains("diabetic"),
-                "CBP"       => summary.Contains("hypertension") || summary.Contains("blood pressure") || summary.Contains("htn"),
-                "BCS"       => summary.Contains("female") || summary.Contains("woman") || summary.Contains("breast"),
-                "COL"       => summary.Contains("50") || summary.Contains("51") || summary.Contains("52") ||
+                "CBP" => summary.Contains("hypertension") || summary.Contains("blood pressure") || summary.Contains("htn"),
+                "BCS" => summary.Contains("female") || summary.Contains("woman") || summary.Contains("breast"),
+                "COL" => summary.Contains("50") || summary.Contains("51") || summary.Contains("52") ||
                                summary.Contains("53") || summary.Contains("54") || summary.Contains("55") ||
                                summary.Contains("60") || summary.Contains("65") || summary.Contains("70"),
-                "EED"       => summary.Contains("diabetes") || summary.Contains("diabetic"),
-                "SMC"       => summary.Contains("cardiovascular") || summary.Contains("heart disease") || summary.Contains("cad"),
-                "WCC-BMI"   => true,   // applicable to all adult patients
-                "FUH"       => summary.Contains("mental health") || summary.Contains("psychiatric") || summary.Contains("depression"),
-                _           => false
+                "EED" => summary.Contains("diabetes") || summary.Contains("diabetic"),
+                "SMC" => summary.Contains("cardiovascular") || summary.Contains("heart disease") || summary.Contains("cad"),
+                "WCC-BMI" => true,   // applicable to all adult patients
+                "FUH" => summary.Contains("mental health") || summary.Contains("psychiatric") || summary.Contains("depression"),
+                _ => false
             };
 
             if (applicable)

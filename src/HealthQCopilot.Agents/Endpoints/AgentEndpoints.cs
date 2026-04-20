@@ -113,10 +113,10 @@ public static class AgentEndpoints
 
             // Compute LLM confidence interval alongside the reasoning audit
             var confidence = xai.ComputeLlmConfidence(
-                guardVerdict:       entry.GuardVerdict,
-                ragChunkCount:      entry.GetRagChunkIds().Count,
+                guardVerdict: entry.GuardVerdict,
+                ragChunkCount: entry.GetRagChunkIds().Count,
                 planningIterations: entry.GetReasoningSteps().Count,
-                avgLogProbability:  null); // log-probs not persisted; use LIME-fallback
+                avgLogProbability: null); // log-probs not persisted; use LIME-fallback
 
             return Results.Ok(new
             {
@@ -124,7 +124,7 @@ public static class AgentEndpoints
                 entry.AgentName,
                 entry.GuardVerdict,
                 entry.ConfidenceScore,
-                RagChunks      = entry.GetRagChunkIds(),
+                RagChunks = entry.GetRagChunkIds(),
                 ReasoningSteps = entry.GetReasoningSteps(),
                 entry.CreatedAt,
                 ConfidenceInterval = new
@@ -146,7 +146,7 @@ public static class AgentEndpoints
             XaiExplainabilityService xai) =>
         {
             var confidence = xai.ComputeMlConfidence(req.Probability, req.FeatureValues);
-            var importance  = req.FeatureValues is { Length: > 0 }
+            var importance = req.FeatureValues is { Length: > 0 }
                 ? xai.ComputeFeatureImportance(req.Probability, req.FeatureValues)
                 : null;
 
@@ -154,7 +154,7 @@ public static class AgentEndpoints
             {
                 req.Probability,
                 ConfidenceInterval = confidence,
-                FeatureImportance  = importance,
+                FeatureImportance = importance,
             });
         })
         .WithSummary("Compute confidence interval and feature importance for an ML risk score")

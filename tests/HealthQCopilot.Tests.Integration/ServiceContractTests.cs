@@ -90,9 +90,14 @@ public class ServiceContractTests : IClassFixture<PostgresFixture>
         var payload = new
         {
             patientId = "contract-test-patient",
-            housingInstability = 1, foodInsecurity = 1, transportation = 0,
-            socialIsolation = 0, financialStrain = 1, employment = 0,
-            education = 1, digitalAccess = 0
+            housingInstability = 1,
+            foodInsecurity = 1,
+            transportation = 0,
+            socialIsolation = 0,
+            financialStrain = 1,
+            employment = 0,
+            education = 1,
+            digitalAccess = 0
         };
 
         var response = await client.PostAsJsonAsync(
@@ -243,9 +248,9 @@ public class ServiceContractTests : IClassFixture<PostgresFixture>
         var payload = new
         {
             clinicianId = "doc-123",
-            sessionId   = "sess-abc",
+            sessionId = "sess-abc",
             originalAiResponse = "Patient shows signs of ACS. Recommend troponin series.",
-            rating      = 5
+            rating = 5
         };
 
         var response = await client.PostAsJsonAsync("/api/v1/agents/feedback", payload);
@@ -271,9 +276,9 @@ public class ServiceContractTests : IClassFixture<PostgresFixture>
         var payload = new
         {
             clinicianId = "doc-123",
-            sessionId   = "sess-abc",
+            sessionId = "sess-abc",
             originalAiResponse = "...",
-            rating      = 99 // invalid
+            rating = 99 // invalid
         };
 
         var response = await client.PostAsJsonAsync("/api/v1/agents/feedback", payload);
@@ -293,18 +298,19 @@ public class ServiceContractTests : IClassFixture<PostgresFixture>
 
         var payload = new
         {
-            age = 65, sex = "F",
-            conditions  = new[] { "diabetes", "hypertension" },
-            procedures  = Array.Empty<string>(),
+            age = 65,
+            sex = "F",
+            conditions = new[] { "diabetes", "hypertension" },
+            procedures = Array.Empty<string>(),
             observations = Array.Empty<string>(),
-            lastHbA1cDate   = (DateTime?)null,
-            lastHbA1cValue  = (double?)null,
-            lastBpDate      = (DateTime?)null,
-            lastSystolicBp  = (int?)null,
+            lastHbA1cDate = (DateTime?)null,
+            lastHbA1cValue = (double?)null,
+            lastBpDate = (DateTime?)null,
+            lastSystolicBp = (int?)null,
             lastDiastolicBp = (int?)null,
-            lastMammogramDate        = (DateTime?)null,
+            lastMammogramDate = (DateTime?)null,
             lastColorectalScreenDate = (DateTime?)null,
-            colorectalScreenType     = (string?)null
+            colorectalScreenType = (string?)null
         };
 
         var response = await client.PostAsJsonAsync("/api/v1/population-health/hedis", payload);
