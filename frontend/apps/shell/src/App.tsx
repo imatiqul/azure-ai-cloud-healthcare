@@ -31,6 +31,10 @@ const ConsentManagementPanelPage = lazy(() => import('engagement/ConsentManageme
 const VoiceSessionHistoryPage = lazy(() => import('voice/VoiceSessionHistory').then(m => ({ default: m.VoiceSessionHistory })));
 const SdohAssessmentPanelPage = lazy(() => import('pophealth/SdohAssessmentPanel').then(m => ({ default: m.SdohAssessmentPanel })));
 const CostPredictionPanelPage = lazy(() => import('pophealth/CostPredictionPanel').then(m => ({ default: m.CostPredictionPanel })));
+const PatientProfilePanelPage = lazy(() => import('engagement/PatientProfilePanel').then(m => ({ default: m.PatientProfilePanel })));
+const PatientRegistrationPanelPage = lazy(() => import('engagement/PatientRegistrationPanel').then(m => ({ default: m.PatientRegistrationPanel })));
+const OcrDocumentPanelPage = lazy(() => import('engagement/OcrDocumentPanel').then(m => ({ default: m.OcrDocumentPanel })));
+const FhirEverythingViewerPage = lazy(() => import('encounters/FhirEverythingViewer').then(m => ({ default: m.FhirEverythingViewer })));
 const ModelGovernanceDashboardPage = lazy(() => import('./pages/ModelGovernanceDashboard'));
 const DemoLive = lazy(() => import('./pages/DemoLive'));
 
@@ -139,6 +143,7 @@ export default function App() {
                     <LabDeltaFlagsPanelPage />
                     <DrugInteractionCheckerPage />
                     <FhirObservationViewerPage />
+                    <FhirEverythingViewerPage />
                   </MfeErrorBoundary>
                 } />
                 <Route path="/patient-portal" element={
@@ -146,6 +151,9 @@ export default function App() {
                     <EngagementPage />
                     <DeliveryAnalyticsDashboardPage />
                     <ConsentManagementPanelPage />
+                    <PatientProfilePanelPage />
+                    <PatientRegistrationPanelPage />
+                    <OcrDocumentPanelPage />
                   </MfeErrorBoundary>
                 } />
                 <Route path="/governance" element={

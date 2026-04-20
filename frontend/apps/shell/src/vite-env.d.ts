@@ -79,3 +79,15 @@ declare module 'pophealth/SdohAssessmentPanel' {
 declare module 'pophealth/CostPredictionPanel' {
   export const CostPredictionPanel: React.ComponentType;
 }
+declare module 'engagement/PatientProfilePanel' {
+  export const PatientProfilePanel: React.ComponentType;
+}
+declare module 'engagement/PatientRegistrationPanel' {
+  export const PatientRegistrationPanel: React.ComponentType;
+}
+declare module 'engagement/OcrDocumentPanel' {
+  export const OcrDocumentPanel: React.ComponentType;
+}
+declare module 'encounters/FhirEverythingViewer' {
+  export const FhirEverythingViewer: React.ComponentType;
+}

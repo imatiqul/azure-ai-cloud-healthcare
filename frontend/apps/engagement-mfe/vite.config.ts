@@ -14,6 +14,9 @@ export default defineConfig({
         './NotificationInbox': './src/components/NotificationInbox.tsx',
         './DeliveryAnalyticsDashboard': './src/components/DeliveryAnalyticsDashboard.tsx',
         './ConsentManagementPanel': './src/components/ConsentManagementPanel.tsx',
+        './PatientProfilePanel': './src/components/PatientProfilePanel.tsx',       // Phase 22
+        './PatientRegistrationPanel': './src/components/PatientRegistrationPanel.tsx', // Phase 22
+        './OcrDocumentPanel': './src/components/OcrDocumentPanel.tsx',             // Phase 22
       },
       shared: {
         react: { singleton: true },

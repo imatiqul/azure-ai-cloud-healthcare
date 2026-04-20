@@ -15,6 +15,7 @@ export default defineConfig({
         './LabDeltaFlagsPanel': './src/components/LabDeltaFlagsPanel.tsx',
         './DrugInteractionChecker': './src/components/DrugInteractionChecker.tsx',
         './FhirObservationViewer': './src/components/FhirObservationViewer.tsx',
+        './FhirEverythingViewer': './src/components/FhirEverythingViewer.tsx',     // Phase 22
       },
       shared: {
         react: { singleton: true },
