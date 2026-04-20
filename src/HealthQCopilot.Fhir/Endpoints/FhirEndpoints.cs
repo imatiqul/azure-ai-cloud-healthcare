@@ -51,10 +51,9 @@ public static class FhirEndpoints
             "Used by the DicomViewer component to render the study metadata card " +
             "and by the OHIF Viewer as a WADO-RS DICOMweb proxy endpoint.");
 
-
+        group.MapGet("/patients/{id}", async (
             string id,
             IHttpClientFactory httpClientFactory,
-            IConfiguration config,
             CancellationToken ct) =>
         {
             var client = httpClientFactory.CreateClient("FhirServer");

@@ -1,3 +1,4 @@
+using Dapr;
 using Dapr.Client;
 using HealthQCopilot.Domain.Notifications;
 using HealthQCopilot.Notifications.Infrastructure;
@@ -17,8 +18,6 @@ namespace HealthQCopilot.Notifications.Controllers;
 [ApiController]
 public sealed class AppointmentReminderController(
     NotificationDbContext db,
-    INotificationSender sender,
-    DaprClient dapr,
     ILogger<AppointmentReminderController> logger) : ControllerBase
 {
     // ── Dapr subscriber: scheduling.slot.booked ──────────────────────────────
@@ -72,7 +71,7 @@ public sealed class AppointmentReminderController(
         if (campaign is null)
         {
             campaign = OutreachCampaign.Create(Guid.NewGuid(), CampaignName,
-                OutreachType.Reminder, @event.PatientId);
+                CampaignType.Reminder, @event.PatientId);
             campaign.Activate(now);
             db.OutreachCampaigns.Add(campaign);
         }

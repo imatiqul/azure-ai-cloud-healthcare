@@ -1,3 +1,4 @@
+using Azure.Identity;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
@@ -45,12 +46,12 @@ public static class Extensions
             {
                 var tenantId = builder.Configuration["AppConfig:TenantLabel"] ?? "default";
                 options.Connect(new Uri(appConfigEndpoint),
-                                new Azure.Identity.DefaultAzureCredential())
+                                new DefaultAzureCredential())
                        .Select("HealthQ:*", tenantId)
                        .UseFeatureFlags(ff =>
                        {
                            ff.Select("HealthQ:*", tenantId);
-                           ff.CacheExpirationInterval = TimeSpan.FromMinutes(5);
+                           ff.SetRefreshInterval(TimeSpan.FromMinutes(5));
                        });
             });
         }

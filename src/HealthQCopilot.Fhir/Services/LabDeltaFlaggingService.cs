@@ -175,7 +175,7 @@ public enum DeltaFlagSeverity { None, DeltaExceeded, Critical }
 
 // ── Internal threshold model ─────────────────────────────────────────────────
 
-file sealed record LabThreshold(
+sealed record LabThreshold(
     string  AnalyteName,
     double? AbsoluteΔ,
     double? RelativeΔ,

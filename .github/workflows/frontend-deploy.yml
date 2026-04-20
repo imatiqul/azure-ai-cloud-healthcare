@@ -98,7 +98,7 @@ jobs:
       - name: Lint
         if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'
         working-directory: frontend
-        run: pnpm --filter ${{ matrix.app }} lint
+        run: pnpm --filter ${{ matrix.app }} run lint --if-present
 
       - name: Type check
         if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'

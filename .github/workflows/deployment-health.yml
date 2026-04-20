@@ -118,10 +118,10 @@ jobs:
 
           FAIL=0
           for KEY in "${!SMOKE_PATHS[@]}"; do
-            PATH="${SMOKE_PATHS[$KEY]}"
+            SVC_PATH="${SMOKE_PATHS[$KEY]}"
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
               --max-time 15 --retry 2 --retry-delay 3 \
-              "${GATEWAY}${PATH}")
+              "${GATEWAY}${SVC_PATH}")
             if [ "$STATUS" -ge 500 ]; then
               echo "| $KEY | $STATUS | ❌ |" >> $GITHUB_STEP_SUMMARY
               FAIL=1

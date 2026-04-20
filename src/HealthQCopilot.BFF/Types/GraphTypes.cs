@@ -1,3 +1,4 @@
+using HotChocolate.Execution;
 using HotChocolate.Subscriptions;
 using HealthQCopilot.BFF.DataLoaders;
 using HealthQCopilot.BFF.Services;
@@ -38,7 +39,7 @@ public sealed class QueryType
         string patientId,
         CareGapDataLoader loader,
         CancellationToken ct)
-        => loader.LoadAsync(patientId, ct);
+        => loader.LoadAsync(patientId, ct)!;
 
     [GraphQLDescription("Aggregated population health statistics.")]
     public Task<PopHealthStatsDto?> GetPopHealthStatsAsync(

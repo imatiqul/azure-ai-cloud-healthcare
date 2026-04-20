@@ -53,7 +53,8 @@ public sealed class ClinicianFeedbackService(
             {
                 try
                 {
-                    var embedding = await embedder.GenerateEmbeddingVectorAsync(textToIngest, cancellationToken: ct);
+                    var embResult = await embedder.GenerateAsync([textToIngest], cancellationToken: ct);
+                    var embedding = embResult[0].Vector;
                     var chunk = new KnowledgeChunk
                     {
                         Id        = $"feedback:{record.Id}",
@@ -81,14 +82,15 @@ public sealed class ClinicianFeedbackService(
         {
             try
             {
-                var embedding = await embedder.GenerateEmbeddingVectorAsync(input.CorrectedText, cancellationToken: ct);
+                var embResult2 = await embedder.GenerateAsync([input.CorrectedText], cancellationToken: ct);
+                var embedding2 = embResult2[0].Vector;
                 var chunk = new KnowledgeChunk
                 {
                     Id        = $"feedback-correction:{record.Id}",
                     Text      = input.CorrectedText,
                     Source    = $"clinician-correction:{input.ClinicianId}",
                     Category  = input.Category ?? "clinician-correction",
-                    Embedding = embedding.ToArray()
+                    Embedding = embedding2.ToArray()
                 };
                 await knowledgeStore.UpsertAsync(chunk, ct);
                 action = "correction-ingested";

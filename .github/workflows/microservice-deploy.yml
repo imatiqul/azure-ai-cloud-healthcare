@@ -213,14 +213,27 @@ jobs:
           git push || true  # Non-fatal: ArgoCD poll will catch next sync anyway
 
   # ── Post-deploy smoke tests ──────────────────────────────────────────────────
-  # Runs after ALL matrix deploy jobs complete (even if some skipped due to no change).
+  # Runs after ALL matrix deploy jobs complete, but only when at least one service
+  # was actually built & deployed (or triggered manually).
   # Verifies every ACA service returns a healthy response via the external gateway.
   post-deploy-smoke:
-    needs: test-and-build
+    needs: [detect-changes, test-and-build]
     if: >
-      always() &&
+      needs.test-and-build.result == 'success' &&
       github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      (
+        github.event_name == 'workflow_dispatch' ||
+        needs.detect-changes.outputs.voice == 'true' ||
+        needs.detect-changes.outputs.ai-agent == 'true' ||
+        needs.detect-changes.outputs.fhir == 'true' ||
+        needs.detect-changes.outputs.identity == 'true' ||
+        needs.detect-changes.outputs.ocr == 'true' ||
+        needs.detect-changes.outputs.scheduling == 'true' ||
+        needs.detect-changes.outputs.notification == 'true' ||
+        needs.detect-changes.outputs.pop-health == 'true' ||
+        needs.detect-changes.outputs.revenue == 'true' ||
+        needs.detect-changes.outputs.gateway == 'true'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -304,17 +317,17 @@ jobs:
 
           FAIL=0
           for SVC in "${!PATHS[@]}"; do
-            PATH="${PATHS[$SVC]}"
+            SVC_PATH="${PATHS[$SVC]}"
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
               --max-time 15 --retry 2 --retry-delay 3 \
-              "${{ env.GATEWAY_URL }}${PATH}")
+              "${{ env.GATEWAY_URL }}${SVC_PATH}")
             # 2xx = OK, 401/403 = service up (auth required), 404 = route not found
             # Only 5xx or connection errors indicate the service is down
             if [ "$STATUS" -ge 500 ]; then
-              echo "❌ $SVC ($PATH) → HTTP $STATUS"
+              echo "❌ $SVC ($SVC_PATH) → HTTP $STATUS"
               FAIL=1
             else
-              echo "✅ $SVC ($PATH) → HTTP $STATUS"
+              echo "✅ $SVC ($SVC_PATH) → HTTP $STATUS"
             fi
           done
 
@@ -326,15 +339,15 @@ jobs:
             [notifications-analytics]="/api/v1/notifications/analytics/delivery"
           )
           for ENDPOINT in "${!PHASE12_PATHS[@]}"; do
-            PATH="${PHASE12_PATHS[$ENDPOINT]}"
+            SVC_PATH="${PHASE12_PATHS[$ENDPOINT]}"
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
               --max-time 15 --retry 2 --retry-delay 3 \
-              "${{ env.GATEWAY_URL }}${PATH}")
+              "${{ env.GATEWAY_URL }}${SVC_PATH}")
             if [ "$STATUS" -ge 500 ]; then
-              echo "❌ Phase-12 $ENDPOINT ($PATH) → HTTP $STATUS"
+              echo "❌ Phase-12 $ENDPOINT ($SVC_PATH) → HTTP $STATUS"
               FAIL=1
             else
-              echo "✅ Phase-12 $ENDPOINT ($PATH) → HTTP $STATUS"
+              echo "✅ Phase-12 $ENDPOINT ($SVC_PATH) → HTTP $STATUS"
             fi
           done
 

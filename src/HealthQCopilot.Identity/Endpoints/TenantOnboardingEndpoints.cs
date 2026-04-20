@@ -17,6 +17,8 @@ namespace HealthQCopilot.Identity.Endpoints;
 /// </summary>
 public static class TenantOnboardingEndpoints
 {
+    private sealed class Log { }
+
     public static IEndpointRouteBuilder MapTenantOnboardingEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/tenants")
@@ -27,7 +29,7 @@ public static class TenantOnboardingEndpoints
         group.MapPost("/", async (
             ProvisionTenantRequest request,
             IdentityDbContext db,
-            ILogger<TenantOnboardingEndpoints> logger,
+            ILogger<Log> logger,
             CancellationToken ct) =>
         {
             if (await db.TenantConfigs.AnyAsync(t => t.Slug == request.Slug, ct))
@@ -84,7 +86,7 @@ public static class TenantOnboardingEndpoints
                     config.Locale,
                     config.AppConfigLabel,
                     config.DataRegion,
-                    adminUserId: null));
+                    AdminUserId: null));
         });
 
         // GET /api/v1/tenants — list all tenants (paginated)
@@ -110,7 +112,7 @@ public static class TenantOnboardingEndpoints
         group.MapDelete("/{id:guid}", async (
             Guid id,
             IdentityDbContext db,
-            ILogger<TenantOnboardingEndpoints> logger,
+            ILogger<Log> logger,
             CancellationToken ct) =>
         {
             var config = await db.TenantConfigs.FindAsync([id], ct);
