@@ -15,6 +15,7 @@ export default defineConfig({
         './RiskTrajectoryPanel': './src/components/RiskTrajectoryPanel.tsx',
         './SdohAssessmentPanel': './src/components/SdohAssessmentPanel.tsx',
         './CostPredictionPanel': './src/components/CostPredictionPanel.tsx',
+        './HedisMeasuresPanel': './src/components/HedisMeasuresPanel.tsx',          // Phase 23
       },
       shared: {
         react: { singleton: true, requiredVersion: '^19.0.0' },

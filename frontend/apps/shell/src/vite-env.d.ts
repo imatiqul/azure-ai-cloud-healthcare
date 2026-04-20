@@ -91,3 +91,9 @@ declare module 'engagement/OcrDocumentPanel' {
 declare module 'encounters/FhirEverythingViewer' {
   export const FhirEverythingViewer: React.ComponentType;
 }
+declare module 'engagement/OtpVerificationPanel' {
+  export const OtpVerificationPanel: React.ComponentType;
+}
+declare module 'pophealth/HedisMeasuresPanel' {
+  export const HedisMeasuresPanel: React.ComponentType;
+}

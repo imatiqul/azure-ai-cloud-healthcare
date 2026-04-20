@@ -36,6 +36,10 @@ const PatientRegistrationPanelPage = lazy(() => import('engagement/PatientRegist
 const OcrDocumentPanelPage = lazy(() => import('engagement/OcrDocumentPanel').then(m => ({ default: m.OcrDocumentPanel })));
 const FhirEverythingViewerPage = lazy(() => import('encounters/FhirEverythingViewer').then(m => ({ default: m.FhirEverythingViewer })));
 const ModelGovernanceDashboardPage = lazy(() => import('./pages/ModelGovernanceDashboard'));
+const OtpVerificationPanelPage = lazy(() => import('engagement/OtpVerificationPanel').then(m => ({ default: m.OtpVerificationPanel })));
+const HedisMeasuresPanelPage = lazy(() => import('pophealth/HedisMeasuresPanel').then(m => ({ default: m.HedisMeasuresPanel })));
+const TenantAdminPanelPage = lazy(() => import('./pages/TenantAdminPanel'));
+const ModelEvaluationPanelPage = lazy(() => import('./pages/ModelEvaluationPanel'));
 const DemoLive = lazy(() => import('./pages/DemoLive'));
 
 function Loading() {
@@ -128,6 +132,7 @@ export default function App() {
                     <RiskTrajectoryPanelPage />
                     <SdohAssessmentPanelPage />
                     <CostPredictionPanelPage />
+                    <HedisMeasuresPanelPage />
                   </MfeErrorBoundary>
                 } />
                 <Route path="/revenue" element={
@@ -154,11 +159,18 @@ export default function App() {
                     <PatientProfilePanelPage />
                     <PatientRegistrationPanelPage />
                     <OcrDocumentPanelPage />
+                    <OtpVerificationPanelPage />
                   </MfeErrorBoundary>
                 } />
                 <Route path="/governance" element={
                   <MfeErrorBoundary name="Governance">
                     <ModelGovernanceDashboardPage />
+                    <ModelEvaluationPanelPage />
+                  </MfeErrorBoundary>
+                } />
+                <Route path="/tenants" element={
+                  <MfeErrorBoundary name="Tenants">
+                    <TenantAdminPanelPage />
                   </MfeErrorBoundary>
                 } />
               </Routes>

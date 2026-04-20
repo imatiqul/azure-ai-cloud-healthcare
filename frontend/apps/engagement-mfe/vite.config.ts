@@ -17,6 +17,7 @@ export default defineConfig({
         './PatientProfilePanel': './src/components/PatientProfilePanel.tsx',       // Phase 22
         './PatientRegistrationPanel': './src/components/PatientRegistrationPanel.tsx', // Phase 22
         './OcrDocumentPanel': './src/components/OcrDocumentPanel.tsx',             // Phase 22
+        './OtpVerificationPanel': './src/components/OtpVerificationPanel.tsx',     // Phase 23
       },
       shared: {
         react: { singleton: true },
