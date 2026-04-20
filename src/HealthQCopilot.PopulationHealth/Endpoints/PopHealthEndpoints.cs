@@ -127,6 +127,44 @@ public static class PopHealthEndpoints
                 new { risk.Id, risk.PatientId, Level = risk.Level.ToString(), risk.RiskScore, risk.AssessedAt });
         }).WithSummary("Calculate and persist a fresh risk score for a patient");
 
+        group.MapGet("/patients/{patientId}/hedis", (
+            string patientId,
+            [Microsoft.AspNetCore.Mvc.FromBody] HedisMeasureInput body,
+            HedisMeasureCalculator hedis) =>
+        {
+            var input = new HedisMeasureCalculator.PatientMeasureInput
+            {
+                PatientId               = patientId,
+                Age                     = body.Age,
+                Sex                     = body.Sex,
+                Conditions              = body.Conditions,
+                Procedures              = body.Procedures,
+                Observations            = body.Observations,
+                LastHbA1cDate           = body.LastHbA1cDate,
+                LastHbA1cValue          = body.LastHbA1cValue,
+                LastBpDate              = body.LastBpDate,
+                LastSystolicBp          = body.LastSystolicBp,
+                LastDiastolicBp         = body.LastDiastolicBp,
+                LastMammogramDate       = body.LastMammogramDate,
+                LastColorectalScreenDate = body.LastColorectalScreenDate,
+                ColorectalScreenType    = body.ColorectalScreenType,
+            };
+
+            var results = hedis.EvaluateAll(input);
+            var careGaps = results.Where(r => r.HasCareGap).ToList();
+
+            return Results.Ok(new
+            {
+                PatientId     = patientId,
+                MeasureResults = results,
+                TotalMeasures  = results.Count(r => r.InDenominator),
+                CareGapCount   = careGaps.Count,
+                CompliantCount = results.Count(r => r.InDenominator && r.InNumerator),
+            });
+        })
+        .WithSummary("Evaluate HEDIS quality measures and identify care gaps for a patient")
+        .WithDescription("Evaluates CDC-HbA1c, CBP, BCS, COL measures. Returns care gap details and recommended actions.");
+
         return app;
     }
 }
@@ -135,3 +173,19 @@ public sealed record CalculateRiskRequest(
     string PatientId,
     IReadOnlyList<string> Conditions,
     string? TriageLevel = null);
+
+public sealed record HedisMeasureInput(
+    int Age,
+    string Sex,
+    IReadOnlyList<string> Conditions,
+    IReadOnlyList<string> Procedures,
+    IReadOnlyList<string> Observations,
+    DateTime? LastHbA1cDate,
+    double? LastHbA1cValue,
+    DateTime? LastBpDate,
+    int? LastSystolicBp,
+    int? LastDiastolicBp,
+    DateTime? LastMammogramDate,
+    DateTime? LastColorectalScreenDate,
+    string? ColorectalScreenType);
+

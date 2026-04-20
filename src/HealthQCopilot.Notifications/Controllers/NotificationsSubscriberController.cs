@@ -3,6 +3,7 @@ using HealthQCopilot.Domain.Notifications;
 using HealthQCopilot.Notifications.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace HealthQCopilot.Notifications.Controllers;
 
@@ -10,17 +11,22 @@ namespace HealthQCopilot.Notifications.Controllers;
 public class NotificationsSubscriberController : ControllerBase
 {
     private readonly NotificationDbContext _db;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<NotificationsSubscriberController> _logger;
 
-    public NotificationsSubscriberController(NotificationDbContext db,
+    public NotificationsSubscriberController(
+        NotificationDbContext db,
+        IHttpClientFactory httpClientFactory,
         ILogger<NotificationsSubscriberController> logger)
     {
         _db = db;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
     /// <summary>
     /// When a P1/P2 escalation is required, create and activate an outreach campaign.
+    /// Resolves the on-call clinician's email from the Identity service.
     /// </summary>
     [Topic("pubsub", "escalation.required")]
     [HttpPost("/dapr/sub/escalation-required")]
@@ -37,6 +43,10 @@ public class NotificationsSubscriberController : ControllerBase
             return Ok();
         }
 
+        // Resolve the on-call clinician's email from the Identity service.
+        // Falls back to a configured distribution list if the lookup fails.
+        var recipientAddress = await ResolveOnCallEmailAsync(ct);
+
         var campaign = OutreachCampaign.Create(
             Guid.NewGuid(),
             $"URGENT: {payload.Level} Escalation — {payload.WorkflowId.ToString()[..8]}",
@@ -45,19 +55,17 @@ public class NotificationsSubscriberController : ControllerBase
 
         campaign.Activate(DateTime.UtcNow);
 
-        // Create a placeholder message — RecipientAddress must be resolved from Identity service
-        // when patient contact info is available
         var message = Message.Create(campaign.Id, payload.WorkflowId.ToString(),
             MessageChannel.Email,
             $"URGENT escalation alert: Triage level {payload.Level} for workflow {payload.WorkflowId}.",
-            recipientAddress: null);
+            recipientAddress: recipientAddress);
 
         _db.OutreachCampaigns.Add(campaign);
         _db.Messages.Add(message);
         await _db.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Escalation campaign {CampaignId} created for workflow {WorkflowId}",
-            campaign.Id, payload.WorkflowId);
+        _logger.LogInformation("Escalation campaign {CampaignId} created for workflow {WorkflowId} → recipient {Recipient}",
+            campaign.Id, payload.WorkflowId, recipientAddress ?? "(none)");
 
         return Ok();
     }
@@ -198,6 +206,67 @@ public class NotificationsSubscriberController : ControllerBase
             .AnyAsync(c => c.TargetCriteria == targetId
                         && c.Type == type
                         && c.CreatedAt >= cutoff, ct);
+    }
+
+    // ── On-call clinician resolution ──────────────────────────────────────────
+    // Queries the Identity service for the first active Practitioner and returns
+    // their email address. Falls back to the configured on-call distribution list
+    // if the Identity service is unavailable or returns no practitioners.
+    private async Task<string?> ResolveOnCallEmailAsync(CancellationToken ct)
+    {
+        try
+        {
+            var client = _httpClientFactory.CreateClient("IdentityService");
+            var response = await client.GetAsync(
+                "api/v1/identity/users?role=Practitioner&active=true&page=1&pageSize=1", ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(ct);
+                using var doc = System.Text.Json.JsonDocument.Parse(body);
+                var users = doc.RootElement.GetProperty("users");
+                if (users.GetArrayLength() > 0)
+                {
+                    var email = users[0].GetProperty("email").GetString();
+                    if (!string.IsNullOrEmpty(email))
+                        return email;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Identity service lookup for on-call clinician failed");
+        }
+
+        // Fall back to operator-configured distribution list
+        return HttpContext.RequestServices
+            .GetService<IConfiguration>()
+            ?["OnCall:FallbackEmail"];
+    }
+
+    // ── Dead-letter consumer ──────────────────────────────────────────────────
+    // Dapr routes messages to healthq-dlq after maxDeliveryCount (5) failed attempts.
+    // This handler persists failed messages for operator review and prevents infinite
+    // retry loops. Log at Error level so Azure Monitor alert rules can fire.
+    [Topic("pubsub", "healthq-dlq")]
+    [HttpPost("/dapr/sub/dlq")]
+    public async Task<IActionResult> HandleDeadLetter(
+        [FromBody] JsonElement payload,
+        [FromHeader(Name = "ce-topic")] string? originalTopic,
+        CancellationToken ct)
+    {
+        var topic = originalTopic ?? "unknown";
+        var rawPayload = payload.GetRawText();
+
+        _logger.LogError(
+            "Dead-letter message received from topic '{Topic}'. Payload: {Payload}",
+            topic, rawPayload);
+
+        var entry = DeadLetterEvent.Create(topic, rawPayload);
+        _db.DeadLetterEvents.Add(entry);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new { deadLetterId = entry.Id, topic, receivedAt = entry.ReceivedAt });
     }
 }
 

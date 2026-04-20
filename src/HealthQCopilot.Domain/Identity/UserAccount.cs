@@ -13,6 +13,8 @@ public class UserAccount : AggregateRoot<Guid>
     public bool IsActive { get; private set; } = true;
     public DateTime CreatedAt { get; private set; }
     public DateTime? LastLoginAt { get; private set; }
+    /// <summary>The corresponding FHIR Patient resource ID on the HAPI FHIR server.</summary>
+    public string? FhirPatientId { get; private set; }
 
     private UserAccount() { }
 
@@ -32,6 +34,7 @@ public class UserAccount : AggregateRoot<Guid>
     public void RecordLogin() => LastLoginAt = DateTime.UtcNow;
     public void Deactivate() => IsActive = false;
     public void Activate() => IsActive = true;
+    public void SetFhirPatientId(string fhirPatientId) => FhirPatientId = fhirPatientId;
     public void UpdateProfile(string email, string displayName)
     {
         Email = email;

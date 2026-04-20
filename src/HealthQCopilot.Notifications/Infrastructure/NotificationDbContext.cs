@@ -9,6 +9,7 @@ public class NotificationDbContext : OutboxDbContext
     public DbSet<OutreachCampaign> OutreachCampaigns => Set<OutreachCampaign>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<WebPushSubscription> WebPushSubscriptions => Set<WebPushSubscription>();
+    public DbSet<DeadLetterEvent> DeadLetterEvents => Set<DeadLetterEvent>();
 
     public NotificationDbContext(DbContextOptions<NotificationDbContext> options) : base(options) { }
 
@@ -31,6 +32,14 @@ public class NotificationDbContext : OutboxDbContext
             b.Property(e => e.Channel).HasConversion<string>();
             b.Property(e => e.Status).HasConversion<string>();
             b.HasIndex(e => e.CampaignId);
+        });
+
+        modelBuilder.Entity<DeadLetterEvent>(b =>
+        {
+            b.ToTable("dead_letter_events");
+            b.HasKey(e => e.Id);
+            b.Property(e => e.OriginalTopic).HasMaxLength(256).IsRequired();
+            b.HasIndex(e => e.IsResolved);
         });
     }
 }

@@ -1,8 +1,7 @@
 name: Compliance & Security Checks
 
+# Scheduled run disabled while in local development. Re-enable before going to production.
 on:
-  schedule:
-    - cron: '0 2 * * 1'     # Every Monday at 02:00 UTC
   workflow_dispatch:
     inputs:
       skip_zap:

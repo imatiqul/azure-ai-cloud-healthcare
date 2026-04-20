@@ -358,6 +358,198 @@ namespace HealthQCopilot.Agents.Migrations
                     b.ToTable("outbox_events", (string)null);
                 });
 
+            modelBuilder.Entity("HealthQCopilot.Domain.Agents.ModelRegistryEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ModelName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ModelVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeploymentName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SkVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PromptHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PluginManifest")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("LastEvalScore")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("EvalNotes")
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DeployedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeployedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeployedAt");
+
+                    b.HasIndex("IsActive");
+
+                    b.ToTable("model_registry_entries", (string)null);
+                });
+
+            modelBuilder.Entity("HealthQCopilot.Domain.Agents.PromptEvaluationRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ModelRegistryEntryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TotalCases")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PassedCases")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Score")
+                        .HasColumnType("REAL");
+
+                    b.Property<bool>("PassedThreshold")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ResultsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EvaluatedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("EvaluatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ModelRegistryEntryId");
+
+                    b.HasIndex("EvaluatedAt");
+
+                    b.ToTable("prompt_evaluation_runs", (string)null);
+                });
+
+            modelBuilder.Entity("HealthQCopilot.Domain.Agents.ReasoningAuditEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("AgentDecisionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RagChunkIdsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReasoningStepsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GuardVerdict")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("ConfidenceScore")
+                        .HasColumnType("REAL");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentDecisionId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.ToTable("reasoning_audit_entries", (string)null);
+                });
+
+            modelBuilder.Entity("HealthQCopilot.Domain.Agents.PromptExperimentOutcome", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExperimentId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("ControlLatencyMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("ChallengerLatencyMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("ControlGuardPassed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("ChallengerGuardPassed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ControlOutput")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ChallengerOutput")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExperimentId");
+
+                    b.HasIndex("RecordedAt");
+
+                    b.ToTable("prompt_experiment_outcomes", (string)null);
+                });
+
             modelBuilder.Entity("HealthQCopilot.Domain.Agents.GuideMessage", b =>
                 {
                     b.HasOne("HealthQCopilot.Domain.Agents.GuideConversation", null)

@@ -27,6 +27,11 @@ builder.Services.AddOutboxRelay<NotificationDbContext>(builder.Configuration);
 builder.Services.AddScoped<INotificationSender, AcsNotificationSender>();
 builder.Services.AddScoped<WebPushSender>();
 builder.Services.AddHttpClient("WebPush");
+builder.Services.AddHttpClient("IdentityService", client =>
+{
+    var apiBase = builder.Configuration["Services:ApiBase"] ?? "http://localhost:5050";
+    client.BaseAddress = new Uri(apiBase.TrimEnd('/') + "/");
+});
 builder.Services.AddHostedService<CampaignDispatchService>();
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<NotificationDbContext>("notification");

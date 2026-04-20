@@ -45,6 +45,7 @@ var voiceService = builder.AddProject<Projects.HealthQCopilot_Voice>("voice-serv
 var agentService = builder.AddProject<Projects.HealthQCopilot_Agents>("agent-service")
     .WithReference(agentDb)
     .WithReference(redis)
+    .WithEnvironment("Qdrant__Endpoint", qdrant.GetEndpoint("http"))
     .WithExternalHttpEndpoints();
 
 var fhirService = builder.AddProject<Projects.HealthQCopilot_Fhir>("fhir-service")

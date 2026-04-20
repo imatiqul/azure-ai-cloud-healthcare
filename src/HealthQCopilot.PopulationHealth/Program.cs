@@ -37,7 +37,12 @@ builder.Services.AddHttpClient<CareGapNotificationDispatcher>(client =>
     client.Timeout = TimeSpan.FromSeconds(15);
 });
 builder.Services.AddScoped<CareGapNotificationDispatcher>();
-builder.Services.AddSingleton<RiskCalculationService>();
+builder.Services.AddSingleton<ReadmissionRiskPredictor>();
+builder.Services.AddSingleton<RiskCalculationService>(sp =>
+    new RiskCalculationService(
+        sp.GetRequiredService<ILogger<RiskCalculationService>>(),
+        sp.GetRequiredService<ReadmissionRiskPredictor>()));
+builder.Services.AddSingleton<HedisMeasureCalculator>();
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "PopHealthDb");
 builder.Services.AddDaprSecretProvider();
 builder.Services.AddEventHubAudit();

@@ -3,9 +3,12 @@ using HealthQCopilot.Domain.PopulationHealth;
 namespace HealthQCopilot.PopulationHealth.Services;
 
 /// <summary>
-/// Deterministic multi-factor risk scoring engine.
-/// Replaces hardcoded seed values with a reproducible, rules-based scoring model
-/// that can be retrained with ML models without changing the API surface.
+/// Hybrid risk scoring engine: blends deterministic rule-based scoring with
+/// an ML.NET FastTree readmission risk model.
+///
+/// Final score = 0.55 × rules + 0.45 × ML  (weighted average)
+/// If the ML model is unavailable, falls back to 100% rule-based (model-v1.0).
+/// Version tag in PatientRisk.ModelVersion indicates which path was used.
 ///
 /// Scoring method: weighted sum across clinical risk factors, capped to [0.0, 1.0].
 /// Each condition category carries an evidence-based base weight drawn from
@@ -13,6 +16,20 @@ namespace HealthQCopilot.PopulationHealth.Services;
 /// </summary>
 public sealed class RiskCalculationService
 {
+    private const double RulesWeight = 0.55;
+    private const double MlWeight    = 0.45;
+
+    private readonly ReadmissionRiskPredictor? _mlPredictor;
+    private readonly ILogger<RiskCalculationService> _logger;
+
+    public RiskCalculationService(
+        ILogger<RiskCalculationService> logger,
+        ReadmissionRiskPredictor? mlPredictor = null)
+    {
+        _logger = logger;
+        _mlPredictor = mlPredictor;
+    }
+
     // ── Condition-weight lookup (case-insensitive partial match) ─────────────
     private static readonly (string Keyword, double Weight)[] _conditionWeights =
     [
@@ -66,12 +83,51 @@ public sealed class RiskCalculationService
         ["P4_NonUrgent"] = -0.05,
     };
 
-    public PatientRisk Calculate(string patientId, IReadOnlyList<string> conditions, string? triageLevel = null)
+    public PatientRisk Calculate(string patientId, IReadOnlyList<string> conditions, string? triageLevel = null,
+        int age = 0, int priorAdmissions = 0, int los = 0, string? dischargeDisposition = null)
     {
-        var score = ComputeBaseScore(conditions);
+        var rulesScore = ComputeBaseScore(conditions);
 
         if (triageLevel is not null && _triageLevelBoost.TryGetValue(triageLevel, out var boost))
-            score += boost;
+            rulesScore += boost;
+
+        rulesScore = Math.Clamp(rulesScore, 0.0, 1.0);
+
+        // ── Blend with ML model ──────────────────────────────────────────────
+        double score;
+        string modelVersion;
+
+        if (_mlPredictor is not null)
+        {
+            try
+            {
+                var conditionWeightSum = ComputeBaseScore(conditions); // reuse for ML feature
+                var mlInput = new ReadmissionRiskPredictor.ReadmissionInput
+                {
+                    Age                  = age,
+                    ComorbidityCount     = conditions.Count,
+                    TriageLevel          = triageLevel,
+                    PriorAdmissions12M   = priorAdmissions,
+                    LengthOfStayDays     = los,
+                    DischargeDisposition = dischargeDisposition,
+                    ConditionWeightSum   = conditionWeightSum,
+                };
+                var mlResult = _mlPredictor.Predict(mlInput);
+                score        = RulesWeight * rulesScore + MlWeight * mlResult.Probability;
+                modelVersion = "hybrid-v1.0";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "ML model prediction failed; falling back to rule-based scoring");
+                score        = rulesScore;
+                modelVersion = "rule-v1.0-fallback";
+            }
+        }
+        else
+        {
+            score        = rulesScore;
+            modelVersion = "rule-v1.0";
+        }
 
         score = Math.Clamp(score, 0.0, 1.0);
         score = Math.Round(score, 4);
@@ -84,7 +140,7 @@ public sealed class RiskCalculationService
             _ => RiskLevel.Low
         };
 
-        return PatientRisk.Create(patientId, level, score, "rule-v1.0", [.. conditions]);
+        return PatientRisk.Create(patientId, level, score, modelVersion, [.. conditions]);
     }
 
     /// <summary>

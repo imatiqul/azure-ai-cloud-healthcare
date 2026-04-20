@@ -28,6 +28,13 @@ builder.Services.AddHealthcareDb<RevenueDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<RevenueDbContext>(builder.Configuration);
 builder.Services.AddSingleton<CodeSuggestionService>();
+builder.Services.AddSingleton<Edi837Generator>();
+builder.Services.AddSingleton<Edi835Parser>();
+builder.Services.AddScoped<ClearinghouseClient>();
+builder.Services.AddHttpClient("Clearinghouse", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 builder.Services.AddDaprClient();
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<RevenueDbContext>("revenue");

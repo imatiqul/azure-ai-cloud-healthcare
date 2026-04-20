@@ -1,11 +1,9 @@
 name: Microservice CI/CD
 
+# Automatic push/PR triggers disabled while in local development (Phase 1-N).
+# Re-enable push/pull_request blocks when ready for CI/CD.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main, develop]
 
 permissions:
   id-token: write

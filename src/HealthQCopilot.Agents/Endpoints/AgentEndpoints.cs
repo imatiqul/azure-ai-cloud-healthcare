@@ -100,9 +100,67 @@ public static class AgentEndpoints
             return Results.Ok(new { pendingTriage = pending, awaitingReview, completed });
         });
 
+        // ── Phase 6 — Agentic AI Maturity endpoints ───────────────────────────
+
+        // XAI: retrieve the reasoning audit trail for a specific agent decision
+        group.MapGet("/decisions/{id:guid}/explanation", async (
+            Guid id,
+            XaiExplainabilityService xai,
+            CancellationToken ct) =>
+        {
+            var entry = await xai.GetReasoningAsync(id, ct);
+            if (entry is null) return Results.NotFound(new { error = "No reasoning audit found for this decision ID." });
+
+            return Results.Ok(new
+            {
+                entry.AgentDecisionId,
+                entry.AgentName,
+                entry.GuardVerdict,
+                entry.ConfidenceScore,
+                RagChunks     = entry.GetRagChunkIds(),
+                ReasoningSteps = entry.GetReasoningSteps(),
+                entry.CreatedAt,
+            });
+        });
+
+        // LLM clinical coding agent: code an encounter using the planning loop
+        group.MapPost("/coding/code-encounter", async (
+            CodeEncounterRequest request,
+            ClinicalCoderAgent agent,
+            CancellationToken ct) =>
+        {
+            var result = await agent.CodeEncounterAsync(
+                request.WorkflowId,
+                request.EncounterTranscript,
+                request.Payer ?? "Medicare",
+                ct);
+
+            return Results.Ok(new
+            {
+                result.WorkflowId,
+                result.FinalAnswer,
+                result.ReasoningSteps,
+                result.Iterations,
+                result.GoalAchieved,
+                result.Payer,
+                result.CodingAgentVersion,
+            });
+        });
+
+        // A/B experiment summary
+        group.MapGet("/experiments/{experimentId}/summary", async (
+            string experimentId,
+            PromptExperimentService experiments,
+            CancellationToken ct) =>
+        {
+            var summary = await experiments.GetExperimentSummaryAsync(experimentId, ct);
+            return Results.Ok(summary);
+        });
+
         return app;
     }
 }
 
 public record StartTriageRequest(Guid SessionId, string TranscriptText, string? PatientId);
 public record RejectTriageRequest(string Reason);
+public record CodeEncounterRequest(Guid WorkflowId, string EncounterTranscript, string? Payer);

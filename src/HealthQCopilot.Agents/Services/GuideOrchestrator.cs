@@ -1,6 +1,7 @@
 using System.Text.Json;
 using HealthQCopilot.Agents.Infrastructure;
 using HealthQCopilot.Agents.Plugins;
+using HealthQCopilot.Agents.Rag;
 using HealthQCopilot.Domain.Agents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
@@ -14,6 +15,7 @@ public sealed class GuideOrchestrator
     private readonly Kernel _kernel;
     private readonly AgentDbContext _db;
     private readonly PlatformGuidePlugin _guidePlugin;
+    private readonly IRagContextProvider? _rag;
     private readonly ILogger<GuideOrchestrator> _logger;
     private readonly bool _hasLlm;
 
@@ -32,11 +34,17 @@ public sealed class GuideOrchestrator
         Never make up data — always use your tools to fetch real information.
         """;
 
-    public GuideOrchestrator(Kernel kernel, AgentDbContext db, PlatformGuidePlugin guidePlugin, ILogger<GuideOrchestrator> logger)
+    public GuideOrchestrator(
+        Kernel kernel,
+        AgentDbContext db,
+        PlatformGuidePlugin guidePlugin,
+        ILogger<GuideOrchestrator> logger,
+        IRagContextProvider? rag = null)
     {
         _kernel = kernel;
         _db = db;
         _guidePlugin = guidePlugin;
+        _rag = rag;
         _logger = logger;
         _hasLlm = kernel.GetAllServices<IChatCompletionService>().Any();
     }
@@ -79,7 +87,17 @@ public sealed class GuideOrchestrator
         try
         {
             var chatService = _kernel.GetRequiredService<IChatCompletionService>();
-            var history = new ChatHistory(SystemPrompt);
+
+            // Retrieve relevant clinical context from Qdrant (RAG)
+            var ragContext = _rag is not null
+                ? await _rag.GetRelevantContextAsync(userMessage, topK: 4, ct: ct)
+                : string.Empty;
+
+            var effectiveSystemPrompt = string.IsNullOrEmpty(ragContext)
+                ? SystemPrompt
+                : SystemPrompt + Environment.NewLine + Environment.NewLine + ragContext;
+
+            var history = new ChatHistory(effectiveSystemPrompt);
 
             // Add conversation context (last 20 messages to stay within token limits)
             foreach (var msg in conversation.Messages.OrderBy(m => m.Timestamp).TakeLast(20))

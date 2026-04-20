@@ -11,6 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@azure/msal-browser": "^3.28.0",
+    "@azure/msal-react": "^2.2.0",
     "@healthcare/design-system": "workspace:*",
     "@healthcare/fhir-types": "workspace:*",
     "@healthcare/mfe-events": "workspace:*",

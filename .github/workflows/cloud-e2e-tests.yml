@@ -1,11 +1,8 @@
 name: Cloud E2E Tests
 
+# workflow_run trigger disabled while in local development.
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ['Microservice CI/CD', 'Frontend MFE CI/CD']
-    types: [completed]
-    branches: [main]
 
 permissions:
   contents: read

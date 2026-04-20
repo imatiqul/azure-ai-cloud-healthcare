@@ -1,13 +1,8 @@
 name: Frontend MFE CI/CD
 
+# Automatic push/PR triggers disabled while in local development.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['frontend/**']
-  pull_request:
-    branches: [main]
-    paths: ['frontend/**']
 
 permissions:
   id-token: write

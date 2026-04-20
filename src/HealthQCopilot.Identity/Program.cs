@@ -1,4 +1,6 @@
+using Azure.Communication.Sms;
 using FluentValidation;
+using HealthQCopilot.Identity.BackgroundServices;
 using HealthQCopilot.Identity.Endpoints;
 using HealthQCopilot.Identity.Persistence;
 using HealthQCopilot.Infrastructure.Auth;
@@ -28,6 +30,20 @@ builder.Services.AddDatabaseHealthCheck<IdentityDbContext>("identity");
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "IdentityDb");
 builder.Services.AddDaprSecretProvider();
 builder.Services.AddEventHubAudit();
+builder.Services.AddHostedService<BreakGlassExpiryService>();
+builder.Services.AddHttpClient("FhirService", client =>
+{
+    var apiBase = builder.Configuration["Services:ApiBase"] ?? "http://localhost:5050";
+    client.BaseAddress = new Uri(apiBase.TrimEnd('/') + "/");
+    client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
+});
+
+// ACS SMS client — used by the OTP endpoints for phone verification
+var acsConnectionString = builder.Configuration["AzureCommunication:ConnectionString"];
+if (!string.IsNullOrEmpty(acsConnectionString))
+{
+    builder.Services.AddSingleton(new SmsClient(acsConnectionString));
+}
 
 var app = builder.Build();
 
@@ -45,6 +61,8 @@ app.MapControllers();
 app.MapSubscribeHandler();
 app.MapDefaultEndpoints();
 app.MapIdentityEndpoints();
+app.MapConsentEndpoints();
+app.MapBreakGlassEndpoints();
 
 app.Run();
 

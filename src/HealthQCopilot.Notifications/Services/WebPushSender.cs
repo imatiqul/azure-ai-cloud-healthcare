@@ -55,9 +55,11 @@ public sealed class WebPushSender
 
         if (string.IsNullOrEmpty(vapidPublicKey) || string.IsNullOrEmpty(vapidPrivateKey))
         {
-            _logger.LogWarning(
-                "VAPID keys not configured — web-push for patient {PatientId} skipped. " +
-                "Set WebPush:VapidPublicKey and WebPush:VapidPrivateKey in configuration.",
+            _logger.LogError(
+                "VAPID keys not configured — web-push notifications cannot be delivered for patient {PatientId}. " +
+                "Set WebPush:VapidPublicKey and WebPush:VapidPrivateKey in Key Vault (secret names: " +
+                "healthq-vapid-public-key, healthq-vapid-private-key). " +
+                "This is a critical configuration gap; no push notifications will be sent until resolved.",
                 patientId);
             return 0;
         }

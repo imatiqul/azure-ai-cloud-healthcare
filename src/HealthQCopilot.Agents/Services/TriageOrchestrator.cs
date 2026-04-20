@@ -1,6 +1,7 @@
 using Dapr.Client;
 using HealthQCopilot.Agents.Infrastructure;
 using HealthQCopilot.Agents.Plugins;
+using HealthQCopilot.Agents.Rag;
 using HealthQCopilot.Domain.Agents;
 using HealthQCopilot.Infrastructure.Messaging;
 using HealthQCopilot.Infrastructure.RealTime;
@@ -19,12 +20,14 @@ public sealed class TriageOrchestrator
     private readonly IWebPubSubService _pubSub;
     private readonly IEventHubAuditService _auditService;
     private readonly DaprClient _dapr;
+    private readonly IRagContextProvider? _rag;
     private readonly ILogger<TriageOrchestrator> _logger;
 
     public TriageOrchestrator(Kernel kernel, AgentDbContext db, WorkflowDispatcher dispatcher,
                                HallucinationGuardAgent guard, IWebPubSubService pubSub,
                                IEventHubAuditService auditService, DaprClient dapr,
-                               ILogger<TriageOrchestrator> logger)
+                               ILogger<TriageOrchestrator> logger,
+                               IRagContextProvider? rag = null)
     {
         _kernel = kernel;
         _db = db;
@@ -33,6 +36,7 @@ public sealed class TriageOrchestrator
         _pubSub = pubSub;
         _auditService = auditService;
         _dapr = dapr;
+        _rag = rag;
         _logger = logger;
     }
 
@@ -47,13 +51,22 @@ public sealed class TriageOrchestrator
         // ── Stream AI reasoning to frontend before running the structured plugin ──────
         await StreamAiThinkingAsync(sessionId.ToString(), transcriptText, ct);
 
+        // ── Retrieve relevant clinical protocols from Qdrant to enrich the triage call ──
+        var ragContext = _rag is not null
+            ? await _rag.GetRelevantContextAsync(transcriptText, topK: 3, ct: ct)
+            : string.Empty;
+
+        var enrichedTranscript = string.IsNullOrEmpty(ragContext)
+            ? transcriptText
+            : transcriptText + Environment.NewLine + Environment.NewLine + ragContext;
+
         var start = DateTime.UtcNow;
         try
         {
             var plugin = _kernel.Plugins["Triage"];
             var result = await _kernel.InvokeAsync<TriageClassification>(
                 plugin["classify_urgency"],
-                new KernelArguments { ["transcriptText"] = transcriptText },
+                new KernelArguments { ["transcriptText"] = enrichedTranscript },
                 ct);
 
             if (result is not null)

@@ -15,6 +15,9 @@ param logRetentionDays int = 90
 @description('APIM publisher email')
 param apimPublisherEmail string
 
+@description('Country code for the Azure AD B2C tenant (ISO 3166-1 alpha-2)')
+param b2cCountryCode string = 'US'
+
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: '${envName}-rg'
   location: location
@@ -152,6 +155,20 @@ module webPubSub 'modules/web-pubsub.bicep' = {
   }
 }
 
+// Azure AD B2C – patient-facing auth (sign-up/sign-in, PKCE, MFA)
+// Deployed at subscription scope because B2C is a separate tenant.
+// IMPORTANT: After deployment, complete manual steps documented in modules/b2c.bicep.
+module b2c 'modules/b2c.bicep' = {
+  name: 'b2c-deploy'
+  scope: rg
+  params: {
+    envName: envName
+    countryCode: b2cCountryCode
+    keyVaultId: keyVault.outputs.keyVaultId
+  }
+  dependsOn: [keyVault]
+}
+
 // Azure Event Hubs – HIPAA-compliant immutable audit stream for all PHI access + AI decisions
 module eventHubs 'modules/event-hubs.bicep' = {
   name: 'event-hubs-deploy'
@@ -169,3 +186,5 @@ output apimGatewayUrl string = apim.outputs.gatewayUrl
 output keyVaultName string = keyVault.outputs.keyVaultName
 output webPubSubEndpoint string = webPubSub.outputs.endpoint
 output eventHubsNamespace string = eventHubs.outputs.namespaceName
+output b2cTenantDomain string = b2c.outputs.b2cTenantDomain
+output b2cAuthority string = b2c.outputs.b2cAuthority

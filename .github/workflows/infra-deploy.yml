@@ -1,9 +1,7 @@
 name: Infrastructure Deploy
 
+# Push trigger disabled while in local development. Re-enable when infra changes are ready.
 on:
-  push:
-    branches: [main]
-    paths: ['infra/bicep/**', 'infra/argocd/**', 'infra/k8s/**']
   workflow_dispatch:
     inputs:
       environment:
