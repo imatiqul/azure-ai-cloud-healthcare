@@ -1,4 +1,4 @@
-export { ThemeProvider } from './ThemeProvider';
+export { ThemeProvider, useColorMode } from './ThemeProvider';
 export { theme } from './theme';
 export { Button } from './components/Button';
 export type { ButtonProps } from './components/Button';

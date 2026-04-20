@@ -9,14 +9,21 @@ import IconButton from '@mui/material/IconButton';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import SendIcon from '@mui/icons-material/Send';
 import CloseIcon from '@mui/icons-material/Close';
+import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
+import { useTranslation } from 'react-i18next';
+
+const HISTORY_KEY = 'healthq_chat_history';
+const MAX_HISTORY  = 50; // keep last 50 messages in localStorage
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   suggestedRoute?: string | null;
+  streaming?: boolean;
 }
 
 interface Suggestion {
@@ -31,18 +38,38 @@ interface GuideResponse {
   suggestedRoute: string | null;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE  = import.meta.env.VITE_API_BASE_URL || '';
 const AGENT_API = `${API_BASE}/api/v1/agents/guide`;
 
+function loadHistory(): ChatMessage[] {
+  try {
+    const raw = sessionStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(messages: ChatMessage[]) {
+  try {
+    const trimmed = messages.slice(-MAX_HISTORY).map(m => ({ ...m, streaming: false }));
+    sessionStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed));
+  } catch { /* quota exceeded — ignore */ }
+}
+
 export function CopilotChat() {
-  const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
+  const [open, setOpen]           = useState(false);
+  const [messages, setMessages]   = useState<ChatMessage[]>(loadHistory);
+  const [input, setInput]         = useState('');
+  const [loading, setLoading]     = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  // Persist history to sessionStorage whenever it changes
+  useEffect(() => { saveHistory(messages); }, [messages]);
 
   // Load suggestions on first open
   useEffect(() => {
@@ -67,37 +94,86 @@ export function CopilotChat() {
     setInput('');
     setLoading(true);
 
+    // Optimistic streaming placeholder
+    const streamingIdx = messages.length + 1;
+    setMessages(prev => [...prev, { role: 'assistant', content: '', streaming: true }]);
+
+    // Try SSE streaming first; fall back to JSON if server returns non-event-stream
     try {
       const res = await fetch(`${AGENT_API}/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream, application/json' },
         body: JSON.stringify({ message: text, sessionId }),
       });
 
-      if (!res.ok) throw new Error('Failed to get response');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const data: GuideResponse = await res.json();
-      if (!sessionId) setSessionId(data.sessionId);
+      const contentType = res.headers.get('Content-Type') ?? '';
 
-      const assistantMsg: ChatMessage = {
-        role: 'assistant',
-        content: data.message,
-        suggestedRoute: data.suggestedRoute,
-      };
-      setMessages(prev => [...prev, assistantMsg]);
+      if (contentType.includes('text/event-stream')) {
+        // ── SSE streaming path ─────────────────────────────────────────
+        const reader   = res.body!.getReader();
+        const decoder  = new TextDecoder();
+        let accumulated = '';
+        let finalRoute: string | null = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+
+          for (const line of chunk.split('\n')) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') break;
+              try {
+                const parsed: { token?: string; suggestedRoute?: string | null; sessionId?: string } = JSON.parse(data);
+                if (parsed.sessionId && !sessionId) setSessionId(parsed.sessionId);
+                if (parsed.suggestedRoute !== undefined) finalRoute = parsed.suggestedRoute;
+                if (parsed.token) {
+                  accumulated += parsed.token;
+                  setMessages(prev => prev.map((m, i) =>
+                    i === prev.length - 1 ? { ...m, content: accumulated, streaming: true } : m
+                  ));
+                }
+              } catch { /* ignore malformed SSE line */ }
+            }
+          }
+        }
+
+        setMessages(prev => prev.map((m, i) =>
+          i === prev.length - 1 ? { ...m, streaming: false, suggestedRoute: finalRoute } : m
+        ));
+      } else {
+        // ── JSON fallback path ─────────────────────────────────────────
+        const data: GuideResponse = await res.json();
+        if (!sessionId && data.sessionId) setSessionId(data.sessionId);
+        setMessages(prev => prev.map((m, i) =>
+          i === prev.length - 1
+            ? { role: 'assistant', content: data.message, suggestedRoute: data.suggestedRoute, streaming: false }
+            : m
+        ));
+      }
     } catch {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'Sorry, I could not reach the platform guide service. Please try again.',
-      }]);
+      setMessages(prev => prev.map((m, i) =>
+        i === prev.length - 1
+          ? { role: 'assistant', content: t('copilot.error'), streaming: false }
+          : m
+      ));
     } finally {
       setLoading(false);
     }
-  }, [loading, sessionId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, sessionId, messages.length, t]);
 
   const handleNavigate = (route: string) => {
     navigate(route);
     setOpen(false);
+  };
+
+  const clearHistory = () => {
+    setMessages([]);
+    sessionStorage.removeItem(HISTORY_KEY);
   };
 
   return (
@@ -135,9 +211,16 @@ export function CopilotChat() {
         <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
           <SmartToyIcon />
           <Box sx={{ flex: 1 }}>
-            <Typography variant="subtitle1" fontWeight="bold">HealthQ Copilot</Typography>
-            <Typography variant="caption" sx={{ opacity: 0.85 }}>AI Clinical Workflow Guide</Typography>
+            <Typography variant="subtitle1" fontWeight="bold">{t('copilot.title')}</Typography>
+            <Typography variant="caption" sx={{ opacity: 0.85 }}>{t('copilot.subtitle')}</Typography>
           </Box>
+          {messages.length > 0 && (
+            <Tooltip title="Clear history">
+              <IconButton size="small" onClick={clearHistory} sx={{ color: 'inherit' }} aria-label="Clear chat history">
+                <DeleteSweepIcon />
+              </IconButton>
+            </Tooltip>
+          )}
           <IconButton size="small" onClick={() => setOpen(false)} sx={{ color: 'inherit' }}>
             <CloseIcon />
           </IconButton>
@@ -149,11 +232,11 @@ export function CopilotChat() {
             <Box sx={{ textAlign: 'center', mt: 2 }}>
               <SmartToyIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Hi! I'm your HealthQ Copilot. I can guide you through the entire clinical workflow.
+                {t('copilot.greeting')}
               </Typography>
               <Divider sx={{ my: 2 }} />
               <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                Try one of these:
+                {t('copilot.tryOne')}
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, justifyContent: 'center' }}>
                 {suggestions.map(s => (
@@ -188,13 +271,32 @@ export function CopilotChat() {
                   whiteSpace: 'pre-wrap',
                   fontSize: '0.875rem',
                   lineHeight: 1.6,
+                  position: 'relative',
                 }}
               >
                 {msg.content}
+                {msg.streaming && (
+                  <Box
+                    component="span"
+                    sx={{
+                      display: 'inline-block',
+                      width: 8,
+                      height: 14,
+                      ml: 0.5,
+                      bgcolor: 'primary.light',
+                      borderRadius: 0.5,
+                      animation: 'blink 1s step-end infinite',
+                      '@keyframes blink': {
+                        '0%, 100%': { opacity: 1 },
+                        '50%': { opacity: 0 },
+                      },
+                    }}
+                  />
+                )}
               </Box>
-              {msg.suggestedRoute && (
+              {msg.suggestedRoute && !msg.streaming && (
                 <Chip
-                  label={`Navigate to ${msg.suggestedRoute}`}
+                  label={`${t('copilot.navigateTo')} ${msg.suggestedRoute}`}
                   size="small"
                   color="primary"
                   variant="outlined"
@@ -205,7 +307,7 @@ export function CopilotChat() {
             </Box>
           ))}
 
-          {loading && (
+          {loading && !messages.some(m => m.streaming) && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-start' }}>
               <CircularProgress size={16} />
               <Typography variant="caption" color="text.secondary">Thinking...</Typography>
@@ -235,7 +337,7 @@ export function CopilotChat() {
           <TextField
             fullWidth
             size="small"
-            placeholder="Ask about the clinical workflow..."
+            placeholder={t('copilot.placeholder')}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => {
@@ -251,6 +353,7 @@ export function CopilotChat() {
             color="primary"
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || loading}
+            aria-label={t('copilot.send')}
           >
             <SendIcon />
           </IconButton>
@@ -259,3 +362,4 @@ export function CopilotChat() {
     </>
   );
 }
+

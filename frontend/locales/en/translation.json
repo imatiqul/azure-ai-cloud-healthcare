@@ -1,0 +1,44 @@
+{
+  "nav": {
+    "dashboard":     "Dashboard",
+    "triage":        "Triage",
+    "scheduling":    "Scheduling",
+    "population":    "Population Health",
+    "revenue":       "Revenue Cycle",
+    "documents":     "Documents",
+    "interop":       "Interoperability",
+    "consent":       "Consent Manager"
+  },
+  "topnav": {
+    "platformTitle": "Healthcare AI Platform",
+    "signIn":        "Sign In",
+    "signOut":       "Sign Out",
+    "lightMode":     "Switch to light mode",
+    "darkMode":      "Switch to dark mode"
+  },
+  "dashboard": {
+    "title":             "Dashboard",
+    "pendingTriage":     "Pending Triage",
+    "triageCompleted":   "Triage Completed",
+    "availableSlots":    "Available Slots Today",
+    "bookedToday":       "Booked Today",
+    "highRiskPatients":  "High-Risk Patients",
+    "openCareGaps":      "Open Care Gaps",
+    "codingQueue":       "Coding Queue",
+    "priorAuthPending":  "Prior Auths Pending"
+  },
+  "copilot": {
+    "title":       "HealthQ Copilot",
+    "subtitle":    "AI Clinical Workflow Guide",
+    "greeting":    "Hi! I'm your HealthQ Copilot. I can guide you through the entire clinical workflow.",
+    "tryOne":      "Try one of these:",
+    "placeholder": "Ask anything about the clinical workflow…",
+    "send":        "Send",
+    "error":       "Sorry, I could not reach the platform guide service. Please try again.",
+    "navigateTo":  "Navigate to"
+  },
+  "common": {
+    "loading": "Loading…",
+    "retry":   "Retry"
+  }
+}

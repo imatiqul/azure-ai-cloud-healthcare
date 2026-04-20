@@ -9,6 +9,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.1" PrivateAssets="all" />
     <!-- RAG / Vector store -->
     <PackageReference Include="Qdrant.Client" Version="1.10.0" />
+    <!-- IoT / Wearable streaming (Item 29) -->
+    <PackageReference Include="Azure.Messaging.EventHubs" Version="5.11.5" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\HealthQCopilot.Domain\HealthQCopilot.Domain.csproj" />

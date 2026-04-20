@@ -1,0 +1,44 @@
+{
+  "nav": {
+    "dashboard":     "Tableau de bord",
+    "triage":        "Triage",
+    "scheduling":    "Planification",
+    "population":    "Santé Populationnelle",
+    "revenue":       "Cycle des Recettes",
+    "documents":     "Documents",
+    "interop":       "Interopérabilité",
+    "consent":       "Gestion du Consentement"
+  },
+  "topnav": {
+    "platformTitle": "Plateforme IA Santé",
+    "signIn":        "Se connecter",
+    "signOut":       "Se déconnecter",
+    "lightMode":     "Passer en mode clair",
+    "darkMode":      "Passer en mode sombre"
+  },
+  "dashboard": {
+    "title":             "Tableau de bord",
+    "pendingTriage":     "Triage en attente",
+    "triageCompleted":   "Triage complété",
+    "availableSlots":    "Créneaux disponibles aujourd'hui",
+    "bookedToday":       "Réservés aujourd'hui",
+    "highRiskPatients":  "Patients à haut risque",
+    "openCareGaps":      "Lacunes de soins ouvertes",
+    "codingQueue":       "File de codification",
+    "priorAuthPending":  "Autorisations préalables en attente"
+  },
+  "copilot": {
+    "title":       "Copilote HealthQ",
+    "subtitle":    "Guide IA de flux clinique",
+    "greeting":    "Bonjour ! Je suis votre Copilote HealthQ. Je peux vous guider dans le flux clinique.",
+    "tryOne":      "Essayez l'un de ceux-ci :",
+    "placeholder": "Posez une question sur le flux clinique…",
+    "send":        "Envoyer",
+    "error":       "Désolé, je n'ai pas pu joindre le service. Veuillez réessayer.",
+    "navigateTo":  "Naviguer vers"
+  },
+  "common": {
+    "loading": "Chargement…",
+    "retry":   "Réessayer"
+  }
+}

@@ -110,6 +110,11 @@ builder.Services.AddScoped<PromptExperimentService>();
 builder.Services.AddScoped<PromptRegressionEvaluator>();
 builder.Services.AddHostedService<ModelDriftMonitorService>();
 
+// ── IoT / Wearable streaming agent (Item 29) ──────────────────────────────────
+builder.Services.AddHttpClient("fhir");
+builder.Services.AddHttpClient("dapr");
+builder.Services.AddHostedService<WearableStreamingAgent>();
+
 // Azure Web PubSub — push AI thinking tokens + agent responses to frontend
 builder.Services.AddWebPubSubService();
 

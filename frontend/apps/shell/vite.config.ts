@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { federation } from '@module-federation/vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 export default defineConfig({
@@ -53,6 +54,25 @@ export default defineConfig({
         'react-dom': { singleton: true },
         zustand: { singleton: true },
         '@microsoft/signalr': { singleton: true },
+      },
+    }),
+    VitePWA({
+      registerType: 'autoUpdate',
+      manifest: false,            // use our public/manifest.json
+      injectRegister: 'auto',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        runtimeCaching: [
+          {
+            // Cache API responses for 5 minutes — stale-while-revalidate
+            urlPattern: /^https?:\/\/.*\/api\/v1\//,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'api-cache',
+              expiration: { maxEntries: 50, maxAgeSeconds: 300 },
+            },
+          },
+        ],
       },
     }),
   ],

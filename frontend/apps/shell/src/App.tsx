@@ -4,7 +4,7 @@ import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
-import { Sidebar } from './components/Sidebar';
+import { Sidebar, SidebarProvider } from './components/Sidebar';
 import { TopNav } from './components/TopNav';
 import { CopilotChat } from './components/CopilotChat';
 import Dashboard from './pages/Dashboard';
@@ -82,49 +82,51 @@ export default function App() {
   }
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh' }}>
-      <Sidebar />
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <TopNav />
-        <Box component="main" sx={{ flex: 1, overflow: 'auto', p: 3, bgcolor: 'background.default' }}>
-          <Suspense fallback={<Loading />}>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/voice" element={<MfeErrorBoundary name="Voice"><VoicePage /></MfeErrorBoundary>} />
-              <Route path="/triage" element={<MfeErrorBoundary name="Triage"><TriagePage /></MfeErrorBoundary>} />
-              <Route path="/scheduling" element={
-                <MfeErrorBoundary name="Scheduling">
-                  <SchedulingPage />
-                  <BookingFormPage />
-                </MfeErrorBoundary>
-              } />
-              <Route path="/population-health" element={
-                <MfeErrorBoundary name="Population Health">
-                  <PopHealthPage />
-                  <CareGapListPage />
-                </MfeErrorBoundary>
-              } />
-              <Route path="/revenue" element={
-                <MfeErrorBoundary name="Revenue">
-                  <RevenuePage />
-                  <PriorAuthTrackerPage />
-                </MfeErrorBoundary>
-              } />
-              <Route path="/encounters" element={
-                <MfeErrorBoundary name="Encounters">
-                  <EncountersPage />
-                </MfeErrorBoundary>
-              } />
-              <Route path="/patient-portal" element={
-                <MfeErrorBoundary name="Patient Portal">
-                  <EngagementPage />
-                </MfeErrorBoundary>
-              } />
-            </Routes>
-          </Suspense>
+    <SidebarProvider>
+      <Box sx={{ display: 'flex', height: '100vh' }}>
+        <Sidebar />
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <TopNav />
+          <Box component="main" sx={{ flex: 1, overflow: 'auto', p: { xs: 2, md: 3 }, bgcolor: 'background.default' }}>
+            <Suspense fallback={<Loading />}>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/voice" element={<MfeErrorBoundary name="Voice"><VoicePage /></MfeErrorBoundary>} />
+                <Route path="/triage" element={<MfeErrorBoundary name="Triage"><TriagePage /></MfeErrorBoundary>} />
+                <Route path="/scheduling" element={
+                  <MfeErrorBoundary name="Scheduling">
+                    <SchedulingPage />
+                    <BookingFormPage />
+                  </MfeErrorBoundary>
+                } />
+                <Route path="/population-health" element={
+                  <MfeErrorBoundary name="Population Health">
+                    <PopHealthPage />
+                    <CareGapListPage />
+                  </MfeErrorBoundary>
+                } />
+                <Route path="/revenue" element={
+                  <MfeErrorBoundary name="Revenue">
+                    <RevenuePage />
+                    <PriorAuthTrackerPage />
+                  </MfeErrorBoundary>
+                } />
+                <Route path="/encounters" element={
+                  <MfeErrorBoundary name="Encounters">
+                    <EncountersPage />
+                  </MfeErrorBoundary>
+                } />
+                <Route path="/patient-portal" element={
+                  <MfeErrorBoundary name="Patient Portal">
+                    <EngagementPage />
+                  </MfeErrorBoundary>
+                } />
+              </Routes>
+            </Suspense>
+          </Box>
         </Box>
+        <CopilotChat />
       </Box>
-      <CopilotChat />
-    </Box>
+    </SidebarProvider>
   );
 }

@@ -1,0 +1,44 @@
+{
+  "nav": {
+    "dashboard":     "Panel",
+    "triage":        "Triaje",
+    "scheduling":    "Programación",
+    "population":    "Salud Poblacional",
+    "revenue":       "Ciclo de Ingresos",
+    "documents":     "Documentos",
+    "interop":       "Interoperabilidad",
+    "consent":       "Gestión de Consentimiento"
+  },
+  "topnav": {
+    "platformTitle": "Plataforma de IA Sanitaria",
+    "signIn":        "Iniciar Sesión",
+    "signOut":       "Cerrar Sesión",
+    "lightMode":     "Cambiar a modo claro",
+    "darkMode":      "Cambiar a modo oscuro"
+  },
+  "dashboard": {
+    "title":             "Panel",
+    "pendingTriage":     "Triaje Pendiente",
+    "triageCompleted":   "Triaje Completado",
+    "availableSlots":    "Espacios Disponibles Hoy",
+    "bookedToday":       "Reservados Hoy",
+    "highRiskPatients":  "Pacientes de Alto Riesgo",
+    "openCareGaps":      "Brechas de Atención Abiertas",
+    "codingQueue":       "Cola de Codificación",
+    "priorAuthPending":  "Autorizaciones Previas Pendientes"
+  },
+  "copilot": {
+    "title":       "Copiloto HealthQ",
+    "subtitle":    "Guía de Flujo de Trabajo Clínico con IA",
+    "greeting":    "¡Hola! Soy tu Copiloto HealthQ. Puedo guiarte por el flujo de trabajo clínico.",
+    "tryOne":      "Prueba uno de estos:",
+    "placeholder": "Pregunta lo que quieras sobre el flujo clínico…",
+    "send":        "Enviar",
+    "error":       "Lo siento, no pude comunicarme con el servicio. Inténtalo de nuevo.",
+    "navigateTo":  "Ir a"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "retry":   "Reintentar"
+  }
+}

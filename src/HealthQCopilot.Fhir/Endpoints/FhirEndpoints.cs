@@ -152,6 +152,38 @@ public static class FhirEndpoints
             return Results.Ok(new { status = "accepted" });
         });
 
+        // FHIR Observation — created by the wearable streaming agent (Item 29)
+        group.MapPost("/observations", async (
+            System.Text.Json.JsonElement body,
+            IHttpClientFactory httpClientFactory,
+            CancellationToken ct) =>
+        {
+            var client  = httpClientFactory.CreateClient("FhirServer");
+            var content = new StringContent(
+                body.GetRawText(),
+                System.Text.Encoding.UTF8,
+                "application/fhir+json");
+            var response = await client.PostAsync("Observation", content, ct);
+            var result   = await response.Content.ReadAsStringAsync(ct);
+            return Results.Content(result, "application/fhir+json", statusCode: (int)response.StatusCode);
+        });
+
+        // FHIR Observation search by patient
+        group.MapGet("/observations/{patientId}", async (
+            string patientId,
+            string? category,
+            IHttpClientFactory httpClientFactory,
+            CancellationToken ct) =>
+        {
+            var client  = httpClientFactory.CreateClient("FhirServer");
+            var query   = $"Observation?patient={Uri.EscapeDataString(patientId)}";
+            if (!string.IsNullOrWhiteSpace(category))
+                query += $"&category={Uri.EscapeDataString(category)}";
+            var response = await client.GetAsync(query, ct);
+            var result   = await response.Content.ReadAsStringAsync(ct);
+            return Results.Content(result, "application/fhir+json");
+        });
+
         return app;
     }
 }
