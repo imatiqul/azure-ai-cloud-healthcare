@@ -1,0 +1,53 @@
+{
+  "ci": {
+    "collect": {
+      "staticDistDir": "./apps/shell/dist",
+      "numberOfRuns": 3,
+      "settings": {
+        "preset": "desktop",
+        "throttlingMethod": "simulate"
+      }
+    },
+    "assert": {
+      "preset": "lighthouse:recommended",
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.85 }],
+        "categories:accessibility": ["error", { "minScore": 0.9 }],
+        "categories:best-practices": ["error", { "minScore": 0.9 }],
+        "categories:seo": ["warn", { "minScore": 0.85 }],
+
+        "first-contentful-paint": ["error", { "maxNumericValue": 2000 }],
+        "largest-contentful-paint": ["error", { "maxNumericValue": 2500 }],
+        "total-blocking-time": ["error", { "maxNumericValue": 300 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }],
+        "speed-index": ["warn", { "maxNumericValue": 3400 }],
+        "interactive": ["warn", { "maxNumericValue": 3800 }],
+
+        "uses-optimized-images": "warn",
+        "uses-webp-images": "warn",
+        "render-blocking-resources": "warn",
+        "unused-javascript": ["warn", { "maxNumericValue": 400000 }],
+        "unused-css-rules": "warn",
+        "efficient-animated-content": "warn",
+        "uses-responsive-images": "warn",
+
+        "aria-allowed-attr": "error",
+        "aria-hidden-body": "error",
+        "aria-hidden-focus": "error",
+        "aria-required-attr": "error",
+        "button-name": "error",
+        "color-contrast": "error",
+        "image-alt": "error",
+        "label": "error",
+        "link-name": "error"
+      }
+    },
+    "upload": {
+      "target": "lhci",
+      "serverBaseUrl": "https://lhci.healthq-copilot.internal",
+      "token": "$LHCI_TOKEN",
+      "githubAppToken": "$LHCI_GITHUB_APP_TOKEN",
+      "githubStatusContextSuffix": "/desktop"
+    }
+  }
+}

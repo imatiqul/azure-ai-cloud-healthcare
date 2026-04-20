@@ -10,7 +10,9 @@
     "test:e2e": "playwright test",
     "test:e2e:cloud": "playwright test --config=playwright.cloud.config.ts",
     "clean": "turbo run clean",
-    "preview": "turbo run preview"
+    "preview": "turbo run preview",
+    "storybook": "turbo run storybook --filter=@healthcare/design-system",
+    "build-storybook": "turbo run build-storybook --filter=@healthcare/design-system"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",

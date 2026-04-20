@@ -1,0 +1,57 @@
+name: Chromatic — Visual Regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/packages/design-system/**'
+      - 'frontend/apps/**'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/packages/design-system/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  chromatic:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Chromatic requires full git history for baseline comparison
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '9'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      - name: Build Storybook
+        run: pnpm --filter @healthcare/design-system build-storybook
+        working-directory: frontend
+
+      - name: Publish to Chromatic
+        uses: chromaui/action@latest
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          storybookBuildDir: frontend/packages/design-system/storybook-static
+          # Fail PR if new snapshots require review
+          exitZeroOnChanges: false
+          # Auto-accept changes on main (baseline update)
+          autoAcceptChanges: main
+          onlyChanged: true
