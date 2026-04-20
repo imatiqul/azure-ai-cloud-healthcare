@@ -18,6 +18,8 @@ export default defineConfig({
         './PatientRegistrationPanel': './src/components/PatientRegistrationPanel.tsx', // Phase 22
         './OcrDocumentPanel': './src/components/OcrDocumentPanel.tsx',             // Phase 22
         './OtpVerificationPanel': './src/components/OtpVerificationPanel.tsx',     // Phase 23
+        './PushSubscriptionPanel': './src/components/PushSubscriptionPanel.tsx',   // Phase 25
+        './GdprErasurePanel': './src/components/GdprErasurePanel.tsx',             // Phase 25
       },
       shared: {
         react: { singleton: true },

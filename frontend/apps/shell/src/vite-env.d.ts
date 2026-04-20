@@ -97,3 +97,9 @@ declare module 'engagement/OtpVerificationPanel' {
 declare module 'pophealth/HedisMeasuresPanel' {
   export const HedisMeasuresPanel: React.ComponentType;
 }
+declare module 'engagement/PushSubscriptionPanel' {
+  export const PushSubscriptionPanel: React.ComponentType;
+}
+declare module 'engagement/GdprErasurePanel' {
+  export const GdprErasurePanel: React.ComponentType;
+}

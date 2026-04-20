@@ -44,6 +44,10 @@ const IdentityUserAdminPanelPage = lazy(() => import('./pages/IdentityUserAdminP
 const AuditLogPanelPage = lazy(() => import('./pages/AuditLogPanel'));                   // Phase 24
 const BreakGlassAccessPanelPage = lazy(() => import('./pages/BreakGlassAccessPanel'));   // Phase 24
 const ModelRegisterPanelPage = lazy(() => import('./pages/ModelRegisterPanel'));          // Phase 24
+const ClinicianFeedbackDashboardPage = lazy(() => import('./pages/ClinicianFeedbackDashboard')); // Phase 25
+const ExperimentSummaryPanelPage = lazy(() => import('./pages/ExperimentSummaryPanel')); // Phase 25
+const PushSubscriptionPanelPage = lazy(() => import('engagement/PushSubscriptionPanel').then(m => ({ default: m.PushSubscriptionPanel }))); // Phase 25
+const GdprErasurePanelPage = lazy(() => import('engagement/GdprErasurePanel').then(m => ({ default: m.GdprErasurePanel }))); // Phase 25
 const DemoLive = lazy(() => import('./pages/DemoLive'));
 
 function Loading() {
@@ -164,6 +168,8 @@ export default function App() {
                     <PatientRegistrationPanelPage />
                     <OcrDocumentPanelPage />
                     <OtpVerificationPanelPage />
+                    <PushSubscriptionPanelPage />
+                    <GdprErasurePanelPage />
                   </MfeErrorBoundary>
                 } />
                 <Route path="/governance" element={
@@ -171,6 +177,7 @@ export default function App() {
                     <ModelGovernanceDashboardPage />
                     <ModelEvaluationPanelPage />
                     <ModelRegisterPanelPage />
+                    <ExperimentSummaryPanelPage />
                   </MfeErrorBoundary>
                 } />
                 <Route path="/tenants" element={
@@ -191,6 +198,11 @@ export default function App() {
                 <Route path="/admin/break-glass" element={
                   <MfeErrorBoundary name="Break-Glass">
                     <BreakGlassAccessPanelPage />
+                  </MfeErrorBoundary>
+                } />
+                <Route path="/admin/feedback" element={
+                  <MfeErrorBoundary name="AI Feedback">
+                    <ClinicianFeedbackDashboardPage />
                   </MfeErrorBoundary>
                 } />
               </Routes>
