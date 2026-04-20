@@ -197,6 +197,41 @@ public static class AgentEndpoints
             return Results.Ok(summary);
         });
 
+        // ── Clinician RAG Feedback Loop ───────────────────────────────────────
+        // Clinicians rate AI-generated triage/guide responses 1–5.
+        // Positive ratings (≥4) ingest approved text into Qdrant KB.
+        // Negative ratings (≤2) with corrections ingest replacement text into Qdrant KB.
+        group.MapPost("/feedback", async (
+            ClinicianFeedbackInput input,
+            ClinicianFeedbackService feedbackSvc,
+            CancellationToken ct) =>
+        {
+            if (input.Rating is < 1 or > 5)
+                return Results.BadRequest(new { error = "Rating must be 1–5" });
+            if (string.IsNullOrWhiteSpace(input.ClinicianId))
+                return Results.BadRequest(new { error = "ClinicianId is required" });
+
+            var result = await feedbackSvc.SubmitFeedbackAsync(input, ct);
+            return Results.Ok(result);
+        })
+        .WithSummary("Submit clinician feedback on an AI response — updates RAG knowledge base")
+        .WithDescription(
+            "Records a clinician rating (1–5) for an AI-generated triage or guide response. " +
+            "Ratings ≥ 4 embed the approved text into the Qdrant clinical-kb collection so " +
+            "future RAG retrievals surface clinician-validated content. " +
+            "Ratings ≤ 2 with a correctedText ingest the correction as a replacement chunk. " +
+            "Ratings 3 are logged but do not mutate the knowledge base.");
+
+        group.MapGet("/feedback/summary", async (
+            DateTime? since,
+            ClinicianFeedbackService feedbackSvc,
+            CancellationToken ct) =>
+        {
+            var summary = await feedbackSvc.GetSummaryAsync(since, ct);
+            return Results.Ok(summary);
+        })
+        .WithSummary("Get clinician feedback quality summary (last 30 days by default)");
+
         return app;
     }
 }

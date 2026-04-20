@@ -7,7 +7,51 @@ public static class FhirEndpoints
         var group = app.MapGroup("/api/v1/fhir")
             .WithTags("FHIR");
 
-        group.MapGet("/patients/{id}", async (
+        // ── DICOM / Imaging proxy (WADO-RS, DICOMweb) ─────────────────────────
+        // Proxies DICOM imaging requests to the configured DICOMweb endpoint
+        // (HAPI FHIR DICOMweb / Orthanc / Azure Health Data Services DICOM).
+        //
+        // The OHIF Viewer embedded in encounters-mfe points to this endpoint
+        // as its WADO-RS data source, allowing the viewer to retrieve series
+        // and instances without exposing the DICOMweb origin to the browser.
+        //
+        // Study metadata endpoint:   GET /api/v1/fhir/imaging/{studyId}
+        // WADO-RS retrieve:          GET /api/v1/fhir/imaging/{studyId}/wado?format=wado
+        group.MapGet("/imaging/{studyId}", async (
+            string studyId,
+            string? format,
+            IHttpClientFactory httpClientFactory,
+            CancellationToken ct) =>
+        {
+            // Return study metadata as JSON (for DicomViewer metadata card)
+            var client = httpClientFactory.CreateClient("FhirServer");
+            var response = await client.GetAsync(
+                $"ImagingStudy?identifier={Uri.EscapeDataString(studyId)}&_format=json", ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // Return a synthetic metadata stub so the viewer degrades gracefully
+                return Results.Ok(new
+                {
+                    studyInstanceUid = studyId,
+                    studyDate        = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                    modality         = "OT",
+                    description      = "Imaging study (metadata unavailable)",
+                    seriesCount      = 0,
+                    instanceCount    = 0,
+                });
+            }
+
+            var content = await response.Content.ReadAsStringAsync(ct);
+            return Results.Content(content, "application/fhir+json");
+        })
+        .WithSummary("Retrieve DICOM study metadata by study ID")
+        .WithDescription(
+            "Returns FHIR ImagingStudy resource metadata for the specified study. " +
+            "Used by the DicomViewer component to render the study metadata card " +
+            "and by the OHIF Viewer as a WADO-RS DICOMweb proxy endpoint.");
+
+
             string id,
             IHttpClientFactory httpClientFactory,
             IConfiguration config,

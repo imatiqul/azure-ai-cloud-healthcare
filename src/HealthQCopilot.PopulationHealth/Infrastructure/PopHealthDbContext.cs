@@ -6,10 +6,11 @@ namespace HealthQCopilot.PopulationHealth.Infrastructure;
 
 public class PopHealthDbContext : OutboxDbContext
 {
-    public DbSet<PatientRisk>           PatientRisks      => Set<PatientRisk>();
-    public DbSet<CareGap>               CareGaps          => Set<CareGap>();
-    public DbSet<PatientSdohAssessment> SdohAssessments   => Set<PatientSdohAssessment>();
-    public DbSet<CostPrediction>        CostPredictions   => Set<CostPrediction>();
+public DbSet<PatientRisk>           PatientRisks          => Set<PatientRisk>();
+    public DbSet<CareGap>               CareGaps              => Set<CareGap>();
+    public DbSet<PatientSdohAssessment> SdohAssessments       => Set<PatientSdohAssessment>();
+    public DbSet<CostPrediction>        CostPredictions       => Set<CostPrediction>();
+    public DbSet<PatientRiskHistory>    PatientRiskHistories  => Set<PatientRiskHistory>();
 
     public PopHealthDbContext(DbContextOptions<PopHealthDbContext> options) : base(options) { }
 
@@ -53,6 +54,15 @@ public class PopHealthDbContext : OutboxDbContext
             b.Property(e => e.LowerBound95).HasPrecision(12, 2);
             b.Property(e => e.UpperBound95).HasPrecision(12, 2);
             b.Property(e => e.CostDriversJson).HasColumnName("cost_drivers_json");
+        });
+
+        modelBuilder.Entity<PatientRiskHistory>(b =>
+        {
+            b.ToTable("patient_risk_history");
+            b.HasKey(e => e.Id);
+            b.Property(e => e.Level).HasConversion<string>();
+            b.Property(e => e.Trend).HasConversion<string>();
+            b.HasIndex(e => new { e.PatientId, e.AssessedAt });
         });
     }
 }

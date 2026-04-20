@@ -108,6 +108,8 @@ builder.Services.AddScoped<PromptExperimentService>();
 
 // ── Model governance (Item 21) ────────────────────────────────────────────────
 builder.Services.AddScoped<PromptRegressionEvaluator>();
+builder.Services.AddScoped<ClinicianFeedbackService>();
+builder.Services.AddSingleton<ClinicianFeedbackRepository>();
 builder.Services.AddHostedService<ModelDriftMonitorService>();
 
 // ── IoT / Wearable streaming agent (Item 29) ──────────────────────────────────

@@ -36,6 +36,7 @@ builder.Services.AddMemoryCache();
 // Listens on TCP 2575 for ADT/ORU messages from hospital EHR systems.
 // Transform to FHIR R4 and write to the external FHIR server.
 builder.Services.AddSingleton<IHl7v2MessageHandler, Hl7v2FhirTransformer>();
+builder.Services.AddSingleton<HealthQCopilot.Fhir.Services.LabDeltaFlaggingService>();
 builder.Services.AddHostedService(sp =>
 {
     var port = sp.GetRequiredService<IConfiguration>().GetValue<int>("Hl7v2:MllpPort", 2575);
@@ -88,6 +89,7 @@ app.MapFhirBulkExportEndpoints();
 app.MapSmartEndpoints();
 app.MapSmartLaunchEndpoints();
 app.MapCdsHooksEndpoints();
+app.MapLabDeltaEndpoints();
 
 app.Run();
 

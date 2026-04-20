@@ -336,6 +336,27 @@ public static class PopHealthEndpoints
         })
         .WithSummary("Get the latest cost prediction for a patient");
 
+        // ── Risk Trajectory ─────────────────────────────────────────────────
+        // Returns the full time-series of risk score snapshots for a patient.
+        // Each snapshot captures RiskScore, RiskLevel, trend direction, and score
+        // delta relative to the prior assessment.
+        // Trajectory statistics (min, max, mean, slope) are included in the response.
+        group.MapGet("/risks/{patientId}/trajectory", async (
+            string patientId,
+            int? maxPoints,
+            RiskTrajectoryService trajSvc,
+            CancellationToken ct) =>
+        {
+            var result = await trajSvc.GetTrajectoryAsync(patientId, maxPoints ?? 90, ct);
+            return Results.Ok(result);
+        })
+        .WithSummary("Get risk score trajectory for a patient")
+        .WithDescription(
+            "Returns the chronological time-series of risk score snapshots for the given patient. " +
+            "Includes per-point score delta, trend direction (Improving/Stable/Worsening), " +
+            "and summary statistics (min, max, mean, linear regression slope). " +
+            "Use maxPoints (default 90) to limit the response window.");
+
         return app;
     }
 }
