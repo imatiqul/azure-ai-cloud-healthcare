@@ -40,7 +40,8 @@ public class ServiceWebApplicationFactory<TProgram, TDbContext> : WebApplication
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", _ => { });
             services.AddAuthorizationBuilder()
                 .AddPolicy("Admin", p => p.RequireAuthenticatedUser())
-                .AddPolicy("Clinician", p => p.RequireAuthenticatedUser());
+                .AddPolicy("Clinician", p => p.RequireAuthenticatedUser())
+                .AddPolicy("PlatformAdmin", p => p.RequireAuthenticatedUser());
 
             // Ensure IHttpClientFactory is registered for plugins
             services.AddHttpClient();
