@@ -47,9 +47,26 @@ paths:
       operationId: ListTriageWorkflows
       summary: List recent triage workflows
       tags: [Agents]
+      parameters:
+        - name: top
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
       responses:
         "200":
           description: List of triage workflows
+  /api/v1/agents/stats:
+    get:
+      operationId: GetAgentStats
+      summary: Get agent aggregate statistics (triage counts, escalation rates)
+      tags: [Agents]
+      responses:
+        "200":
+          description: Agent stats
   /api/v1/voice/sessions:
     post:
       operationId: CreateVoiceSession
@@ -63,9 +80,24 @@ paths:
       operationId: GetAvailableSlots
       summary: Get available appointment slots
       tags: [Scheduling]
+      parameters:
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
       responses:
         "200":
           description: Available slots
+  /api/v1/scheduling/stats:
+    get:
+      operationId: GetSchedulingStats
+      summary: Get scheduling aggregate statistics
+      tags: [Scheduling]
+      responses:
+        "200":
+          description: Scheduling stats
   /api/v1/scheduling/bookings:
     post:
       operationId: CreateBooking
@@ -90,14 +122,45 @@ paths:
       responses:
         "200":
           description: Prior auth list
+  /api/v1/revenue/stats:
+    get:
+      operationId: GetRevenueStats
+      summary: Get revenue cycle aggregate statistics (coding jobs, prior-auth approval rates)
+      tags: [Revenue Cycle]
+      responses:
+        "200":
+          description: Revenue stats
   /api/v1/population-health/risks:
     get:
       operationId: GetPatientRisks
       summary: Get patient risk assessments
       tags: [Population Health]
+      parameters:
+        - name: top
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: riskLevel
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [Critical, High, Medium, Low]
       responses:
         "200":
           description: Patient risks
+  /api/v1/population-health/stats:
+    get:
+      operationId: GetPopHealthStats
+      summary: Get population health aggregate statistics
+      tags: [Population Health]
+      responses:
+        "200":
+          description: Population health stats
   /api/v1/population-health/risks/calculate:
     post:
       operationId: CalculatePatientRisk

@@ -10,6 +10,9 @@ param apimSubnetId string
 @description('Publisher email for APIM')
 param publisherEmail string
 
+@description('Base URL of the AKS Nginx Ingress Controller internal load balancer. Set to the internal LB IP after AKS bootstrap (updated by configure-apim CI/CD job).')
+param aksIngressUrl string = 'http://127.0.0.1'
+
 resource apim 'Microsoft.ApiManagement/service@2023-09-01-preview' = {
   name: '${envName}-apim'
   location: location
@@ -164,5 +167,82 @@ resource portalBrandingNamedValue 'Microsoft.ApiManagement/service/namedValues@2
     value: 'HealthQ Copilot Developer Portal'
     secret: false
   }
+}
+
+// ---------------------------------------------------------------------------
+// APIM API — imports the consolidated OpenAPI spec and routes to AKS ingress
+// ---------------------------------------------------------------------------
+
+// Backend: AKS Nginx Ingress Controller (internal load balancer in the VNet)
+resource aksIngressBackend 'Microsoft.ApiManagement/service/backends@2023-09-01-preview' = {
+  parent: apim
+  name: 'aks-ingress-backend'
+  properties: {
+    url: aksIngressUrl
+    protocol: 'http'
+    description: 'AKS Nginx Ingress Controller (internal Azure Load Balancer). Updated by configure-apim CI/CD job after AKS bootstrap.'
+    tls: {
+      validateCertificateChain: false
+      validateCertificateName: false
+    }
+  }
+}
+
+// API: import the full OpenAPI 3.0 spec. path='' puts all operations at the gateway root,
+// so /api/v1/agents/triage on the spec becomes https://{gateway}/api/v1/agents/triage
+resource healthqApi 'Microsoft.ApiManagement/service/apis@2023-09-01-preview' = {
+  parent: apim
+  name: 'healthq-copilot-api'
+  properties: {
+    displayName: 'HealthQ Copilot API'
+    description: 'Unified gateway API for all HealthQ Copilot microservices (Agents, FHIR, Voice, Scheduling, Revenue, Population Health, Identity, Notifications, OCR).'
+    path: ''
+    protocols: [ 'https' ]
+    subscriptionRequired: true
+    format: 'openapi'
+    value: loadTextContent('../../apim/healthq-copilot-api.yaml')
+    serviceUrl: aksIngressUrl
+  }
+  dependsOn: [ aksIngressBackend ]
+}
+
+// Per-API policy: route every call to the AKS ingress backend
+resource healthqApiPolicy 'Microsoft.ApiManagement/service/apis/policies@2023-09-01-preview' = {
+  parent: healthqApi
+  name: 'policy'
+  properties: {
+    format: 'xml'
+    value: '''
+      <policies>
+        <inbound>
+          <base />
+          <set-backend-service backend-id="aks-ingress-backend" />
+        </inbound>
+        <backend>
+          <forward-request timeout="30" />
+        </backend>
+        <outbound>
+          <base />
+        </outbound>
+        <on-error>
+          <base />
+        </on-error>
+      </policies>
+    '''
+  }
+}
+
+// Associate the API with the clinical product
+resource clinicalProductApi 'Microsoft.ApiManagement/service/products/apis@2023-09-01-preview' = {
+  parent: clinicalProduct
+  name: 'healthq-copilot-api'
+  dependsOn: [ healthqApi ]
+}
+
+// Associate the API with the sandbox product (no approval, generous limits)
+resource sandboxProductApi 'Microsoft.ApiManagement/service/products/apis@2023-09-01-preview' = {
+  parent: sandboxProduct
+  name: 'healthq-copilot-api'
+  dependsOn: [ healthqApi ]
 }
 

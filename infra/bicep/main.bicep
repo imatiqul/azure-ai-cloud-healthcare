@@ -18,6 +18,9 @@ param apimPublisherEmail string
 @description('Country code for the Azure AD B2C tenant (ISO 3166-1 alpha-2)')
 param b2cCountryCode string = 'US'
 
+@description('AKS Nginx Ingress Controller internal load balancer URL. Updated by configure-apim CI/CD job after AKS bootstrap. Default placeholder is safe at provision time.')
+param aksIngressUrl string = 'http://127.0.0.1'
+
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: '${envName}-rg'
   location: location
@@ -88,6 +91,7 @@ module apim 'modules/apim.bicep' = {
     location: location
     apimSubnetId: network.outputs.apimSubnetId
     publisherEmail: apimPublisherEmail
+    aksIngressUrl: aksIngressUrl
   }
 }
 

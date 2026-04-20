@@ -141,6 +141,19 @@ jobs:
         run: |
           kubectl apply -f infra/k8s/keda/ --recursive || true
 
+      - name: Install Nginx Ingress Controller (internal Azure Load Balancer)
+        run: |
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo update
+          helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+            --namespace ingress-nginx \
+            --create-namespace \
+            --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-internal"="true" \
+            --set controller.replicaCount=2 \
+            --set controller.nodeSelector."kubernetes\.io/os"=linux \
+            --set defaultBackend.nodeSelector."kubernetes\.io/os"=linux \
+            --wait --timeout=5m
+
       - name: Bootstrap ArgoCD Application
         run: |
           # Patch ArgoCD Application with secrets before applying
@@ -152,4 +165,87 @@ jobs:
           # Give ArgoCD 60s to detect and begin sync
           sleep 60
           kubectl get applications -n argocd -o wide || true
+
+  # ---------------------------------------------------------------------------
+  # configure-apim: runs AFTER bootstrap-aks so the Nginx ingress IP is known.
+  # Updates the APIM backend URL to point at the ingress internal load balancer.
+  # ---------------------------------------------------------------------------
+  configure-apim:
+    needs: bootstrap-aks
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'dev' }}
+    env:
+      APIM_NAME: healthqcopilot-${{ inputs.environment || 'dev' }}-apim
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --name ${{ env.AKS_CLUSTER_NAME }} \
+            --overwrite-existing
+
+      - name: Wait for Nginx Ingress IP assignment
+        id: ingress
+        run: |
+          echo "Waiting for Nginx Ingress Controller LoadBalancer IP..."
+          for i in $(seq 1 24); do
+            IP=$(kubectl get svc ingress-nginx-controller -n ingress-nginx \
+              -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+            if [ -n "$IP" ]; then
+              echo "Ingress IP: $IP"
+              echo "ip=$IP" >> $GITHUB_OUTPUT
+              echo "skip=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            echo "Attempt $i/24 — IP not yet assigned, retrying in 15s..."
+            sleep 15
+          done
+          echo "⚠️ Ingress IP not available after 6 minutes — skipping APIM backend update"
+          echo "skip=true" >> $GITHUB_OUTPUT
+
+      - name: Update APIM backend URL to AKS ingress internal IP
+        if: steps.ingress.outputs.skip != 'true'
+        run: |
+          INGRESS_URL="http://${{ steps.ingress.outputs.ip }}"
+          echo "Setting APIM backend to: $INGRESS_URL"
+
+          # Update the named backend created by Bicep
+          az apim backend update \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --service-name "${{ env.APIM_NAME }}" \
+            --backend-id aks-ingress-backend \
+            --url "$INGRESS_URL" \
+            --protocol http
+
+          # Also update the API's serviceUrl so the developer portal shows the correct backend
+          az apim api update \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --service-name "${{ env.APIM_NAME }}" \
+            --api-id healthq-copilot-api \
+            --service-url "$INGRESS_URL"
+
+          echo "✅ APIM backend updated to $INGRESS_URL"
+
+      - name: Verify APIM API routes are registered
+        if: steps.ingress.outputs.skip != 'true'
+        run: |
+          ROUTE_COUNT=$(az apim api operation list \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --service-name "${{ env.APIM_NAME }}" \
+            --api-id healthq-copilot-api \
+            --query 'length(@)' --output tsv 2>/dev/null || echo "0")
+          echo "APIM API operations registered: $ROUTE_COUNT"
+          if [ "$ROUTE_COUNT" -lt "10" ]; then
+            echo "⚠️ Fewer than 10 operations found — APIM import may not have applied correctly"
+            exit 1
+          fi
+          echo "✅ APIM routes verified ($ROUTE_COUNT operations)"
 
