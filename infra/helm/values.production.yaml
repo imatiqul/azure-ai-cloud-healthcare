@@ -19,7 +19,7 @@ services:
       tag: 4195a2ec0fa92bfea91f18a0be28b9e348ee4de0
   gateway:
     image:
-      tag: 1806b5afef252e9116e47aa1472472bd88fa5e84
+      tag: 82afbb2bf175b4a51fda5b488244dc8e07392cee
   pop-health:
     image:
       tag: f0f3766a037e2f5b2509db7025d885557441ec91
