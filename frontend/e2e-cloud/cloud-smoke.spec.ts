@@ -109,3 +109,62 @@ test.describe('Cloud — API Smoke Tests', () => {
     expect(response.status()).toBeLessThan(500);
   });
 });
+
+// ── Phase 12 — Endpoint Smoke Tests ─────────────────────────────────────────
+// These tests verify the Phase 12 features are reachable in production:
+//   • Waitlist management (Scheduling)
+//   • Claim denial workflow (Revenue)
+//   • Notification delivery tracking + appointment reminder analytics
+
+test.describe('Phase 12 — Scheduling Waitlist Endpoints', () => {
+  test('waitlist list endpoint responds', async ({ request }) => {
+    const url = process.env.SCHEDULING_ACA_URL;
+    test.skip(!url, 'SCHEDULING_ACA_URL not configured');
+    const response = await request.get(`${url}/api/v1/scheduling/waitlist`);
+    // 200 (empty list) or 401 (auth required) = service is up; 5xx = broken
+    expect(response.status()).toBeLessThan(500);
+  });
+
+  test('waitlist conflict-check endpoint responds', async ({ request }) => {
+    const url = process.env.SCHEDULING_ACA_URL;
+    test.skip(!url, 'SCHEDULING_ACA_URL not configured');
+    // POST with empty body should return 400 (validation) — not 5xx
+    const response = await request.post(`${url}/api/v1/scheduling/waitlist/conflict-check`, {
+      data: {},
+    });
+    expect(response.status()).toBeLessThan(500);
+  });
+});
+
+test.describe('Phase 12 — Revenue Denial Management Endpoints', () => {
+  test('denials list endpoint responds', async ({ request }) => {
+    const url = process.env.REVENUE_ACA_URL;
+    test.skip(!url, 'REVENUE_ACA_URL not configured');
+    const response = await request.get(`${url}/api/v1/revenue/denials`);
+    expect(response.status()).toBeLessThan(500);
+  });
+
+  test('denials analytics endpoint responds', async ({ request }) => {
+    const url = process.env.REVENUE_ACA_URL;
+    test.skip(!url, 'REVENUE_ACA_URL not configured');
+    const response = await request.get(`${url}/api/v1/revenue/denials/analytics`);
+    expect(response.status()).toBeLessThan(500);
+  });
+});
+
+test.describe('Phase 12 — Notification Delivery Tracking Endpoints', () => {
+  test('notification delivery analytics endpoint responds', async ({ request }) => {
+    const url = process.env.NOTIFICATION_ACA_URL;
+    test.skip(!url, 'NOTIFICATION_ACA_URL not configured');
+    const response = await request.get(`${url}/api/v1/notifications/analytics/delivery`);
+    expect(response.status()).toBeLessThan(500);
+  });
+
+  test('notification messages list endpoint responds', async ({ request }) => {
+    const url = process.env.NOTIFICATION_ACA_URL;
+    test.skip(!url, 'NOTIFICATION_ACA_URL not configured');
+    const response = await request.get(`${url}/api/v1/notifications/messages`);
+    expect(response.status()).toBeLessThan(500);
+  });
+});
+

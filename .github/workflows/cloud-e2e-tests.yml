@@ -1,7 +1,13 @@
 name: Cloud E2E Tests
 
-# workflow_run trigger disabled while in local development.
 on:
+  # Trigger automatically after both microservice AND frontend deployments succeed on main
+  workflow_run:
+    workflows:
+      - "Microservice CI/CD"
+      - "Frontend MFE CI/CD"
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -15,7 +21,10 @@ jobs:
   cloud-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # Only run if triggered manually, or if the upstream workflow succeeded
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v4
 

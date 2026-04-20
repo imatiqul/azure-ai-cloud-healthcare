@@ -1,0 +1,204 @@
+name: Deployment Health Dashboard
+
+# Scheduled daily health check + triggered after all deploy workflows complete.
+# Provides a single Job Summary with the status of every ACA service and SWA app.
+on:
+  schedule:
+    # 06:00 UTC daily — ensures overnight failures are caught before business hours
+    - cron: '0 6 * * *'
+  workflow_run:
+    workflows:
+      - "Microservice CI/CD"
+      - "Frontend MFE CI/CD"
+      - "Cloud E2E Tests"
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACA_RESOURCE_GROUP: healthq-copilot-rg
+  GATEWAY_URL: https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io
+
+jobs:
+  health-dashboard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # ── ACA Container App Status ─────────────────────────────────────────────
+      - name: Check ACA service health
+        id: aca-health
+        run: |
+          set -e
+          SERVICES=(voice ai-agent fhir identity ocr scheduling notification pop-health revenue gateway)
+          ACA_RG="${{ env.ACA_RESOURCE_GROUP }}"
+
+          echo "## ACA Microservice Health — $(date -u '+%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Latest Revision | Active | Replicas |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|----------------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+
+          FAIL=0
+          for SVC in "${SERVICES[@]}"; do
+            REVISION=$(az containerapp show \
+              --name "$SVC" \
+              --resource-group "$ACA_RG" \
+              --query "properties.latestRevisionName" -o tsv 2>/dev/null || echo "NOT_FOUND")
+
+            if [ "$REVISION" = "NOT_FOUND" ]; then
+              echo "| $SVC | — | ⚠️ NOT FOUND | — |" >> $GITHUB_STEP_SUMMARY
+              continue
+            fi
+
+            ACTIVE=$(az containerapp revision show \
+              --name "$SVC" \
+              --resource-group "$ACA_RG" \
+              --revision "$REVISION" \
+              --query "properties.active" -o tsv 2>/dev/null || echo "false")
+
+            REPLICAS=$(az containerapp revision show \
+              --name "$SVC" \
+              --resource-group "$ACA_RG" \
+              --revision "$REVISION" \
+              --query "properties.replicas" -o tsv 2>/dev/null || echo "0")
+
+            STATUS_ICON="✅"
+            if [ "$ACTIVE" != "true" ]; then
+              STATUS_ICON="❌"
+              FAIL=1
+            fi
+
+            echo "| $SVC | $REVISION | $STATUS_ICON | $REPLICAS |" >> $GITHUB_STEP_SUMMARY
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$FAIL" = "1" ]; then
+            echo "ACA_HEALTHY=false" >> $GITHUB_OUTPUT
+          else
+            echo "ACA_HEALTHY=true" >> $GITHUB_OUTPUT
+          fi
+
+      # ── Gateway + Service Smoke Probes ───────────────────────────────────────
+      - name: Gateway and service smoke probes
+        id: smoke-probes
+        run: |
+          GATEWAY="${{ env.GATEWAY_URL }}"
+
+          echo "## API Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Endpoint | HTTP Status | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          declare -A SMOKE_PATHS=(
+            [gateway/health]="/health"
+            [voice/sessions]="/api/v1/voice/sessions"
+            [ai-agent/escalations]="/api/v1/agents/escalations"
+            [fhir/patients]="/api/v1/fhir/patients"
+            [identity/users]="/api/v1/identity/users"
+            [ocr/jobs]="/api/v1/ocr/jobs"
+            [scheduling/slots]="/api/v1/scheduling/slots"
+            [scheduling/waitlist]="/api/v1/scheduling/waitlist"
+            [notification/messages]="/api/v1/notifications/messages"
+            [pop-health/risks]="/api/v1/population-health/risks"
+            [revenue/coding-jobs]="/api/v1/revenue/coding-jobs"
+            [revenue/denials]="/api/v1/revenue/denials"
+            [revenue/denials-analytics]="/api/v1/revenue/denials/analytics"
+            [notifications/delivery-analytics]="/api/v1/notifications/analytics/delivery"
+          )
+
+          FAIL=0
+          for KEY in "${!SMOKE_PATHS[@]}"; do
+            PATH="${SMOKE_PATHS[$KEY]}"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 15 --retry 2 --retry-delay 3 \
+              "${GATEWAY}${PATH}")
+            if [ "$STATUS" -ge 500 ]; then
+              echo "| $KEY | $STATUS | ❌ |" >> $GITHUB_STEP_SUMMARY
+              FAIL=1
+            else
+              echo "| $KEY | $STATUS | ✅ |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$FAIL" = "1" ]; then
+            echo "SMOKE_HEALTHY=false" >> $GITHUB_OUTPUT
+          else
+            echo "SMOKE_HEALTHY=true" >> $GITHUB_OUTPUT
+          fi
+
+      # ── SWA Availability ─────────────────────────────────────────────────────
+      - name: SWA availability checks
+        id: swa-checks
+        run: |
+          echo "## Frontend SWA Availability" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| App | URL | HTTP Status | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-----|-------------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          declare -A SWA_URLS=(
+            [shell]="https://gentle-tree-03115af0f.7.azurestaticapps.net"
+            [voice-mfe]="https://happy-smoke-0ba02780f.7.azurestaticapps.net"
+            [triage-mfe]="https://brave-hill-0d76ab10f.7.azurestaticapps.net"
+            [scheduling-mfe]="https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net"
+            [pophealth-mfe]="https://orange-bay-00f28280f.7.azurestaticapps.net"
+            [revenue-mfe]="https://lemon-pond-067d2f40f.7.azurestaticapps.net"
+            [encounters-mfe]="${{ secrets.ENCOUNTERS_SWA_URL || 'https://calm-river-02bddc70f.7.azurestaticapps.net' }}"
+            [engagement-mfe]="${{ secrets.ENGAGEMENT_SWA_URL || 'https://agreeable-hill-0d3115b0f.7.azurestaticapps.net' }}"
+          )
+
+          FAIL=0
+          for APP in "${!SWA_URLS[@]}"; do
+            URL="${SWA_URLS[$APP]}"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 15 --retry 2 --retry-delay 3 \
+              "$URL")
+            if [ "$STATUS" = "200" ]; then
+              echo "| $APP | $URL | $STATUS | ✅ |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| $APP | $URL | $STATUS | ❌ |" >> $GITHUB_STEP_SUMMARY
+              FAIL=1
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$FAIL" = "1" ]; then
+            echo "SWA_HEALTHY=false" >> $GITHUB_OUTPUT
+          else
+            echo "SWA_HEALTHY=true" >> $GITHUB_OUTPUT
+          fi
+
+      # ── Overall Status ───────────────────────────────────────────────────────
+      - name: Compute overall health status
+        if: always()
+        run: |
+          ACA="${{ steps.aca-health.outputs.ACA_HEALTHY }}"
+          SMOKE="${{ steps.smoke-probes.outputs.SMOKE_HEALTHY }}"
+          SWA="${{ steps.swa-checks.outputs.SWA_HEALTHY }}"
+
+          echo "## Overall Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          [ "$ACA"   = "true" ] && echo "| ACA Services   | ✅ All active |"      >> $GITHUB_STEP_SUMMARY || echo "| ACA Services   | ❌ Issues detected |" >> $GITHUB_STEP_SUMMARY
+          [ "$SMOKE" = "true" ] && echo "| API Smoke Tests | ✅ All passing |"    >> $GITHUB_STEP_SUMMARY || echo "| API Smoke Tests | ❌ Failures detected |" >> $GITHUB_STEP_SUMMARY
+          [ "$SWA"   = "true" ] && echo "| SWA Frontend   | ✅ All reachable |"   >> $GITHUB_STEP_SUMMARY || echo "| SWA Frontend   | ❌ Not reachable |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_Checked at: $(date -u '+%Y-%m-%dT%H:%M:%SZ')_" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$ACA" != "true" ] || [ "$SMOKE" != "true" ] || [ "$SWA" != "true" ]; then
+            echo "::error::One or more health checks failed. See summary for details."
+            exit 1
+          fi
