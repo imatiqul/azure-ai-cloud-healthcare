@@ -40,6 +40,10 @@ const OtpVerificationPanelPage = lazy(() => import('engagement/OtpVerificationPa
 const HedisMeasuresPanelPage = lazy(() => import('pophealth/HedisMeasuresPanel').then(m => ({ default: m.HedisMeasuresPanel })));
 const TenantAdminPanelPage = lazy(() => import('./pages/TenantAdminPanel'));
 const ModelEvaluationPanelPage = lazy(() => import('./pages/ModelEvaluationPanel'));
+const IdentityUserAdminPanelPage = lazy(() => import('./pages/IdentityUserAdminPanel')); // Phase 24
+const AuditLogPanelPage = lazy(() => import('./pages/AuditLogPanel'));                   // Phase 24
+const BreakGlassAccessPanelPage = lazy(() => import('./pages/BreakGlassAccessPanel'));   // Phase 24
+const ModelRegisterPanelPage = lazy(() => import('./pages/ModelRegisterPanel'));          // Phase 24
 const DemoLive = lazy(() => import('./pages/DemoLive'));
 
 function Loading() {
@@ -166,11 +170,27 @@ export default function App() {
                   <MfeErrorBoundary name="Governance">
                     <ModelGovernanceDashboardPage />
                     <ModelEvaluationPanelPage />
+                    <ModelRegisterPanelPage />
                   </MfeErrorBoundary>
                 } />
                 <Route path="/tenants" element={
                   <MfeErrorBoundary name="Tenants">
                     <TenantAdminPanelPage />
+                  </MfeErrorBoundary>
+                } />
+                <Route path="/admin/users" element={
+                  <MfeErrorBoundary name="User Admin">
+                    <IdentityUserAdminPanelPage />
+                  </MfeErrorBoundary>
+                } />
+                <Route path="/admin/audit" element={
+                  <MfeErrorBoundary name="Audit Log">
+                    <AuditLogPanelPage />
+                  </MfeErrorBoundary>
+                } />
+                <Route path="/admin/break-glass" element={
+                  <MfeErrorBoundary name="Break-Glass">
+                    <BreakGlassAccessPanelPage />
                   </MfeErrorBoundary>
                 } />
               </Routes>
