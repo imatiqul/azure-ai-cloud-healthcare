@@ -78,3 +78,16 @@ jobs:
         working-directory: frontend
       - run: pnpm build
         working-directory: frontend
+      - name: Install bundlewatch
+        run: pnpm add -g bundlewatch
+        working-directory: frontend
+      - name: Check bundle size budgets
+        run: bundlewatch --config bundlewatch.config.json
+        working-directory: frontend
+        env:
+          BUNDLEWATCH_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI_REPO_OWNER:   ${{ github.repository_owner }}
+          CI_REPO_NAME:    ${{ github.event.repository.name }}
+          CI_COMMIT_SHA:   ${{ github.event.pull_request.head.sha || github.sha }}
+          CI_BRANCH:       ${{ github.head_ref || github.ref_name }}
+          CI_BRANCH_BASE:  main

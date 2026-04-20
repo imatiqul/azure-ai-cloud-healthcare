@@ -43,6 +43,9 @@ builder.Services.AddSingleton<RiskCalculationService>(sp =>
         sp.GetRequiredService<ILogger<RiskCalculationService>>(),
         sp.GetRequiredService<ReadmissionRiskPredictor>()));
 builder.Services.AddSingleton<HedisMeasureCalculator>();
+builder.Services.AddScoped<SdohScoringService>();
+builder.Services.AddScoped<CostPredictionService>();
+builder.Services.AddSingleton<DrugInteractionService>();
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "PopHealthDb");
 builder.Services.AddDaprSecretProvider();
 builder.Services.AddEventHubAudit();

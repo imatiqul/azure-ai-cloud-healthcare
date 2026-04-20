@@ -111,17 +111,57 @@ public static class AgentEndpoints
             var entry = await xai.GetReasoningAsync(id, ct);
             if (entry is null) return Results.NotFound(new { error = "No reasoning audit found for this decision ID." });
 
+            // Compute LLM confidence interval alongside the reasoning audit
+            var confidence = xai.ComputeLlmConfidence(
+                guardVerdict:       entry.GuardVerdict,
+                ragChunkCount:      entry.GetRagChunkIds().Count,
+                planningIterations: entry.GetReasoningSteps().Count,
+                avgLogProbability:  null); // log-probs not persisted; use LIME-fallback
+
             return Results.Ok(new
             {
                 entry.AgentDecisionId,
                 entry.AgentName,
                 entry.GuardVerdict,
                 entry.ConfidenceScore,
-                RagChunks     = entry.GetRagChunkIds(),
+                RagChunks      = entry.GetRagChunkIds(),
                 ReasoningSteps = entry.GetReasoningSteps(),
                 entry.CreatedAt,
+                ConfidenceInterval = new
+                {
+                    confidence.ConfidenceLevel,
+                    confidence.DecisionConfidence,
+                    confidence.LowerBound95,
+                    confidence.UpperBound95,
+                    confidence.Method,
+                    confidence.Interpretation,
+                },
             });
-        });
+        })
+        .WithSummary("Retrieve the reasoning audit trail and confidence interval for an agent decision");
+
+        // XAI: compute confidence interval for an ML readmission risk score
+        group.MapPost("/decisions/ml-confidence", (
+            MlConfidenceRequest req,
+            XaiExplainabilityService xai) =>
+        {
+            var confidence = xai.ComputeMlConfidence(req.Probability, req.FeatureValues);
+            var importance  = req.FeatureValues is { Length: > 0 }
+                ? xai.ComputeFeatureImportance(req.Probability, req.FeatureValues)
+                : null;
+
+            return Results.Ok(new
+            {
+                req.Probability,
+                ConfidenceInterval = confidence,
+                FeatureImportance  = importance,
+            });
+        })
+        .WithSummary("Compute confidence interval and feature importance for an ML risk score")
+        .WithDescription(
+            "Accepts the ML.NET predicted probability and optional feature vector. " +
+            "Returns 95% CI using boundary-distance + feature-stability analysis (LIME-fallback when " +
+            "no features supplied). Also returns permutation-based feature importance when features provided.");
 
         // LLM clinical coding agent: code an encounter using the planning loop
         group.MapPost("/coding/code-encounter", async (
@@ -164,3 +204,15 @@ public static class AgentEndpoints
 public record StartTriageRequest(Guid SessionId, string TranscriptText, string? PatientId);
 public record RejectTriageRequest(string Reason);
 public record CodeEncounterRequest(Guid WorkflowId, string EncounterTranscript, string? Payer);
+
+/// <summary>Input for ML confidence interval computation.</summary>
+public sealed record MlConfidenceRequest(
+    /// <summary>ML.NET predicted probability P(readmission=true) [0, 1].</summary>
+    double Probability,
+    /// <summary>
+    /// Optional 7-element feature vector in ReadmissionFeatures order:
+    /// [AgeBucket, ComorbidityCount, TriageLevelOrdinal, PriorAdmissions12M,
+    ///  LengthOfStayDays, DischargeDispositionOrdinal, ConditionWeightSum].
+    /// When null, a LIME-fallback confidence estimate is returned.
+    /// </summary>
+    float[]? FeatureValues = null);

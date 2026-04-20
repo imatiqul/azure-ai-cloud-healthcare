@@ -1,0 +1,70 @@
+{
+  "$schema": "https://bundlewatch.io/schema.json",
+  "ci": {
+    "trackBranches": ["main", "develop"],
+    "repoBranchBase": "main"
+  },
+  "defaultCompression": "gzip",
+  "files": [
+    {
+      "path": "apps/shell/dist/**/*.js",
+      "maxSize": "500 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": "apps/shell/dist/**/*.css",
+      "maxSize": "80 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": "apps/triage-mfe/dist/**/*.js",
+      "maxSize": "350 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": "apps/triage-mfe/dist/**/*.css",
+      "maxSize": "60 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": "apps/voice-mfe/dist/**/*.js",
+      "maxSize": "300 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": "apps/pophealth-mfe/dist/**/*.js",
+      "maxSize": "350 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": "apps/scheduling-mfe/dist/**/*.js",
+      "maxSize": "300 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": "apps/revenue-mfe/dist/**/*.js",
+      "maxSize": "300 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": "apps/encounters-mfe/dist/**/*.js",
+      "maxSize": "300 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": "apps/engagement-mfe/dist/**/*.js",
+      "maxSize": "300 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": "packages/design-system/dist/**/*.js",
+      "maxSize": "150 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": "packages/design-system/dist/**/*.css",
+      "maxSize": "40 kB",
+      "compression": "gzip"
+    }
+  ]
+}

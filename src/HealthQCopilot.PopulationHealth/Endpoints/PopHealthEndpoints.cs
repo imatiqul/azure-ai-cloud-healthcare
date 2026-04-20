@@ -165,6 +165,177 @@ public static class PopHealthEndpoints
         .WithSummary("Evaluate HEDIS quality measures and identify care gaps for a patient")
         .WithDescription("Evaluates CDC-HbA1c, CBP, BCS, COL measures. Returns care gap details and recommended actions.");
 
+        // ── Drug Interaction Check ────────────────────────────────────────────
+
+        group.MapPost("/drug-interactions/check", (
+            DrugInteractionCheckInput input,
+            DrugInteractionService ddi) =>
+        {
+            if (input.Drugs is null || input.Drugs.Count < 2)
+                return Results.BadRequest(new { error = "At least 2 drug names are required" });
+
+            var result = ddi.Check(input.Drugs);
+
+            return Results.Ok(new
+            {
+                result.Drugs,
+                result.AlertLevel,
+                result.HasContraindication,
+                result.HasMajorInteraction,
+                InteractionCount = result.Interactions.Count,
+                result.Interactions,
+            });
+        })
+        .WithSummary("Check a medication list for known drug–drug interactions")
+        .WithDescription(
+            "Rule-based DDI checker covering contraindicated, major, and moderate interactions. " +
+            "Supports generic and brand drug names (case-insensitive substring match). " +
+            "In production, augment with NLM RxNav /REST/interaction/list.json for comprehensive " +
+            "RxNorm-based DDI lookup and CDS Hooks order-sign integration.");
+
+        // ── SDOH Assessment ───────────────────────────────────────────────────
+        group.MapPost("/sdoh", async (
+            SdohAssessmentRequest request,
+            PopHealthDbContext db,
+            SdohScoringService sdoh,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.PatientId))
+                return Results.BadRequest(new { error = "PatientId is required" });
+
+            var assessment = sdoh.Score(request);
+            db.SdohAssessments.Add(assessment);
+            await db.SaveChangesAsync(ct);
+
+            return Results.Created($"/api/v1/population-health/sdoh/{request.PatientId}",
+                new
+                {
+                    assessment.Id,
+                    assessment.PatientId,
+                    assessment.TotalScore,
+                    assessment.RiskLevel,
+                    assessment.CompositeRiskWeight,
+                    DomainScores       = assessment.DomainScores,
+                    PrioritizedNeeds   = assessment.PrioritizedNeeds,
+                    RecommendedActions = assessment.RecommendedActions,
+                    assessment.AssessedAt,
+                });
+        })
+        .WithSummary("Submit an SDOH screening assessment for a patient")
+        .WithDescription(
+            "Scores 8 SDOH domains (0–3 each, total 0–24). " +
+            "Returns risk level (Low/Moderate/High), composite risk weight for blending into " +
+            "clinical risk scores, prioritised needs, and recommended social interventions. " +
+            "Aligns with PRAPARE and FHIR Gravity Project SDOH Clinical Care terminology.");
+
+        group.MapGet("/sdoh/{patientId}", async (
+            string patientId,
+            PopHealthDbContext db,
+            CancellationToken ct) =>
+        {
+            var latest = await db.SdohAssessments
+                .Where(a => a.PatientId == patientId)
+                .OrderByDescending(a => a.AssessedAt)
+                .FirstOrDefaultAsync(ct);
+
+            if (latest is null) return Results.NotFound();
+
+            return Results.Ok(new
+            {
+                latest.Id,
+                latest.PatientId,
+                latest.TotalScore,
+                latest.RiskLevel,
+                latest.CompositeRiskWeight,
+                DomainScores       = latest.DomainScores,
+                PrioritizedNeeds   = latest.PrioritizedNeeds,
+                RecommendedActions = latest.RecommendedActions,
+                latest.AssessedBy,
+                latest.AssessedAt,
+            });
+        })
+        .WithSummary("Get the latest SDOH assessment for a patient");
+
+        // ── Cost Prediction ───────────────────────────────────────────────────
+
+        group.MapPost("/cost-prediction", async (
+            CostPredictionInput input,
+            PopHealthDbContext db,
+            CostPredictionService costService,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(input.PatientId))
+                return Results.BadRequest(new { error = "PatientId is required" });
+
+            // Resolve SDOH weight from latest assessment if not supplied
+            double sdohWeight = input.SdohWeight;
+            if (sdohWeight <= 0)
+            {
+                var latestSdoh = await db.SdohAssessments
+                    .Where(a => a.PatientId == input.PatientId)
+                    .OrderByDescending(a => a.AssessedAt)
+                    .Select(a => a.CompositeRiskWeight)
+                    .FirstOrDefaultAsync(ct);
+                sdohWeight = latestSdoh;
+            }
+
+            var request = new CostPredictionRequest(
+                PatientId:  input.PatientId,
+                RiskLevel:  input.RiskLevel,
+                Conditions: input.Conditions,
+                SdohWeight: sdohWeight);
+
+            var prediction = costService.Predict(request);
+            db.CostPredictions.Add(prediction);
+            await db.SaveChangesAsync(ct);
+
+            return Results.Created($"/api/v1/population-health/cost-prediction/{input.PatientId}",
+                new
+                {
+                    prediction.Id,
+                    prediction.PatientId,
+                    Predicted12mCostUsd = prediction.Predicted12mCost,
+                    LowerBound95Usd     = prediction.LowerBound95,
+                    UpperBound95Usd     = prediction.UpperBound95,
+                    prediction.CostTier,
+                    CostDrivers         = prediction.CostDrivers,
+                    prediction.ModelVersion,
+                    prediction.PredictedAt,
+                });
+        })
+        .WithSummary("Predict 12-month total cost of care for a patient")
+        .WithDescription(
+            "Rule-based actuarial model (AHRQ MEPS 2022 calibrated). " +
+            "Returns point estimate + 95% prediction interval (±30%) and cost tier. " +
+            "Automatically incorporates the patient's latest SDOH composite risk weight.");
+
+        group.MapGet("/cost-prediction/{patientId}", async (
+            string patientId,
+            PopHealthDbContext db,
+            CancellationToken ct) =>
+        {
+            var latest = await db.CostPredictions
+                .Where(p => p.PatientId == patientId)
+                .OrderByDescending(p => p.PredictedAt)
+                .FirstOrDefaultAsync(ct);
+
+            if (latest is null) return Results.NotFound();
+
+            return Results.Ok(new
+            {
+                latest.Id,
+                latest.PatientId,
+                Predicted12mCostUsd = latest.Predicted12mCost,
+                LowerBound95Usd     = latest.LowerBound95,
+                UpperBound95Usd     = latest.UpperBound95,
+                latest.CostTier,
+                CostDrivers         = latest.CostDrivers,
+                latest.ModelVersion,
+                latest.PredictedAt,
+            });
+        })
+        .WithSummary("Get the latest cost prediction for a patient");
+
         return app;
     }
 }
@@ -189,3 +360,10 @@ public sealed record HedisMeasureInput(
     DateTime? LastColorectalScreenDate,
     string? ColorectalScreenType);
 
+public sealed record CostPredictionInput(
+    string PatientId,
+    string RiskLevel,
+    IReadOnlyList<string> Conditions,
+    double SdohWeight = 0.0);
+
+public sealed record DrugInteractionCheckInput(IReadOnlyList<string> Drugs);

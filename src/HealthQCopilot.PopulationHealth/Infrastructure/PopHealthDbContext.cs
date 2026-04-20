@@ -6,8 +6,10 @@ namespace HealthQCopilot.PopulationHealth.Infrastructure;
 
 public class PopHealthDbContext : OutboxDbContext
 {
-    public DbSet<PatientRisk> PatientRisks => Set<PatientRisk>();
-    public DbSet<CareGap> CareGaps => Set<CareGap>();
+    public DbSet<PatientRisk>           PatientRisks      => Set<PatientRisk>();
+    public DbSet<CareGap>               CareGaps          => Set<CareGap>();
+    public DbSet<PatientSdohAssessment> SdohAssessments   => Set<PatientSdohAssessment>();
+    public DbSet<CostPrediction>        CostPredictions   => Set<CostPrediction>();
 
     public PopHealthDbContext(DbContextOptions<PopHealthDbContext> options) : base(options) { }
 
@@ -29,6 +31,28 @@ public class PopHealthDbContext : OutboxDbContext
             b.HasKey(e => e.Id);
             b.Property(e => e.Status).HasConversion<string>();
             b.HasIndex(e => e.PatientId);
+        });
+
+        modelBuilder.Entity<PatientSdohAssessment>(b =>
+        {
+            b.ToTable("sdoh_assessments");
+            b.HasKey(e => e.Id);
+            b.HasIndex(e => e.PatientId);
+            // JSON columns (stored as text; application-side deserialisation)
+            b.Property(e => e.DomainScoresJson).HasColumnName("domain_scores_json");
+            b.Property(e => e.PrioritizedNeedsJson).HasColumnName("prioritized_needs_json");
+            b.Property(e => e.RecommendedActionsJson).HasColumnName("recommended_actions_json");
+        });
+
+        modelBuilder.Entity<CostPrediction>(b =>
+        {
+            b.ToTable("cost_predictions");
+            b.HasKey(e => e.Id);
+            b.HasIndex(e => e.PatientId);
+            b.Property(e => e.Predicted12mCost).HasPrecision(12, 2);
+            b.Property(e => e.LowerBound95).HasPrecision(12, 2);
+            b.Property(e => e.UpperBound95).HasPrecision(12, 2);
+            b.Property(e => e.CostDriversJson).HasColumnName("cost_drivers_json");
         });
     }
 }
