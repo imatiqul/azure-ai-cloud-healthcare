@@ -10,6 +10,7 @@ public class RevenueDbContext : OutboxDbContext
     public DbSet<PriorAuth> PriorAuths => Set<PriorAuth>();
     public DbSet<ClaimSubmission> ClaimSubmissions => Set<ClaimSubmission>();
     public DbSet<RemittanceAdvice> RemittanceAdvices => Set<RemittanceAdvice>();
+    public DbSet<ClaimDenial> ClaimDenials => Set<ClaimDenial>();
 
     public RevenueDbContext(DbContextOptions<RevenueDbContext> options) : base(options) { }
 
@@ -108,6 +109,26 @@ public class RevenueDbContext : OutboxDbContext
                     sl.Property(x => x.ReasonCode).HasMaxLength(8);
                 });
             });
+        });
+
+        // ── Claim Denials ─────────────────────────────────────────────────────
+        modelBuilder.Entity<ClaimDenial>(b =>
+        {
+            b.ToTable("claim_denials");
+            b.HasKey(e => e.Id);
+            b.Property(e => e.Status).HasConversion<string>().HasMaxLength(32);
+            b.Property(e => e.Category).HasConversion<string>().HasMaxLength(32);
+            b.Property(e => e.Resolution).HasConversion<string>().HasMaxLength(32);
+            b.Property(e => e.ClaimNumber).HasMaxLength(128).IsRequired();
+            b.Property(e => e.PatientId).HasMaxLength(128).IsRequired();
+            b.Property(e => e.PayerId).HasMaxLength(128).IsRequired();
+            b.Property(e => e.PayerName).HasMaxLength(256).IsRequired();
+            b.Property(e => e.DenialReasonCode).HasMaxLength(16).IsRequired();
+            b.Property(e => e.DenialReasonDescription).HasMaxLength(512);
+            b.Property(e => e.AppealNotes).HasMaxLength(4096);
+            b.HasIndex(e => e.PatientId);
+            b.HasIndex(e => e.Status);
+            b.HasIndex(e => e.PayerId);
         });
     }
 }

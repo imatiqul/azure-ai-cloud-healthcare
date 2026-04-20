@@ -61,6 +61,57 @@ public static class NotificationEndpoints
             return Results.Ok(new { message.Id, Status = message.Status.ToString() });
         });
 
+        // ── Message delivery status ───────────────────────────────────────────
+        group.MapGet("/messages/{id:guid}/status", async (
+            Guid id,
+            NotificationDbContext db,
+            CancellationToken ct) =>
+        {
+            var message = await db.Messages.FindAsync([id], ct);
+            if (message is null) return Results.NotFound();
+            return Results.Ok(new
+            {
+                message.Id,
+                message.CampaignId,
+                message.PatientId,
+                Channel  = message.Channel.ToString(),
+                Status   = message.Status.ToString(),
+                message.CreatedAt,
+                message.SentAt,
+            });
+        })
+        .WithSummary("Get delivery status of a single notification message");
+
+        // ── Delivery analytics ────────────────────────────────────────────────
+        group.MapGet("/analytics/delivery", async (
+            Guid? campaignId,
+            NotificationDbContext db,
+            CancellationToken ct) =>
+        {
+            var query = db.Messages.AsQueryable();
+            if (campaignId.HasValue)
+                query = query.Where(m => m.CampaignId == campaignId.Value);
+
+            var messages = await query.ToListAsync(ct);
+            var total     = messages.Count;
+            var sent      = messages.Count(m => m.Status == MessageStatus.Sent);
+            var delivered = messages.Count(m => m.Status == MessageStatus.Delivered);
+            var failed    = messages.Count(m => m.Status == MessageStatus.Failed);
+            var pending   = messages.Count(m => m.Status == MessageStatus.Pending);
+
+            return Results.Ok(new
+            {
+                Total         = total,
+                Pending       = pending,
+                Sent          = sent,
+                Delivered     = delivered,
+                Failed        = failed,
+                DeliveryRate  = total > 0 ? Math.Round((double)delivered / total * 100, 1) : 0,
+                FailureRate   = total > 0 ? Math.Round((double)failed    / total * 100, 1) : 0,
+            });
+        })
+        .WithSummary("Delivery analytics — sent/delivered/failed breakdown");
+
         group.MapGet("/campaigns", async (
             NotificationDbContext db,
             CancellationToken ct) =>

@@ -58,6 +58,7 @@ app.MapControllers();
 app.MapSubscribeHandler();
 app.MapDefaultEndpoints();
 app.MapRevenueEndpoints();
+app.MapDenialEndpoints();
 
 app.MapPost("/api/v1/revenue/seed", async (RevenueDbContext db) =>
 {

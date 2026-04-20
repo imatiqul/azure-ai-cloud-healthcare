@@ -34,6 +34,7 @@ builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "Schedul
 builder.Services.AddDaprSecretProvider();
 builder.Services.AddEventHubAudit();
 builder.Services.AddDaprClient();
+builder.Services.AddScoped<HealthQCopilot.Scheduling.Services.WaitlistService>();
 
 var app = builder.Build();
 
@@ -51,6 +52,7 @@ app.MapControllers();
 app.MapSubscribeHandler();
 app.MapDefaultEndpoints();
 app.MapSchedulingEndpoints();
+app.MapWaitlistEndpoints();
 
 app.MapPost("/api/v1/scheduling/seed", async (SchedulingDbContext db) =>
 {
