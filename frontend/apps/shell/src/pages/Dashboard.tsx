@@ -16,6 +16,7 @@ import GapAnalysisIcon from '@mui/icons-material/Analytics';
 import CodeIcon from '@mui/icons-material/Code';
 import GavelIcon from '@mui/icons-material/Gavel';
 import { Card, CardContent, SkeletonStatGrid } from '@healthcare/design-system';
+import Alert from '@mui/material/Alert';
 import { useTranslation } from 'react-i18next';
 import { createGlobalHub } from '@healthcare/signalr-client';
 import { WelcomeCard } from '../components/WelcomeCard';
@@ -50,12 +51,13 @@ interface RawDashboardPayload {
   priorAuthsPending?: number;
 }
 
-async function fetchSafe<T>(url: string, fallback: T): Promise<T> {
+async function fetchSafe<T>(url: string, fallback: T, failedUrls?: string[]): Promise<T> {
   try {
-    const res = await fetch(`${API_BASE}${url}`);
-    if (!res.ok) return fallback;
+    const res = await fetch(`${API_BASE}${url}`, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) { failedUrls?.push(url); return fallback; }
     return await res.json();
   } catch {
+    failedUrls?.push(url);
     return fallback;
   }
 }
@@ -161,6 +163,7 @@ export default function Dashboard() {
   const { t } = useTranslation();
   const [stats, setStats] = useState<DashboardStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [visibleSections, setVisibleSections] = useState<DashboardSection[]>(loadVisibleSections); // Phase 37
 
   const applyPushUpdate = useCallback((payload: RawDashboardPayload) => {
@@ -181,13 +184,15 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function loadStats() {
+      const failed: string[] = [];
       const [agents, scheduling, popHealth, revenue] = await Promise.all([
-        fetchSafe('/api/v1/agents/stats',           { pendingTriage: 0, awaitingReview: 0, completed: 0 }),
-        fetchSafe('/api/v1/scheduling/stats',        { availableToday: 0, bookedToday: 0 }),
-        fetchSafe('/api/v1/population-health/stats', { highRiskPatients: 0, openCareGaps: 0 }),
-        fetchSafe('/api/v1/revenue/stats',           { codingQueue: 0, priorAuthsPending: 0 }),
+        fetchSafe('/api/v1/agents/stats',           { pendingTriage: 0, awaitingReview: 0, completed: 0 }, failed),
+        fetchSafe('/api/v1/scheduling/stats',        { availableToday: 0, bookedToday: 0 }, failed),
+        fetchSafe('/api/v1/population-health/stats', { highRiskPatients: 0, openCareGaps: 0 }, failed),
+        fetchSafe('/api/v1/revenue/stats',           { codingQueue: 0, priorAuthsPending: 0 }, failed),
       ]);
       setStats(buildStats(agents, scheduling, popHealth, revenue));
+      setFetchError(failed.length > 0);
       setLoading(false);
     }
     loadStats();
@@ -237,6 +242,11 @@ export default function Dashboard() {
         <Typography variant="h5" fontWeight={700}>{t('dashboard.title', 'Dashboard')}</Typography>
         <DashboardCustomizer onChange={setVisibleSections} />
       </Stack>
+      {fetchError && (
+        <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setFetchError(false)}>
+          Some KPI stats could not be loaded — figures may be incomplete. Data will refresh automatically.
+        </Alert>
+      )}
       <WelcomeCard />
       <Box mb={3}>
         <DashboardQuickActions />

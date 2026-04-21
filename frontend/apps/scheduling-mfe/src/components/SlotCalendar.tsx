@@ -4,6 +4,7 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
 import { emitSlotReserved } from '@healthcare/mfe-events';
 
@@ -20,23 +21,37 @@ interface Slot {
 export function SlotCalendar() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [reserveError, setReserveError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSlots();
   }, [selectedDate]);
 
   async function fetchSlots() {
+    setFetchError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/scheduling/slots?date=${selectedDate}`);
+      const res = await fetch(`${API_BASE}/api/v1/scheduling/slots?date=${selectedDate}`, { signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) throw new Error(`Server error (${res.status})`);
       const data = await res.json();
       setSlots(data);
-    } catch { /* no-op */ }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        setFetchError('Unable to load slots. Please try again.');
+      }
+    }
   }
 
   async function reserveSlot(slotId: string) {
-    await fetch(`${API_BASE}/api/v1/scheduling/slots/${slotId}/reserve`, { method: 'POST' });
-    emitSlotReserved({ slotId });
-    fetchSlots();
+    setReserveError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/scheduling/slots/${slotId}/reserve`, { method: 'POST', signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) throw new Error(`Reservation failed (${res.status})`);
+      emitSlotReserved({ slotId });
+      fetchSlots();
+    } catch (err) {
+      setReserveError('Could not reserve slot. Please try again.');
+    }
   }
 
   return (
@@ -56,7 +71,9 @@ export function SlotCalendar() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {slots.length === 0 ? (
+        {fetchError && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setFetchError(null)}>{fetchError}</Alert>}
+        {reserveError && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setReserveError(null)}>{reserveError}</Alert>}
+        {!fetchError && slots.length === 0 ? (
           <Typography color="text.disabled" textAlign="center" sx={{ py: 4 }}>
             No available slots for this date
           </Typography>

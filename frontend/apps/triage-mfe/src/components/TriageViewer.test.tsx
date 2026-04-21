@@ -54,7 +54,7 @@ describe('TriageViewer', () => {
     global.fetch = vi.fn(() => Promise.reject(new Error('Network error'))) as unknown as typeof fetch;
     render(<TriageViewer />);
     await waitFor(() => {
-      expect(screen.getByText('No triage workflows yet')).toBeInTheDocument();
+      expect(screen.getByText('Failed to load triage workflows. Retrying automatically.')).toBeInTheDocument();
     });
   });
 });

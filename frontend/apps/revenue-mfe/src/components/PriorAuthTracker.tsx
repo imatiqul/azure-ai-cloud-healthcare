@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
 
 interface PriorAuth {
@@ -24,6 +25,8 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_REVEN
 export function PriorAuthTracker() {
   const [auths, setAuths] = useState<PriorAuth[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
 
   const fetchAuths = useCallback(async () => {
     try {
@@ -39,10 +42,13 @@ export function PriorAuthTracker() {
   useEffect(() => { fetchAuths(); }, [fetchAuths]);
 
   const handleSubmit = async (id: string) => {
+    setSubmitError(null);
+    setSubmitSuccess(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/revenue/prior-auths/${id}/submit`, { method: 'POST' });
-      if (res.ok) fetchAuths();
-    } catch { /* silent */ }
+      const res = await fetch(`${API_BASE}/api/v1/revenue/prior-auths/${id}/submit`, { method: 'POST', signal: AbortSignal.timeout(10_000) });
+      if (res.ok) { setSubmitSuccess('Prior auth submitted for review.'); fetchAuths(); }
+      else setSubmitError('Submission failed. Please try again.');
+    } catch { setSubmitError('Network error. Please try again.'); }
   };
 
   function getStatusVariant(status: string) {
@@ -65,11 +71,15 @@ export function PriorAuthTracker() {
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress size={24} />
           </Box>
-        ) : auths.length === 0 ? (
-          <Typography color="text.disabled" textAlign="center" sx={{ py: 4 }}>
-            No prior authorizations
-          </Typography>
         ) : (
+          <>
+            {submitError && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setSubmitError(null)}>{submitError}</Alert>}
+            {submitSuccess && <Alert severity="success" sx={{ mb: 1.5 }} onClose={() => setSubmitSuccess(null)}>{submitSuccess}</Alert>}
+            {auths.length === 0 ? (
+              <Typography color="text.disabled" textAlign="center" sx={{ py: 4 }}>
+                No prior authorizations
+              </Typography>
+            ) : (
           <Stack spacing={1.5}>
             {auths.map((auth) => (
               <Box key={auth.id} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1 }}>
@@ -105,6 +115,8 @@ export function PriorAuthTracker() {
               </Box>
             ))}
           </Stack>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

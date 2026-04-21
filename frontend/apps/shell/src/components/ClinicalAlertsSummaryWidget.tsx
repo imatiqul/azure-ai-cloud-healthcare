@@ -4,6 +4,8 @@ import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
+import Skeleton from '@mui/material/Skeleton';
+import Alert from '@mui/material/Alert';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
@@ -21,14 +23,14 @@ interface AlertCounts {
   nearDeadlineDenials: number;
 }
 
-async function fetchCount(url: string): Promise<number> {
+async function fetchCount(url: string): Promise<{ count: number; ok: boolean }> {
   try {
-    const res = await fetch(url);
-    if (!res.ok) return 0;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return { count: 0, ok: false };
     const data = await res.json();
-    return Array.isArray(data) ? data.length : 0;
+    return { count: Array.isArray(data) ? data.length : 0, ok: true };
   } catch {
-    return 0;
+    return { count: 0, ok: false };
   }
 }
 
@@ -39,22 +41,28 @@ export function ClinicalAlertsSummaryWidget() {
     urgentWaitlist: 0,
     nearDeadlineDenials: 0,
   });
+  const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     async function load() {
+      setLoading(true);
       const [risks, breakGlass, waitlist, denials] = await Promise.all([
         fetchCount(`${API_BASE}/api/v1/population-health/risks?top=20`),
         fetchCount(`${API_BASE}/api/v1/identity/break-glass`),
         fetchCount(`${API_BASE}/api/v1/scheduling/waitlist`),
         fetchCount(`${API_BASE}/api/v1/revenue/denials`),
       ]);
-      setCounts({ criticalRisk: risks, activeBreakGlass: breakGlass, urgentWaitlist: waitlist, nearDeadlineDenials: denials });
+      const anyFailed = [risks, breakGlass, waitlist, denials].some(r => !r.ok);
+      setHasError(anyFailed);
+      setCounts({ criticalRisk: risks.count, activeBreakGlass: breakGlass.count, urgentWaitlist: waitlist.count, nearDeadlineDenials: denials.count });
       // Persist total for the sidebar alert badge (Phase 53)
       try {
-        const total = risks + breakGlass + waitlist + denials;
+        const total = risks.count + breakGlass.count + waitlist.count + denials.count;
         localStorage.setItem('hq:alerts-count', String(total));
         window.dispatchEvent(new CustomEvent('hq:alerts-updated'));
       } catch { /* ignore */ }
+      setLoading(false);
     }
     void load();
   }, []);
@@ -75,13 +83,23 @@ export function ClinicalAlertsSummaryWidget() {
           <Typography variant="subtitle2" fontWeight={700}>
             Clinical Alerts
           </Typography>
-          <Chip
-            label={total}
-            size="small"
-            color={total > 0 ? 'error' : 'default'}
-            sx={{ fontWeight: 700, minWidth: 28 }}
-          />
+          {loading ? (
+            <Skeleton variant="rounded" width={28} height={20} />
+          ) : (
+            <Chip
+              label={total}
+              size="small"
+              color={total > 0 ? 'error' : 'default'}
+              sx={{ fontWeight: 700, minWidth: 28 }}
+            />
+          )}
         </Stack>
+
+        {hasError && (
+          <Alert severity="warning" sx={{ mb: 1 }} onClose={() => setHasError(false)}>
+            Some alert counts could not be loaded.
+          </Alert>
+        )}
 
         <Stack gap={1} divider={<Divider flexItem />}>
           {alertItems.map(item => (
@@ -99,13 +117,17 @@ export function ClinicalAlertsSummaryWidget() {
                   {item.label}
                 </Typography>
               </Stack>
-              <Typography
-                variant="caption"
-                fontWeight={700}
-                color={item.count > 0 ? item.color : 'text.disabled'}
-              >
-                {item.count}
-              </Typography>
+              {loading ? (
+                <Skeleton variant="text" width={20} />
+              ) : (
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color={item.count > 0 ? item.color : 'text.disabled'}
+                >
+                  {item.count}
+                </Typography>
+              )}
             </Stack>
           ))}
         </Stack>

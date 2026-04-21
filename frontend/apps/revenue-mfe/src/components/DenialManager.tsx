@@ -59,6 +59,7 @@ export function DenialManager() {
   const [appealTarget, setAppealTarget] = useState<ClaimDenial | null>(null);
   const [appealNotes, setAppealNotes] = useState('');
   const [submittingAppeal, setSubmittingAppeal] = useState(false);
+  const [appealError, setAppealError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -81,18 +82,23 @@ export function DenialManager() {
   const handleAppeal = async () => {
     if (!appealTarget) return;
     setSubmittingAppeal(true);
+    setAppealError(null);
     try {
       const res = await fetch(`${API_BASE}/api/v1/revenue/denials/${appealTarget.id}/appeal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: appealNotes }),
+        signal: AbortSignal.timeout(10_000),
       });
       if (res.ok) {
         setAppealTarget(null);
         setAppealNotes('');
         fetchData();
+      } else {
+        const msg = await res.text().catch(() => res.statusText);
+        setAppealError(msg || `Appeal submission failed (${res.status})`);
       }
-    } catch { /* silent */ }
+    } catch { setAppealError('Network error. Please try again.'); }
     finally { setSubmittingAppeal(false); }
   };
 
@@ -231,6 +237,7 @@ export function DenialManager() {
                   Appeal deadline in {appealTarget.daysUntilDeadline} day{appealTarget.daysUntilDeadline !== 1 ? 's' : ''}!
                 </Alert>
               )}
+              {appealError && <Alert severity="error" onClose={() => setAppealError(null)}>{appealError}</Alert>}
               <Typography variant="body2" color="text.secondary">
                 CARC {appealTarget.denialReasonCode}: {appealTarget.denialReasonDescription}
               </Typography>

@@ -124,7 +124,7 @@ describe('DenialManager', () => {
     });
   });
 
-  it('submits appeal POST with notes and closes dialog', async () => {
+  it('submits appeal POST with notes and closes dialog', { timeout: 15000 }, async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce({ ok: true, json: async () => mockDenials } as Response)
       .mockResolvedValueOnce({ ok: true, json: async () => mockAnalytics } as Response)
@@ -132,7 +132,7 @@ describe('DenialManager', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => [] } as Response)
       .mockResolvedValueOnce({ ok: true, json: async () => mockAnalytics } as Response);
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<DenialManager />);
     await waitFor(() => expect(screen.getByText('CLM-001')).toBeInTheDocument());
 

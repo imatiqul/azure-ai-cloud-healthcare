@@ -10,6 +10,7 @@ import Select, { type SelectChangeEvent } from '@mui/material/Select';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@healthcare/design-system';
+import Alert from '@mui/material/Alert';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -46,6 +47,8 @@ export function WaitlistPanel() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [conflictResult, setConflictResult] = useState<boolean | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [enqueueSuccess, setEnqueueSuccess] = useState(false);
 
   const [patientId, setPatientId] = useState('');
   const [practitionerId, setPractitionerId] = useState('');
@@ -71,6 +74,8 @@ export function WaitlistPanel() {
     e.preventDefault();
     setSubmitting(true);
     setConflictResult(null);
+    setActionError(null);
+    setEnqueueSuccess(false);
     try {
       const res = await fetch(`${API_BASE}/api/v1/scheduling/waitlist`, {
         method: 'POST',
@@ -82,6 +87,7 @@ export function WaitlistPanel() {
           preferredDateFrom: preferredFrom || null,
           preferredDateTo: preferredTo || null,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
       if (res.ok) {
         setPatientId('');
@@ -89,35 +95,45 @@ export function WaitlistPanel() {
         setPriority(3);
         setPreferredFrom('');
         setPreferredTo('');
+        setEnqueueSuccess(true);
         fetchWaitlist();
+      } else {
+        const msg = await res.text().catch(() => res.statusText);
+        setActionError(msg || `Failed to add to waitlist (${res.status})`);
       }
     } catch {
-      /* silent */
+      setActionError('Could not add to waitlist. Please check your connection and try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleRemove = async (id: string) => {
+    setActionError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/scheduling/waitlist/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/v1/scheduling/waitlist/${id}`, { method: 'DELETE', signal: AbortSignal.timeout(10_000) });
       if (res.ok) fetchWaitlist();
-    } catch { /* silent */ }
+      else setActionError('Could not remove entry. Please try again.');
+    } catch { setActionError('Network error. Please try again.'); }
   };
 
   const handleConflictCheck = async () => {
     if (!patientId || !practitionerId) return;
+    setActionError(null);
     try {
       const res = await fetch(`${API_BASE}/api/v1/scheduling/waitlist/conflict-check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patientId, practitionerId }),
+        signal: AbortSignal.timeout(10_000),
       });
       if (res.ok) {
         const data = await res.json();
         setConflictResult(data.hasConflict ?? false);
+      } else {
+        setActionError('Conflict check failed. Please try again.');
       }
-    } catch { /* silent */ }
+    } catch { setActionError('Network error during conflict check.'); }
   };
 
   return (
@@ -178,6 +194,8 @@ export function WaitlistPanel() {
                   Check Conflict
                 </Button>
               </Stack>
+              {actionError && <Alert severity="error" onClose={() => setActionError(null)}>{actionError}</Alert>}
+              {enqueueSuccess && <Alert severity="success" onClose={() => setEnqueueSuccess(false)}>Patient added to waitlist successfully.</Alert>}
               {conflictResult !== null && (
                 <Typography
                   variant="body2"

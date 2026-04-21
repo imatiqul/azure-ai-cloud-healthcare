@@ -22,6 +22,30 @@ vi.mock('@healthcare/mfe-events', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // jsdom does not implement scrollTo — stub to prevent TypeError in useEffect
+  Element.prototype.scrollTo = vi.fn() as unknown as typeof Element.prototype.scrollTo;
+});
+
+// Mock the web-pubsub-client package
+vi.mock('@healthcare/web-pubsub-client', () => ({
+  createGlobalVoiceClient: vi.fn(() => Promise.resolve({
+    onMessage: vi.fn(),
+    onConnected: vi.fn(),
+    onDisconnected: vi.fn(),
+    start: vi.fn(() => Promise.resolve()),
+    joinSession: vi.fn(() => Promise.resolve()),
+  })),
+  disposeGlobalVoiceClient: vi.fn(() => Promise.resolve()),
+  hasGlobalVoiceClient: vi.fn(() => false),
+}));
+
+// Mock the mfe-events package
+vi.mock('@healthcare/mfe-events', () => ({
+  onAgentDecision: vi.fn(() => vi.fn()),
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
 });
 
 describe('LiveTranscriptFeed', () => {

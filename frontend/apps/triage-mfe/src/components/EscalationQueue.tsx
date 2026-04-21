@@ -115,13 +115,19 @@ export function EscalationQueue() {
   }
 
   if (loading && items.length === 0)
-    return <Typography color="text.secondary">Loading escalation queue…</Typography>;
+    return (
+      <Stack spacing={2}>
+        <Typography variant="h6" fontWeight="bold">Escalation Queue</Typography>
+        <Typography color="text.secondary">Loading escalation queue…</Typography>
+      </Stack>
+    );
 
   if (error)
     return <Alert severity="error">{error}</Alert>;
 
   return (
     <Stack spacing={2}>
+      <Typography variant="h6" fontWeight="bold">Escalation Queue</Typography>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Typography variant="subtitle2" color="text.secondary">
           {items.filter(i => i.status === 'Open').length} open · {items.length} total

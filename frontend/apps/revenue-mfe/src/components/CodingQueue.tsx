@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
 
 interface CodingItem {
@@ -23,6 +24,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_REVEN
 export function CodingQueue() {
   const [items, setItems] = useState<CodingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -38,21 +40,26 @@ export function CodingQueue() {
   useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
   const handleReview = async (item: CodingItem) => {
+    setActionError(null);
     try {
       const res = await fetch(`${API_BASE}/api/v1/revenue/coding-jobs/${item.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ approvedCodes: item.suggestedCodes, reviewedBy: 'current-user' }),
+        signal: AbortSignal.timeout(10_000),
       });
       if (res.ok) fetchJobs();
-    } catch { /* silent */ }
+      else setActionError('Failed to approve codes. Please try again.');
+    } catch { setActionError('Network error. Please try again.'); }
   };
 
   const handleSubmit = async (id: string) => {
+    setActionError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/revenue/coding-jobs/${id}/submit`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/v1/revenue/coding-jobs/${id}/submit`, { method: 'POST', signal: AbortSignal.timeout(10_000) });
       if (res.ok) fetchJobs();
-    } catch { /* silent */ }
+      else setActionError('Failed to submit claim. Please try again.');
+    } catch { setActionError('Network error. Please try again.'); }
   };
 
   function getStatusVariant(status: string) {
@@ -75,11 +82,14 @@ export function CodingQueue() {
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress size={24} />
           </Box>
-        ) : items.length === 0 ? (
-          <Typography color="text.disabled" textAlign="center" sx={{ py: 4 }}>
-            No encounters pending coding
-          </Typography>
         ) : (
+          <>
+            {actionError && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setActionError(null)}>{actionError}</Alert>}
+            {items.length === 0 ? (
+              <Typography color="text.disabled" textAlign="center" sx={{ py: 4 }}>
+                No encounters pending coding
+              </Typography>
+            ) : (
           <Stack spacing={1.5}>
             {items.map((item) => (
               <Box key={item.id} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1 }}>
@@ -112,6 +122,8 @@ export function CodingQueue() {
               </Box>
             ))}
           </Stack>
+        )}
+          </>
         )}
       </CardContent>
     </Card>

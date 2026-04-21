@@ -22,6 +22,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import HistoryIcon from '@mui/icons-material/History';
 import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import Alert from '@mui/material/Alert';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const RECENT_KEY = 'hq:recent-patients';
@@ -72,6 +73,7 @@ export function PatientQuickSearch() {
   const [query, setQuery]     = useState('');
   const [risks, setRisks]     = useState<PatientRisk[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [recent, setRecent]   = useState<string[]>([]);
   const anchorRef = useRef<HTMLButtonElement | null>(null);
   const inputRef  = useRef<HTMLInputElement | null>(null);
@@ -79,9 +81,10 @@ export function PatientQuickSearch() {
 
   const fetchRisks = useCallback(async (search?: string) => {
     setLoading(true);
+    setSearchError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/population-health/risks?top=20`);
-      if (!res.ok) { setRisks([]); return; }
+      const res = await fetch(`${API_BASE}/api/v1/population-health/risks?top=20`, { signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) { setSearchError('Could not load patient data.'); setRisks([]); return; }
       const data: PatientRisk[] = await res.json();
       if (search) {
         const q = search.toLowerCase();
@@ -90,6 +93,7 @@ export function PatientQuickSearch() {
         setRisks(data.slice(0, 8));
       }
     } catch {
+      setSearchError('Search unavailable. Please try again.');
       setRisks([]);
     } finally {
       setLoading(false);
@@ -183,6 +187,13 @@ export function PatientQuickSearch() {
               />
               {loading && <CircularProgress size={14} sx={{ ml: 1, flexShrink: 0 }} />}
             </Box>
+
+            {/* ── Search error ── */}
+            {searchError && (
+              <Alert severity="error" sx={{ mx: 2, my: 1 }} onClose={() => setSearchError(null)}>
+                {searchError}
+              </Alert>
+            )}
 
             {/* ── Recent patients ── */}
             {!query && recent.length > 0 && (

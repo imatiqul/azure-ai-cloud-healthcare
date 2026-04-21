@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@healthcare/design-system';
 import { onSlotReserved, emitBookingCreated } from '@healthcare/mfe-events';
 
@@ -10,6 +11,8 @@ export function BookingForm() {
   const [patientId, setPatientId] = useState('');
   const [practitionerId, setPractitionerId] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     const off = onSlotReserved((e) => {
@@ -20,17 +23,31 @@ export function BookingForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!slotId.trim() || !patientId.trim() || !practitionerId.trim()) {
+      setError('All fields are required.');
+      return;
+    }
+    setError(null);
+    setSuccess(false);
     setSubmitting(true);
     try {
-      await fetch(`${API_BASE}/api/v1/scheduling/bookings`, {
+      const res = await fetch(`${API_BASE}/api/v1/scheduling/bookings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slotId, patientId, practitionerId }),
+        signal: AbortSignal.timeout(10_000),
       });
+      if (!res.ok) {
+        const msg = await res.text().catch(() => res.statusText);
+        throw new Error(msg || `Request failed (${res.status})`);
+      }
       emitBookingCreated({ slotId, patientId });
       setSlotId('');
       setPatientId('');
       setPractitionerId('');
+      setSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Booking failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -47,6 +64,8 @@ export function BookingForm() {
             <Input value={slotId} onChange={(e) => setSlotId(e.target.value)} placeholder="Select a slot" label="Slot ID" required />
             <Input value={patientId} onChange={(e) => setPatientId(e.target.value)} placeholder="Patient ID" label="Patient ID" required />
             <Input value={practitionerId} onChange={(e) => setPractitionerId(e.target.value)} placeholder="Practitioner ID" label="Practitioner ID" required />
+            {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+            {success && <Alert severity="success" onClose={() => setSuccess(false)}>Appointment booked successfully.</Alert>}
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Booking...' : 'Book Appointment'}
             </Button>

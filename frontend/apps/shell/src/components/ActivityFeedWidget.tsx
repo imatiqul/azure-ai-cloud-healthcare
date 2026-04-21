@@ -17,6 +17,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
+import Alert from '@mui/material/Alert';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
@@ -62,26 +63,28 @@ function formatTimeAgo(dateStr: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-async function fetchSafe<T>(url: string, fallback: T): Promise<T> {
+async function fetchSafe<T>(url: string, fallback: T, failedSources?: string[], sourceName?: string): Promise<T> {
   try {
-    const res = await fetch(`${API_BASE}${url}`);
-    if (!res.ok) return fallback;
+    const res = await fetch(`${API_BASE}${url}`, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) { if (failedSources && sourceName) failedSources.push(sourceName); return fallback; }
     return res.json() as Promise<T>;
   } catch {
+    if (failedSources && sourceName) failedSources.push(sourceName);
     return fallback;
   }
 }
 
-async function buildFeed(): Promise<ActivityEvent[]> {
+async function buildFeed(): Promise<{ events: ActivityEvent[]; failedSources: string[] }> {
+  const failedSources: string[] = [];
   const [risks, triage, appointments, denials] = await Promise.all([
     fetchSafe<Array<{ patientId: string; riskLevel: string; assessedAt?: string }>>(
-      '/api/v1/population-health/risks?top=5', []),
+      '/api/v1/population-health/risks?top=5', [], failedSources, 'Population Health'),
     fetchSafe<{ pendingTriage?: number; awaitingReview?: number; completed?: number }>(
-      '/api/v1/agents/stats', {}),
+      '/api/v1/agents/stats', {}, failedSources, 'Triage'),
     fetchSafe<Array<{ id: string; patientId?: string; bookedAt?: string }>>(
-      '/api/v1/scheduling/appointments?top=5', []),
+      '/api/v1/scheduling/appointments?top=5', [], failedSources, 'Scheduling'),
     fetchSafe<Array<{ id: string; claimNumber: string; payerName: string; appealDeadline?: string; denialStatus?: string }>>(
-      '/api/v1/revenue/denials?top=5', []),
+      '/api/v1/revenue/denials?top=5', [], failedSources, 'Revenue'),
   ]);
 
   const events: ActivityEvent[] = [];
@@ -142,9 +145,12 @@ async function buildFeed(): Promise<ActivityEvent[]> {
   }
 
   // Sort descending by timestamp and cap to MAX_ITEMS
-  return events
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, MAX_ITEMS);
+  return {
+    events: events
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, MAX_ITEMS),
+    failedSources,
+  };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -152,11 +158,13 @@ async function buildFeed(): Promise<ActivityEvent[]> {
 export function ActivityFeedWidget() {
   const [events,  setEvents]  = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failedSources, setFailedSources] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const feed = await buildFeed();
-    setEvents(feed);
+    const result = await buildFeed();
+    setEvents(result.events);
+    setFailedSources(result.failedSources);
     setLoading(false);
   }, []);
 
@@ -180,16 +188,23 @@ export function ActivityFeedWidget() {
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
             <CircularProgress size={24} />
           </Box>
-        ) : events.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-            No recent activity
-          </Typography>
         ) : (
-          <Stack gap={0.5} divider={<Divider flexItem />}>
-            {events.map(ev => {
-              const meta = EVENT_META[ev.type];
-              return (
-                <Box
+          <>
+            {failedSources.length > 0 && (
+              <Alert severity="warning" sx={{ mb: 1 }} onClose={() => setFailedSources([])}>
+                Could not load data from: {failedSources.join(', ')}
+              </Alert>
+            )}
+            {events.length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                No recent activity
+              </Typography>
+            ) : (
+              <Stack gap={0.5} divider={<Divider flexItem />}>
+                {events.map(ev => {
+                  const meta = EVENT_META[ev.type];
+                  return (
+                    <Box
                   key={ev.id}
                   component={Link}
                   to={ev.href}
@@ -241,8 +256,10 @@ export function ActivityFeedWidget() {
                   </Box>
                 </Box>
               );
-            })}
-          </Stack>
+                })}
+              </Stack>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

@@ -40,17 +40,12 @@ describe('HitlEscalationModal', () => {
     expect(screen.getByText(/Chest pain with ST elevation/)).toBeInTheDocument();
   });
 
-  it('requires a note before approving — shows error without note', async () => {
+  it('requires a note before approving — approve button disabled without note', () => {
     global.fetch = vi.fn() as unknown as typeof fetch;
-    const user = userEvent.setup();
     render(<HitlEscalationModal {...defaultProps} />);
 
     const approveBtn = screen.getByRole('button', { name: /approve/i });
-    await user.click(approveBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText(/clinical justification note is required/i)).toBeInTheDocument();
-    });
+    expect(approveBtn).toBeDisabled();
     expect(global.fetch).not.toHaveBeenCalled();
   });
 

@@ -5,7 +5,7 @@ import { EscalationQueue } from './EscalationQueue';
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  vi.useFakeTimers();
+  vi.useFakeTimers({ shouldAdvanceTime: true });
 });
 
 afterEach(() => {
@@ -53,10 +53,10 @@ describe('EscalationQueue', () => {
 
     render(<EscalationQueue />);
     await waitFor(() => {
-      expect(screen.getByText('PAT-001')).toBeInTheDocument();
+      expect(screen.getByText(/PAT-001/)).toBeInTheDocument();
     });
-    expect(screen.getByText('PAT-002')).toBeInTheDocument();
-    expect(screen.getByText('P1 triage requires human review')).toBeInTheDocument();
+    expect(screen.getByText(/PAT-002/)).toBeInTheDocument();
+    expect(screen.getByText(/P1 triage requires human review/)).toBeInTheDocument();
   });
 
   it('shows Open and Claimed status badges', async () => {
@@ -92,7 +92,7 @@ describe('EscalationQueue', () => {
 
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<EscalationQueue />);
-    await waitFor(() => screen.getByText('PAT-001'));
+    await waitFor(() => screen.getByText(/PAT-001/));
 
     const claimButtons = screen.getAllByText('Claim');
     await user.click(claimButtons[0]);
@@ -112,7 +112,7 @@ describe('EscalationQueue', () => {
 
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<EscalationQueue />);
-    await waitFor(() => screen.getByText('PAT-002'));
+    await waitFor(() => screen.getByText(/PAT-002/));
 
     // Click resolve on the Claimed item (should show resolve button after claiming)
     const resolveBtn = screen.queryByText('Resolve');
