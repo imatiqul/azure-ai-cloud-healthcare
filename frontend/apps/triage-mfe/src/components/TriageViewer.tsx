@@ -135,7 +135,7 @@ export function TriageViewer() {
       {showEscalation && selectedWorkflow && (
         <HitlEscalationModal
           workflowId={selectedWorkflow}
-          triageLevel={workflows.find(w => w.id === selectedWorkflow)?.assignedLevel}
+          triageLevel={workflows.find(w => w.id === selectedWorkflow)?.triageLevel}
           agentReasoning={workflows.find(w => w.id === selectedWorkflow)?.agentReasoning}
           onApprove={() => { setShowEscalation(false); fetchWorkflows(); }}
           onClose={() => setShowEscalation(false)}
