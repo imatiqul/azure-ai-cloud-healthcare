@@ -114,7 +114,8 @@ describe('BreakGlassAccessPanel', () => {
     await user.type(screen.getByLabelText(/requesting user id/i), 'user-aaa');
     await user.type(screen.getByLabelText(/target patient id/i), 'patient-bbb');
     await user.type(screen.getByLabelText(/clinical justification/i), 'Patient unconscious, need emergency medical history access');
-    await user.click(screen.getByText('Request Access', { selector: 'button' }));
+    const requestBtns = screen.getAllByText('Request Access', { selector: 'button' });
+    await user.click(requestBtns[requestBtns.length - 1]);
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(

@@ -61,8 +61,10 @@ describe('ExperimentSummaryPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Fetch Summary' }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Sample size:.*120/)).toBeInTheDocument();
-      expect(screen.getByText(/Sample size:.*118/)).toBeInTheDocument();
+      // "Sample size:" label and the number are split across text-node + <strong>
+      // so query the <strong> values directly
+      expect(screen.getByText('120')).toBeInTheDocument();
+      expect(screen.getByText('118')).toBeInTheDocument();
     });
   });
 

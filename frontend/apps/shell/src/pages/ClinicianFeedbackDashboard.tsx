@@ -296,7 +296,7 @@ export default function ClinicianFeedbackDashboard() {
 
             <Box>
               <Button
-                variant="primary"
+                variant="default"
                 onClick={handleSubmit}
                 disabled={submitting || !canSubmit}
               >

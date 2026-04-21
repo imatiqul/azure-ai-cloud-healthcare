@@ -30,7 +30,7 @@ const sizeMapping: Record<SizeMap, MuiButtonProps['size']> = {
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = 'default', size = 'default', loading = false, disabled, sx, children, startIcon, ...props }, ref) => {
-    const mapped = variantMapping[variant];
+    const mapped = variantMapping[variant] ?? variantMapping.default;
     return (
       <MuiButton
         ref={ref}

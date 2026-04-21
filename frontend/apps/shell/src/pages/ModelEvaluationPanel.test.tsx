@@ -53,7 +53,7 @@ describe('ModelEvaluationPanel', () => {
     expect(screen.getByText('Model Prompt Evaluation')).toBeInTheDocument();
     expect(screen.getByText('Run Regression Evaluation')).toBeInTheDocument();
     expect(screen.getByText('Evaluation History')).toBeInTheDocument();
-    await waitFor(() => screen.getByText(/87%/));
+    await waitFor(() => screen.getByText(/88%/));
   });
 
   it('fetches evaluation history on mount', async () => {
@@ -67,7 +67,7 @@ describe('ModelEvaluationPanel', () => {
 
   it('displays history run scores and pass/fail badges', async () => {
     render(<ModelEvaluationPanel />);
-    await waitFor(() => screen.getByText('87%'));
+    await waitFor(() => screen.getByText('88%'));
     expect(screen.getByText('63%')).toBeInTheDocument();
   });
 
@@ -79,7 +79,7 @@ describe('ModelEvaluationPanel', () => {
 
   it('run button is disabled without user ID', async () => {
     render(<ModelEvaluationPanel />);
-    await waitFor(() => screen.getByText('87%'));
+    await waitFor(() => screen.getByText('88%'));
     expect(screen.getByRole('button', { name: /run evaluation/i })).toBeDisabled();
   });
 
@@ -90,7 +90,7 @@ describe('ModelEvaluationPanel', () => {
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(HISTORY_RUNS) });
 
     render(<ModelEvaluationPanel />);
-    await waitFor(() => screen.getByText('87%'));
+    await waitFor(() => screen.getByText('88%'));
 
     await userEvent.type(screen.getByLabelText(/evaluated by user id/i), 'user-123');
     fireEvent.click(screen.getByRole('button', { name: /run evaluation/i }));

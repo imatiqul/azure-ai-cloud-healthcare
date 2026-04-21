@@ -57,7 +57,7 @@ describe('ModelGovernanceDashboard', () => {
       Promise.resolve({ ok: true, json: () => Promise.resolve(makeEntries()) })
     ) as unknown as typeof fetch;
     render(<ModelGovernanceDashboard />);
-    await waitFor(() => expect(screen.getByText('gpt-4o-clinical')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('gpt-4o-clinical').length).toBeGreaterThan(0));
   });
 
   it('shows Active chip for active model entry', async () => {

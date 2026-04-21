@@ -8,6 +8,19 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => ({
+      'copilot.title': 'AI Clinical Workflow Guide',
+      'copilot.subtitle': 'Powered by HealthQ AI',
+      'copilot.greeting': "I'm your HealthQ Copilot. How can I help?",
+      'copilot.tryOne': 'Try one of these:',
+      'copilot.send': 'Send',
+      'copilot.inputPlaceholder': 'Ask anything…',
+    }[key] ?? key),
+  }),
+}));
+
 beforeEach(() => {
   vi.restoreAllMocks();
   mockNavigate.mockClear();

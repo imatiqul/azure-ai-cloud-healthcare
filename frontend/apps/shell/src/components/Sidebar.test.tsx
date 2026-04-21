@@ -33,8 +33,8 @@ function renderSidebar(initialPath = '/') {
 describe('Sidebar', () => {
   it('renders the brand heading', () => {
     renderSidebar();
-    expect(screen.getByText('Healthcare AI')).toBeInTheDocument();
-    expect(screen.getByText('Clinical Platform')).toBeInTheDocument();
+    expect(screen.getByText('HealthQ')).toBeInTheDocument();
+    expect(screen.getByText('Copilot')).toBeInTheDocument();
   });
 
   it('renders all 8 navigation items', () => {

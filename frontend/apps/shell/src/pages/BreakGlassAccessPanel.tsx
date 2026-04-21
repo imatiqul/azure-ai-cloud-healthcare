@@ -197,7 +197,7 @@ export default function BreakGlassAccessPanel() {
                       {!a.isRevoked && !isExpired(a.expiresAt) && (
                         <Button
                           size="small"
-                          variant="outlined"
+                          variant="outline"
                           onClick={() => revokeAccess(a.id)}
                           disabled={revokingId === a.id}
                           aria-label={`revoke access ${a.id}`}
@@ -262,7 +262,7 @@ export default function BreakGlassAccessPanel() {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={() => setRequestOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setRequestOpen(false)}>Cancel</Button>
           <Button onClick={requestAccess} disabled={!canRequest || requesting}>
             {requesting ? <CircularProgress size={16} /> : 'Request Access'}
           </Button>

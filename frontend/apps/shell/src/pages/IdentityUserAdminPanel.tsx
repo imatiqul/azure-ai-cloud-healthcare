@@ -216,7 +216,7 @@ export default function IdentityUserAdminPanel() {
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
                         <Button
                           size="small"
-                          variant="outlined"
+                          variant="outline"
                           onClick={() => {
                             setEditUser(u);
                             setEditForm({ email: u.email, fullName: u.displayName });
@@ -227,7 +227,7 @@ export default function IdentityUserAdminPanel() {
                         {u.isActive && (
                           <Button
                             size="small"
-                            variant="outlined"
+                            variant="outline"
                             onClick={() => deactivateUser(u.id)}
                             disabled={deactivatingId === u.id}
                             aria-label={`deactivate ${u.email}`}
@@ -293,7 +293,7 @@ export default function IdentityUserAdminPanel() {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={() => setCreateOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
           <Button onClick={createUser} disabled={!canCreate || creating}>
             {creating ? <CircularProgress size={16} /> : 'Create User'}
           </Button>
@@ -325,7 +325,7 @@ export default function IdentityUserAdminPanel() {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={() => setEditUser(null)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setEditUser(null)}>Cancel</Button>
           <Button onClick={saveEdit} disabled={saving}>
             {saving ? <CircularProgress size={16} /> : 'Save Changes'}
           </Button>

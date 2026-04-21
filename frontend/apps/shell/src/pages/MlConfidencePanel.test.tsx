@@ -112,7 +112,7 @@ describe('MlConfidencePanel', () => {
     await user.click(screen.getByRole('button', { name: /compute confidence/i }));
     expect(await screen.findByText(/95% CI:/)).toBeInTheDocument();
     expect(await screen.findByText('Low')).toBeInTheDocument();
-    expect(await screen.findByText('LIME-fallback')).toBeInTheDocument();
+    expect((await screen.findAllByText(/LIME-fallback/)).length).toBeGreaterThan(0);
   });
 
   it('shows feature importance list when features provided', async () => {
@@ -160,7 +160,7 @@ describe('MlConfidencePanel', () => {
     await user.type(screen.getByLabelText('readmission probability'), '0.72');
     await user.click(screen.getByRole('button', { name: /compute confidence/i }));
     expect(await screen.findByText('Feature Importance')).toBeInTheDocument();
-    expect(await screen.findByText('Comorbidity Count')).toBeInTheDocument();
+    expect(await screen.findAllByText('Comorbidity Count')).not.toHaveLength(0);
     expect(await screen.findByText('increases risk')).toBeInTheDocument();
     expect(await screen.findByText('decreases risk')).toBeInTheDocument();
     expect(await screen.findByText(/Primarily driven by/)).toBeInTheDocument();

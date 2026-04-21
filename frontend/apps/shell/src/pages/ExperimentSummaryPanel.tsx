@@ -84,7 +84,7 @@ export default function ExperimentSummaryPanel() {
               inputProps={{ 'aria-label': 'experiment id' }}
             />
             <Button
-              variant="primary"
+              variant="default"
               onClick={handleLookup}
               disabled={loading || !canLookup}
             >
