@@ -1,4 +1,4 @@
-﻿{
+{
     "name":  "voice-mfe",
     "version":  "0.1.0",
     "private":  true,
@@ -14,8 +14,8 @@
                          "@healthcare/design-system":  "workspace:*",
                          "@healthcare/fhir-types":  "workspace:*",
                          "@healthcare/web-pubsub-client":  "workspace:*",
-                         "react":  "^19.0.0",
-                         "react-dom":  "^19.0.0",
+                         "react":  "^19.2.5",
+                         "react-dom":  "^19.2.5",
                          "zustand":  "^5.0.0",
                          "@healthcare/mfe-events":  "workspace:*"
                      },
