@@ -33,6 +33,7 @@ import { SidebarMenuButton } from './Sidebar';
 import { useTranslation } from 'react-i18next';
 import { ContextualHelpPanel } from './ContextualHelpPanel'; // Phase 37
 import { WhatsNewPanel, useWhatsNewBadge } from './WhatsNewPanel'; // Phase 38
+import { PatientQuickSearch } from './PatientQuickSearch'; // Phase 47
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -191,6 +192,9 @@ export function TopNav({ onOpenSearch }: TopNavProps) {
               <SearchIcon fontSize="small" />
             </IconButton>
           </Tooltip>
+
+          {/* Patient quick search (Phase 47) */}
+          <PatientQuickSearch />
 
           {/* Colour-mode toggle */}
           <Tooltip title={mode === 'dark' ? t('topnav.lightMode', 'Light mode') : t('topnav.darkMode', 'Dark mode')}>

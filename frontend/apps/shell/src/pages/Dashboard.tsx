@@ -23,6 +23,7 @@ import { RecentPagesWidget } from '../components/RecentPagesWidget'; // Phase 35
 import { FavoritePagesWidget } from '../components/FavoritePagesWidget'; // Phase 36
 import { DashboardCustomizer, loadVisibleSections, type DashboardSection } from '../components/DashboardCustomizer'; // Phase 37
 import { ClinicalAlertsSummaryWidget } from '../components/ClinicalAlertsSummaryWidget'; // Phase 41
+import { DashboardQuickActions } from '../components/DashboardQuickActions'; // Phase 47
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -236,6 +237,9 @@ export default function Dashboard() {
         <DashboardCustomizer onChange={setVisibleSections} />
       </Stack>
       <WelcomeCard />
+      <Box mb={3}>
+        <DashboardQuickActions />
+      </Box>
       <Grid container spacing={3}>
         <Grid item xs={12} md={9}>
           <Stack spacing={4}>
