@@ -38,7 +38,6 @@ jobs:
       - name: Check ACA service health
         id: aca-health
         run: |
-          set -e
           SERVICES=(voice ai-agent fhir identity ocr scheduling notification pop-health revenue gateway)
           ACA_RG="${{ env.ACA_RESOURCE_GROUP }}"
 
@@ -91,6 +90,7 @@ jobs:
       # ── Gateway + Service Smoke Probes ───────────────────────────────────────
       - name: Gateway and service smoke probes
         id: smoke-probes
+        if: always()
         run: |
           GATEWAY="${{ env.GATEWAY_URL }}"
 
@@ -142,6 +142,7 @@ jobs:
       # ── SWA Availability ─────────────────────────────────────────────────────
       - name: SWA availability checks
         id: swa-checks
+        if: always()
         run: |
           echo "## Frontend SWA Availability" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
