@@ -76,4 +76,31 @@ describe('OnboardingWizard', () => {
     markOnboardingComplete();
     expect(isOnboardingComplete()).toBe(true);
   });
+
+  it('final step shows Get Started and finishes onboarding on click', () => {
+    renderWizard();
+    // Navigate through all 4 "Next" clicks to reach final step
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(screen.getByRole('button', { name: 'Next step' }));
+    }
+    // Final step button label changes to "Get Started"
+    expect(screen.getByRole('button', { name: 'Finish onboarding' })).toBeInTheDocument();
+    expect(screen.getByText("You're all set!")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Finish onboarding' }));
+    // Dialog closes after finishing
+    expect(screen.queryByLabelText('Onboarding wizard')).not.toBeInTheDocument();
+    expect(isOnboardingComplete()).toBe(true);
+  });
+
+  it('action button on a non-final step navigates and closes wizard', () => {
+    renderWizard();
+    // Navigate to step 1 (AI Triage) which has an action button
+    fireEvent.click(screen.getByRole('button', { name: 'Next step' }));
+    expect(screen.getByText('AI-Powered Clinical Triage')).toBeInTheDocument();
+    // Click the quick-nav action button
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Triage' }));
+    // Wizard closes
+    expect(screen.queryByLabelText('Onboarding wizard')).not.toBeInTheDocument();
+    expect(isOnboardingComplete()).toBe(true);
+  });
 });

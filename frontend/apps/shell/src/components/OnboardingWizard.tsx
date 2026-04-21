@@ -129,11 +129,9 @@ export function OnboardingWizard() {
   }
 
   function handleActionNav() {
-    if (current.action) {
-      markOnboardingComplete();
-      setOpen(false);
-      navigate(current.action.href);
-    }
+    markOnboardingComplete();
+    setOpen(false);
+    navigate(current.action!.href);
   }
 
   return (

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { WhatsNewPanel, RELEASES, CURRENT_VERSION, countUnseenFeatures } from './WhatsNewPanel';
+import { renderHook } from '@testing-library/react';
+import { WhatsNewPanel, RELEASES, CURRENT_VERSION, countUnseenFeatures, useWhatsNewBadge } from './WhatsNewPanel';
 
 vi.mock('@healthcare/design-system', () => ({
   SkeletonStatGrid: () => null,
@@ -87,5 +88,21 @@ describe('countUnseenFeatures', () => {
     localStorage.setItem(SEEN_KEY, 'v37');
     const v38Features = RELEASES.find(r => r.version === 'v38')!.features.length;
     expect(countUnseenFeatures()).toBe(v38Features);
+  });
+});
+
+// ── useWhatsNewBadge hook tests ───────────────────────────────────────────────
+
+describe('useWhatsNewBadge', () => {
+  it('returns total unseen count when nothing has been seen', () => {
+    const total = RELEASES.reduce((acc, r) => acc + r.features.length, 0);
+    const { result } = renderHook(() => useWhatsNewBadge());
+    expect(result.current).toBe(total);
+  });
+
+  it('returns 0 when current version is already seen', () => {
+    localStorage.setItem(SEEN_KEY, CURRENT_VERSION);
+    const { result } = renderHook(() => useWhatsNewBadge());
+    expect(result.current).toBe(0);
   });
 });
