@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Sidebar, SidebarProvider } from './Sidebar';
 
@@ -18,6 +18,7 @@ vi.mock('@mui/material', async (importOriginal) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
 });
 
 function renderSidebar(initialPath = '/') {
@@ -74,5 +75,43 @@ describe('Sidebar', () => {
       el.getAttribute('href') === '/patient-portal'
     );
     expect(patientPortalLink).toBeDefined();
+  });
+
+  it('admin group starts collapsed — admin links are not visible', () => {
+    renderSidebar();
+    // /admin/users is inside the admin group which starts collapsed
+    const adminUsersLink = screen.queryAllByRole('link').find(el =>
+      el.getAttribute('href') === '/admin/users'
+    );
+    expect(adminUsersLink).toBeUndefined();
+  });
+
+  it('clicking admin group header expands admin items', () => {
+    renderSidebar();
+    const adminToggle = screen.getByRole('button', { name: /toggle admin section/i });
+    fireEvent.click(adminToggle);
+    const adminUsersLink = screen.getAllByRole('link').find(el =>
+      el.getAttribute('href') === '/admin/users'
+    );
+    expect(adminUsersLink).toBeDefined();
+  });
+
+  it('shows unread notification badge when there are unread notifications', () => {
+    localStorage.setItem(
+      'hq:notification-history',
+      JSON.stringify([{ read: false }, { read: false }, { read: true }])
+    );
+    renderSidebar();
+    // Badge renders the count as text — 2 unread
+    expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  it('shows no notification badge when all notifications are read', () => {
+    localStorage.setItem(
+      'hq:notification-history',
+      JSON.stringify([{ read: true }, { read: true }])
+    );
+    renderSidebar();
+    expect(screen.queryByText(/^[0-9]+$|^99\+$/)).not.toBeInTheDocument();
   });
 });

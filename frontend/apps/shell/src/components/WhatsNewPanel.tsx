@@ -21,7 +21,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-export const CURRENT_VERSION = 'v49';
+export const CURRENT_VERSION = 'v51';
 const SEEN_KEY = 'hq:whats-new-seen';
 
 interface FeatureEntry {
@@ -37,6 +37,26 @@ interface Release {
 }
 
 export const RELEASES: Release[] = [
+  {
+    version: 'v51',
+    title:   'Collapsible Navigation & Smart Badges',
+    date:    'June 2026',
+    features: [
+      { title: 'Collapsible sidebar groups',      description: 'Every navigation group now has an expand/collapse toggle. The Admin section (12 items) starts collapsed by default so clinical staff see only what they need — your preferences persist across sessions.' },
+      { title: 'Live unread notification badge',  description: 'The Notifications link shows a red badge count of unread alerts, updating in real time as new notifications arrive or are cleared.' },
+      { title: 'Version footer bump',             description: 'Platform footer updated to v2.51 reflecting all Phase 51 UX improvements.' },
+    ],
+  },
+  {
+    version: 'v50',
+    title:   'E2E Test Reliability',
+    date:    'May 2026',
+    features: [
+      { title: 'CI preview mode for Playwright',  description: 'GitHub Actions now serves pre-built assets via Vite preview instead of dev server, making E2E tests faster and more reliable.' },
+      { title: 'Graceful skip for backend tests', description: 'API and MFE contract E2E tests skip automatically when backend services are unreachable, eliminating false failures in frontend-only CI runs.' },
+      { title: 'Fixed TopNav title assertion',    description: 'E2E navigation test updated to match the actual platform title “HealthQ Copilot” rendered in the top navigation bar.' },
+    ],
+  },
   {
     version: 'v49',
     title:   'Global Patient Context',

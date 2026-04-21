@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import List from '@mui/material/List';
@@ -10,10 +10,13 @@ import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
+import Badge from '@mui/material/Badge';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import MicIcon from '@mui/icons-material/Mic';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
@@ -46,6 +49,44 @@ import { FavoriteStar } from './FavoritePagesWidget'; // Phase 36
 
 const SIDEBAR_WIDTH = 256;
 const SIDEBAR_COLLAPSED = 64;
+const GROUPS_STORAGE_KEY = 'hq:sidebar-groups';
+const NOTIF_STORAGE_KEY  = 'hq:notification-history';
+
+function defaultExpanded(): Record<string, boolean> {
+  return {
+    'nav.group.main':        true,
+    'nav.group.business':    true,
+    'nav.group.clinical':    true,
+    'nav.group.analytics':   true,
+    'nav.group.patient':     true,
+    'nav.group.governance':  true,
+    'nav.group.admin':       false, // Admin starts collapsed — 12 items, not always needed
+  };
+}
+
+function useUnreadCount(): number {
+  const [count, setCount] = useState<number>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(NOTIF_STORAGE_KEY) ?? '[]') as Array<{ read: boolean }>;
+      return stored.filter(n => !n.read).length;
+    } catch { return 0; }
+  });
+  useEffect(() => {
+    const refresh = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem(NOTIF_STORAGE_KEY) ?? '[]') as Array<{ read: boolean }>;
+        setCount(stored.filter(n => !n.read).length);
+      } catch { setCount(0); }
+    };
+    window.addEventListener('storage', refresh);
+    window.addEventListener('hq:notifications-updated', refresh);
+    return () => {
+      window.removeEventListener('storage', refresh);
+      window.removeEventListener('hq:notifications-updated', refresh);
+    };
+  }, []);
+  return count;
+}
 
 // ── Sidebar context ──────────────────────────────────────────────────────────
 
@@ -54,6 +95,8 @@ interface SidebarContextValue {
   collapsed: boolean;
   toggleMobile: () => void;
   toggleCollapse: () => void;
+  expandedGroups: Record<string, boolean>;
+  toggleGroup: (key: string) => void;
 }
 
 const SidebarContext = createContext<SidebarContextValue>({
@@ -61,6 +104,8 @@ const SidebarContext = createContext<SidebarContextValue>({
   collapsed: false,
   toggleMobile: () => {},
   toggleCollapse: () => {},
+  expandedGroups: {},
+  toggleGroup: () => {},
 });
 
 export function useSidebar() {
@@ -70,10 +115,23 @@ export function useSidebar() {
 export function SidebarProvider({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen]   = useState(false);
   const [collapsed,  setCollapsed]    = useState(false);
-  const toggleMobile  = () => setMobileOpen(prev => !prev);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(GROUPS_STORAGE_KEY);
+      return saved ? { ...defaultExpanded(), ...JSON.parse(saved) } : defaultExpanded();
+    } catch { return defaultExpanded(); }
+  });
+  const toggleMobile   = () => setMobileOpen(prev => !prev);
   const toggleCollapse = () => setCollapsed(prev => !prev);
+  const toggleGroup    = (key: string) => {
+    setExpandedGroups(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
   return (
-    <SidebarContext.Provider value={{ mobileOpen, collapsed, toggleMobile, toggleCollapse }}>
+    <SidebarContext.Provider value={{ mobileOpen, collapsed, toggleMobile, toggleCollapse, expandedGroups, toggleGroup }}>
       {children}
     </SidebarContext.Provider>
   );
@@ -161,8 +219,9 @@ const groupLabels: Record<string, string> = {
 function SidebarContent({ onClose, collapsed = false }: { onClose?: () => void; collapsed?: boolean }) {
   const { pathname } = useLocation();
   const { t } = useTranslation();
-  const { toggleCollapse } = useSidebar();
+  const { toggleCollapse, expandedGroups, toggleGroup } = useSidebar();
   const theme = useTheme();
+  const unreadCount = useUnreadCount();
 
   return (
     <Box sx={{ width: collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_WIDTH, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', transition: 'width 0.22s ease' }}>
@@ -203,77 +262,112 @@ function SidebarContent({ onClose, collapsed = false }: { onClose?: () => void; 
 
       {/* ── Nav groups ── */}
       <Box sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', py: 1 }}>
-        {navGroups.map((group, gi) => (
-          <Box key={group.groupKey}>
-            {gi > 0 && !collapsed && (
-              <Typography
-                variant="caption"
-                fontWeight={600}
-                color="text.disabled"
-                sx={{ px: 2, pt: 1.5, pb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.65rem' }}
-              >
-                {groupLabels[group.groupKey]}
-              </Typography>
-            )}
-            {gi > 0 && collapsed && <Divider sx={{ my: 0.75, mx: 1 }} />}
-            <List dense disablePadding sx={{ px: collapsed ? 0.75 : 1 }}>
-              {group.items.map((item) => {
-                const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-                const btn = (
-                  <ListItemButton
-                    key={item.href}
-                    component={Link}
-                    to={item.href}
-                    selected={isActive}
-                    onClick={onClose}
-                    sx={{
-                      borderRadius: 2,
-                      mb: 0.25,
-                      minHeight: 40,
-                      justifyContent: collapsed ? 'center' : 'flex-start',
-                      px: collapsed ? 1 : 1.5,
-                      position: 'relative',
-                      '&.Mui-selected': {
-                        bgcolor: 'primary.main',
-                        color: 'primary.contrastText',
-                        '& .MuiListItemIcon-root': { color: 'primary.contrastText' },
-                        '&:hover': { bgcolor: 'primary.dark' },
-                      },
-                      '&:not(.Mui-selected):hover': {
-                        bgcolor: 'action.hover',
-                      },
-                    }}
+        {navGroups.map((group, gi) => {
+          const isGroupMain = group.groupKey === 'nav.group.main';
+          const isExpanded  = collapsed || isGroupMain || (expandedGroups[group.groupKey] !== false);
+          return (
+            <Box key={group.groupKey}>
+              {gi > 0 && !collapsed && (
+                <Box
+                  component="button"
+                  onClick={() => !isGroupMain && toggleGroup(group.groupKey)}
+                  aria-expanded={isExpanded}
+                  aria-label={`Toggle ${groupLabels[group.groupKey]} section`}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    px: 2,
+                    pt: 1.5,
+                    pb: 0.5,
+                    border: 'none',
+                    background: 'none',
+                    cursor: isGroupMain ? 'default' : 'pointer',
+                    color: 'text.disabled',
+                    '&:hover': isGroupMain ? {} : { color: 'text.secondary' },
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    fontWeight={600}
+                    sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.65rem', color: 'inherit' }}
                   >
-                    <ListItemIcon sx={{ minWidth: collapsed ? 0 : 36, mr: collapsed ? 0 : 0, color: isActive ? 'inherit' : 'text.secondary', '& svg': { fontSize: 20 } }}>
-                      {item.icon}
-                    </ListItemIcon>
-                    {!collapsed && (
-                      <>
-                        <ListItemText
-                          primary={t(item.labelKey, item.label)}
-                          primaryTypographyProps={{ fontSize: 13.5, fontWeight: isActive ? 600 : 400 }}
-                        />
-                        <FavoriteStar href={item.href} label={t(item.labelKey, item.label)} />
-                      </>
-                    )}
-                  </ListItemButton>
-                );
-                return collapsed ? (
-                  <Tooltip key={item.href} title={t(item.labelKey, item.label)} placement="right">
-                    <span>{btn}</span>
-                  </Tooltip>
-                ) : btn;
-              })}
-            </List>
-          </Box>
-        ))}
+                    {groupLabels[group.groupKey]}
+                  </Typography>
+                  {!isGroupMain && (
+                    isExpanded
+                      ? <ExpandLessIcon sx={{ fontSize: 14 }} />
+                      : <ExpandMoreIcon sx={{ fontSize: 14 }} />
+                  )}
+                </Box>
+              )}
+              {gi > 0 && collapsed && <Divider sx={{ my: 0.75, mx: 1 }} />}
+              {isExpanded && (
+                <List dense disablePadding sx={{ px: collapsed ? 0.75 : 1 }}>
+                  {group.items.map((item) => {
+                    const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                    const isNotificationsItem = item.href === '/notifications';
+                    const iconEl = isNotificationsItem && unreadCount > 0
+                      ? <Badge badgeContent={unreadCount > 99 ? '99+' : unreadCount} color="error" sx={{ '& .MuiBadge-badge': { fontSize: 10, height: 16, minWidth: 16 } }}>{item.icon}</Badge>
+                      : item.icon;
+                    const btn = (
+                      <ListItemButton
+                        key={item.href}
+                        component={Link}
+                        to={item.href}
+                        selected={isActive}
+                        onClick={onClose}
+                        sx={{
+                          borderRadius: 2,
+                          mb: 0.25,
+                          minHeight: 40,
+                          justifyContent: collapsed ? 'center' : 'flex-start',
+                          px: collapsed ? 1 : 1.5,
+                          position: 'relative',
+                          '&.Mui-selected': {
+                            bgcolor: 'primary.main',
+                            color: 'primary.contrastText',
+                            '& .MuiListItemIcon-root': { color: 'primary.contrastText' },
+                            '&:hover': { bgcolor: 'primary.dark' },
+                          },
+                          '&:not(.Mui-selected):hover': {
+                            bgcolor: 'action.hover',
+                          },
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: collapsed ? 0 : 36, mr: collapsed ? 0 : 0, color: isActive ? 'inherit' : 'text.secondary', '& svg': { fontSize: 20 } }}>
+                          {iconEl}
+                        </ListItemIcon>
+                        {!collapsed && (
+                          <>
+                            <ListItemText
+                              primary={t(item.labelKey, item.label)}
+                              primaryTypographyProps={{ fontSize: 13.5, fontWeight: isActive ? 600 : 400 }}
+                            />
+                            <FavoriteStar href={item.href} label={t(item.labelKey, item.label)} />
+                          </>
+                        )}
+                      </ListItemButton>
+                    );
+                    return collapsed ? (
+                      <Tooltip key={item.href} title={t(item.labelKey, item.label)} placement="right">
+                        <span>{btn}</span>
+                      </Tooltip>
+                    ) : btn;
+                  })}
+                </List>
+              )}
+            </Box>
+          );
+        })}
       </Box>
 
       {/* ── Version footer ── */}
       {!collapsed && (
         <Box sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: 'divider' }}>
           <Typography variant="caption" color="text.disabled">
-            HealthQ Copilot v2.30
+            HealthQ Copilot v2.51
           </Typography>
         </Box>
       )}
