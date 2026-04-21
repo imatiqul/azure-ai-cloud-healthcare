@@ -15,11 +15,13 @@ import { AppBreadcrumbs } from './components/AppBreadcrumbs'; // Phase 34
 import { SessionExpiryGuard } from './components/SessionExpiryGuard'; // Phase 34
 import { PageTracker } from './components/PageTracker'; // Phase 35
 import { QuickActionsSpeedDial } from './components/QuickActionsSpeedDial'; // Phase 35
+import { AnnouncementBanner } from './components/AnnouncementBanner'; // Phase 36
 import Dashboard from './pages/Dashboard';
 import DemoLanding from './pages/DemoLanding';
 const AdminSettingsPage = lazy(() => import('./pages/AdminSettings')); // Phase 33
 const UserProfilePage   = lazy(() => import('./pages/UserProfile'));   // Phase 33
 const NotificationCenterPage = lazy(() => import('./pages/NotificationCenter')); // Phase 34
+const UserPreferencesPanelPage = lazy(() => import('./pages/UserPreferencesPanel')); // Phase 36
 
 const VoicePage = lazy(() => import('voice/VoiceSessionController').then(m => ({ default: m.VoiceSessionController })));
 const TriagePage = lazy(() => import('triage/TriageViewer').then(m => ({ default: m.TriageViewer })));
@@ -164,6 +166,7 @@ export default function App() {
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <TopNav onOpenSearch={openPalette} />
           <AppBreadcrumbs />
+          <AnnouncementBanner />
           <Box component="main" sx={{ flex: 1, overflow: 'auto', p: { xs: 2, md: 3 }, bgcolor: 'background.default' }}>
             <Suspense fallback={<Loading />}>
               <Routes>
@@ -305,6 +308,11 @@ export default function App() {
                 <Route path="/admin/profile" element={
                   <MfeErrorBoundary name="User Profile">
                     <UserProfilePage />
+                  </MfeErrorBoundary>
+                } />
+                <Route path="/admin/preferences" element={
+                  <MfeErrorBoundary name="Preferences">
+                    <UserPreferencesPanelPage />
                   </MfeErrorBoundary>
                 } />
               </Routes>

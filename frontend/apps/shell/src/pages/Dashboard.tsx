@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { createGlobalHub } from '@healthcare/signalr-client';
 import { WelcomeCard } from '../components/WelcomeCard';
 import { RecentPagesWidget } from '../components/RecentPagesWidget'; // Phase 35
+import { FavoritePagesWidget } from '../components/FavoritePagesWidget'; // Phase 36
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -253,6 +254,7 @@ export default function Dashboard() {
           </Stack>
         </Grid>
         <Grid item xs={12} md={3}>
+          <FavoritePagesWidget />
           <RecentPagesWidget />
         </Grid>
       </Grid>

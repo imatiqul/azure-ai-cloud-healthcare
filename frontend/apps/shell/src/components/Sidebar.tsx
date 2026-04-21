@@ -35,8 +35,10 @@ import ApartmentIcon from '@mui/icons-material/Apartment';
 import SlideshowIcon from '@mui/icons-material/Slideshow';
 import HistoryIcon from '@mui/icons-material/History';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import TuneIcon from '@mui/icons-material/Tune';
 import { useMediaQuery, useTheme } from '@mui/material';
 import { useTranslation } from 'react-i18next';
+import { FavoriteStar } from './FavoritePagesWidget'; // Phase 36
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -134,6 +136,7 @@ const navGroups: NavGroup[] = [
       { href: '/admin/health',         labelKey: 'nav.health',        label: 'Platform Health',  icon: <MonitorHeartIcon /> },
       { href: '/admin/demo',           labelKey: 'nav.demo',          label: 'Demo Admin',       icon: <SlideshowIcon /> },
       { href: '/admin/guide-history',  labelKey: 'nav.guide',         label: 'Guide History',    icon: <HistoryIcon /> },
+      { href: '/admin/preferences',    labelKey: 'nav.preferences',   label: 'Preferences',      icon: <TuneIcon /> },
       { href: '/admin',                labelKey: 'nav.admin',         label: 'Admin Settings',   icon: <AdminPanelSettingsIcon /> },
     ],
   },
@@ -241,10 +244,13 @@ function SidebarContent({ onClose, collapsed = false }: { onClose?: () => void; 
                       {item.icon}
                     </ListItemIcon>
                     {!collapsed && (
-                      <ListItemText
-                        primary={t(item.labelKey, item.label)}
-                        primaryTypographyProps={{ fontSize: 13.5, fontWeight: isActive ? 600 : 400 }}
-                      />
+                      <>
+                        <ListItemText
+                          primary={t(item.labelKey, item.label)}
+                          primaryTypographyProps={{ fontSize: 13.5, fontWeight: isActive ? 600 : 400 }}
+                        />
+                        <FavoriteStar href={item.href} label={t(item.labelKey, item.label)} />
+                      </>
                     )}
                   </ListItemButton>
                 );
