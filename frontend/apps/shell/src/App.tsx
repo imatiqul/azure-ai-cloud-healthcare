@@ -9,8 +9,12 @@ import { Sidebar, SidebarProvider } from './components/Sidebar';
 import { TopNav } from './components/TopNav';
 import { CopilotChat } from './components/CopilotChat';
 import { CommandPalette, useCommandPalette } from './components/CommandPalette';
+import { ToastProvider } from './components/ToastProvider';
+import { KeyboardShortcutsModal, useKeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import Dashboard from './pages/Dashboard';
 import DemoLanding from './pages/DemoLanding';
+const AdminSettingsPage = lazy(() => import('./pages/AdminSettings')); // Phase 33
+const UserProfilePage   = lazy(() => import('./pages/UserProfile'));   // Phase 33
 
 const VoicePage = lazy(() => import('voice/VoiceSessionController').then(m => ({ default: m.VoiceSessionController })));
 const TriagePage = lazy(() => import('triage/TriageViewer').then(m => ({ default: m.TriageViewer })));
@@ -133,7 +137,8 @@ class MfeErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState>
 export default function App() {
   const location = useLocation();
   const isDemoRoute = location.pathname.startsWith('/demo');
-  const { open: paletteOpen, openPalette, closePalette } = useCommandPalette();
+  const { open: paletteOpen, openPalette, closePalette }         = useCommandPalette();
+  const { open: shortcutsOpen, closeModal: closeShortcuts } = useKeyboardShortcutsModal();
 
   // Demo routes render without shell chrome (no sidebar, topnav, or copilot)
   if (isDemoRoute) {
@@ -280,12 +285,23 @@ export default function App() {
                     <PlatformHealthPanelPage />
                   </MfeErrorBoundary>
                 } />
+                <Route path="/admin" element={
+                  <MfeErrorBoundary name="Admin Settings">
+                    <AdminSettingsPage />
+                  </MfeErrorBoundary>
+                } />
+                <Route path="/admin/profile" element={
+                  <MfeErrorBoundary name="User Profile">
+                    <UserProfilePage />
+                  </MfeErrorBoundary>
+                } />
               </Routes>
             </Suspense>
           </Box>
         </Box>
         <CopilotChat />
         <CommandPalette open={paletteOpen} onClose={closePalette} />
+        <KeyboardShortcutsModal open={shortcutsOpen} onClose={closeShortcuts} />
       </Box>
     </SidebarProvider>
   );

@@ -5,6 +5,7 @@ import { ThemeProvider } from '@healthcare/design-system';
 import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n/i18n';
 import App from './App';
+import { ToastProvider } from './components/ToastProvider';
 
 // Apply RTL direction when Arabic is active
 const lang = i18n.language?.split('-')[0] ?? 'en';
@@ -22,7 +23,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <I18nextProvider i18n={i18n}>
       <ThemeProvider>
         <BrowserRouter>
-          <App />
+          <ToastProvider>
+            <App />
+          </ToastProvider>
         </BrowserRouter>
       </ThemeProvider>
     </I18nextProvider>

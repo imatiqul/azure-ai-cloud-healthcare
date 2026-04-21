@@ -276,11 +276,11 @@ export function TopNav({ onOpenSearch }: TopNavProps) {
                     {(session as any).email ?? 'clinician@healthq.ai'}
                   </Typography>
                 </Box>
-                <MenuItem onClick={closeUserMenu}>
+                <MenuItem onClick={() => { closeUserMenu(); navigate('/admin/profile'); }}>
                   <ListItemIcon><PersonOutlineIcon fontSize="small" /></ListItemIcon>
                   <Typography variant="body2">Profile</Typography>
                 </MenuItem>
-                <MenuItem onClick={closeUserMenu}>
+                <MenuItem onClick={() => { closeUserMenu(); navigate('/admin'); }}>
                   <ListItemIcon><SettingsOutlinedIcon fontSize="small" /></ListItemIcon>
                   <Typography variant="body2">Settings</Typography>
                 </MenuItem>
