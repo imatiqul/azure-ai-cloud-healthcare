@@ -19,7 +19,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev',
+    // In CI: `pnpm build` has already run, so serve the pre-built assets via
+    // `pnpm preview` (vite preview for all apps in parallel via turbo).
+    // Locally: use `pnpm dev` for hot-reload development.
+    command: process.env.CI ? 'pnpm preview' : 'pnpm dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

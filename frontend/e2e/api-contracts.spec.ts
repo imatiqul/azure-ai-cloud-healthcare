@@ -38,6 +38,17 @@ function assertSchema(obj: Record<string, unknown>, schema: Record<string, strin
   }
 }
 
+// ── Graceful skip when backend is unavailable ────────────────────────────────
+// Skips every test in this file individually if the backend cannot be reached.
+// Run with API_BASE_URL env var to point at a live staging/local environment.
+test.beforeEach(async ({ request }) => {
+  try {
+    await request.get(apiUrl('/health'), { timeout: 3_000, failOnStatusCode: false });
+  } catch {
+    test.skip(true, `Backend at ${BASE} is unreachable — set API_BASE_URL to run API contract tests`);
+  }
+});
+
 // ── Population Health ────────────────────────────────────────────────────────
 
 test.describe('Population Health API contracts', () => {

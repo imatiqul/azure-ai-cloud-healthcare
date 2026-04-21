@@ -52,11 +52,13 @@ test.describe('Sidebar Navigation', () => {
 test.describe('TopNav', () => {
   test('renders header title', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText('Healthcare AI Platform')).toBeVisible();
+    // TopNav renders the platform title via i18n key 'topnav.platformTitle' (default: 'HealthQ Copilot')
+    await expect(page.getByText('HealthQ Copilot')).toBeVisible();
   });
 
   test('renders sign in button', async ({ page }) => {
     await page.goto('/');
+    // Unauthenticated state — TopNav shows 'Sign in' (i18n: topnav.signIn)
     await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
   });
 });
