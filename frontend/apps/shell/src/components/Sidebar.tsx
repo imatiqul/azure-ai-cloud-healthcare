@@ -23,6 +23,17 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import PolicyIcon from '@mui/icons-material/Policy';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import RateReviewIcon from '@mui/icons-material/RateReview';
+import BadgeIcon from '@mui/icons-material/Badge';
+import ApartmentIcon from '@mui/icons-material/Apartment';
+import SlideshowIcon from '@mui/icons-material/Slideshow';
+import HistoryIcon from '@mui/icons-material/History';
 import { useMediaQuery, useTheme } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
@@ -76,6 +87,12 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    groupKey: 'nav.group.business',
+    items: [
+      { href: '/business',          labelKey: 'nav.business',    label: 'Business KPIs',     icon: <BarChartIcon /> },
+    ],
+  },
+  {
     groupKey: 'nav.group.clinical',
     items: [
       { href: '/voice',             labelKey: 'nav.voice',       label: 'Voice Sessions',    icon: <MicIcon /> },
@@ -98,19 +115,36 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    groupKey: 'nav.group.governance',
+    items: [
+      { href: '/governance',        labelKey: 'nav.governance',  label: 'AI Governance',     icon: <AccountBalanceIcon /> },
+    ],
+  },
+  {
     groupKey: 'nav.group.admin',
     items: [
-      { href: '/admin',             labelKey: 'nav.admin',       label: 'Admin',             icon: <AdminPanelSettingsIcon /> },
+      { href: '/tenants',              labelKey: 'nav.tenants',       label: 'Tenants',          icon: <ApartmentIcon /> },
+      { href: '/admin/users',          labelKey: 'nav.users',         label: 'Users',            icon: <ManageAccountsIcon /> },
+      { href: '/admin/practitioners',  labelKey: 'nav.practitioners', label: 'Practitioners',    icon: <BadgeIcon /> },
+      { href: '/admin/audit',          labelKey: 'nav.audit',         label: 'Audit Log',        icon: <PolicyIcon /> },
+      { href: '/admin/break-glass',    labelKey: 'nav.breakglass',    label: 'Break-Glass',      icon: <LockOpenIcon /> },
+      { href: '/admin/feedback',       labelKey: 'nav.feedback',      label: 'AI Feedback',      icon: <RateReviewIcon /> },
+      { href: '/admin/health',         labelKey: 'nav.health',        label: 'Platform Health',  icon: <MonitorHeartIcon /> },
+      { href: '/admin/demo',           labelKey: 'nav.demo',          label: 'Demo Admin',       icon: <SlideshowIcon /> },
+      { href: '/admin/guide-history',  labelKey: 'nav.guide',         label: 'Guide History',    icon: <HistoryIcon /> },
+      { href: '/admin',                labelKey: 'nav.admin',         label: 'Admin Settings',   icon: <AdminPanelSettingsIcon /> },
     ],
   },
 ];
 
 const groupLabels: Record<string, string> = {
-  'nav.group.main':      '',
-  'nav.group.clinical':  'Clinical',
-  'nav.group.analytics': 'Analytics',
-  'nav.group.patient':   'Patient',
-  'nav.group.admin':     'Admin',
+  'nav.group.main':        '',
+  'nav.group.business':    'Business',
+  'nav.group.clinical':    'Clinical',
+  'nav.group.analytics':   'Analytics',
+  'nav.group.patient':     'Patient',
+  'nav.group.governance':  'Governance',
+  'nav.group.admin':       'Admin',
 };
 
 // ── Shared nav content ────────────────────────────────────────────────────────

@@ -121,4 +121,3 @@ declare module 'encounters/ProblemListPanel' {
 declare module 'encounters/ImmunizationPanel' {
   export const ImmunizationPanel: React.ComponentType;
 }
-}

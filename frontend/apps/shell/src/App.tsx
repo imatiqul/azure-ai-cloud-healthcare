@@ -61,6 +61,8 @@ const AllergyPanelPage = lazy(() => import('encounters/AllergyPanel').then(m => 
 const ProblemListPanelPage = lazy(() => import('encounters/ProblemListPanel').then(m => ({ default: m.ProblemListPanel }))); // Phase 30
 const ImmunizationPanelPage = lazy(() => import('encounters/ImmunizationPanel').then(m => ({ default: m.ImmunizationPanel }))); // Phase 30
 const PractitionerManagerPage = lazy(() => import('./pages/PractitionerManager')); // Phase 30
+const BusinessKpiDashboardPage = lazy(() => import('./pages/BusinessKpiDashboard')); // Phase 31
+const PlatformHealthPanelPage  = lazy(() => import('./pages/PlatformHealthPanel'));  // Phase 31
 
 function Loading() {
   return (
@@ -153,6 +155,11 @@ export default function App() {
             <Suspense fallback={<Loading />}>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/business" element={
+                  <MfeErrorBoundary name="Business KPIs">
+                    <BusinessKpiDashboardPage />
+                  </MfeErrorBoundary>
+                } />
                 <Route path="/voice" element={
                   <MfeErrorBoundary name="Voice">
                     <VoicePage />
@@ -264,6 +271,11 @@ export default function App() {
                 <Route path="/admin/practitioners" element={
                   <MfeErrorBoundary name="Practitioners">
                     <PractitionerManagerPage />
+                  </MfeErrorBoundary>
+                } />
+                <Route path="/admin/health" element={
+                  <MfeErrorBoundary name="Platform Health">
+                    <PlatformHealthPanelPage />
                   </MfeErrorBoundary>
                 } />
               </Routes>
