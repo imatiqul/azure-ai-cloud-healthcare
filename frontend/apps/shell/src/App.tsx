@@ -1,9 +1,10 @@
 import { lazy, Suspense, Component, type ReactNode, type ErrorInfo } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import { SkeletonStatGrid } from '@healthcare/design-system';
 import { Sidebar, SidebarProvider } from './components/Sidebar';
 import { TopNav } from './components/TopNav';
 import { CopilotChat } from './components/CopilotChat';
@@ -63,9 +64,8 @@ const PractitionerManagerPage = lazy(() => import('./pages/PractitionerManager')
 
 function Loading() {
   return (
-    <Box display="flex" justifyContent="center" alignItems="center" minHeight={200} gap={1}>
-      <CircularProgress size={24} />
-      <Typography variant="body2" color="text.secondary">Loading...</Typography>
+    <Box sx={{ p: 3 }}>
+      <SkeletonStatGrid count={8} />
     </Box>
   );
 }
@@ -87,15 +87,38 @@ class MfeErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState>
   render() {
     if (this.state.hasError) {
       return (
-        <Box sx={{ p: 4, textAlign: 'center' }}>
-          <Typography variant="h6" color="error" gutterBottom>
-            Failed to load {this.props.name}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {this.state.error?.message || 'The micro-frontend could not be loaded.'}
-          </Typography>
-          <Button variant="outlined" onClick={() => this.setState({ hasError: false })}>
-            Retry
+        <Box
+          sx={{
+            p: 4,
+            m: 3,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'error.light',
+            bgcolor: 'background.paper',
+            textAlign: 'center',
+            maxWidth: 480,
+          }}
+        >
+          <ErrorOutlineIcon sx={{ fontSize: 48, color: 'error.main', opacity: 0.8 }} />
+          <Box>
+            <Typography variant="subtitle1" fontWeight={700} color="error.main" gutterBottom>
+              Unable to load {this.props.name}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {this.state.error?.message || 'The micro-frontend could not be loaded. Check your network connection and try again.'}
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            onClick={() => this.setState({ hasError: false })}
+          >
+            Try Again
           </Button>
         </Box>
       );
