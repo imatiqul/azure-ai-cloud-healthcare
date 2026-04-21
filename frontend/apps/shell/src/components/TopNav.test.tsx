@@ -110,20 +110,25 @@ describe('TopNav — authenticated', () => {
     });
   });
 
-  it('shows user name when authenticated', () => {
+  it('shows user name when authenticated', async () => {
+    const user = userEvent.setup();
     renderTopNav();
-    expect(screen.getByText('Dr. Admin')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'User menu' }));
+    expect(await screen.findByText('Dr. Admin')).toBeInTheDocument();
   });
 
-  it('shows Sign Out button when authenticated', () => {
+  it('shows Sign Out button when authenticated', async () => {
+    const user = userEvent.setup();
     renderTopNav();
-    expect(screen.getByRole('button', { name: 'topnav.signOut' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'User menu' }));
+    expect(await screen.findByText('topnav.signOut')).toBeInTheDocument();
   });
 
   it('calls signOut when Sign Out is clicked', async () => {
     const user = userEvent.setup();
     renderTopNav();
-    await user.click(screen.getByRole('button', { name: 'topnav.signOut' }));
+    await user.click(screen.getByRole('button', { name: 'User menu' }));
+    await user.click(await screen.findByText('topnav.signOut'));
     expect(mockSignOut).toHaveBeenCalledTimes(1);
   });
 

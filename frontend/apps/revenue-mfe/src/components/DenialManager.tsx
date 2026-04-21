@@ -198,7 +198,7 @@ export function DenialManager() {
                       )}
                     </Stack>
                     <Button
-                      variant="outlined"
+                      variant="outline"
                       size="small"
                       disabled={denial.resubmissionCount >= 3}
                       onClick={() => setAppealTarget(denial)}
@@ -247,7 +247,7 @@ export function DenialManager() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={() => { setAppealTarget(null); setAppealNotes(''); }}>
+          <Button variant="outline" onClick={() => { setAppealTarget(null); setAppealNotes(''); }}>
             Cancel
           </Button>
           <Button disabled={submittingAppeal || !appealNotes.trim()} onClick={handleAppeal}>

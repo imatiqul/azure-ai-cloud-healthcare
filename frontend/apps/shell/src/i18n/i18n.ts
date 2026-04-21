@@ -3,10 +3,10 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 // ── Bundled translations (tree-shaken per language) ─────────────────────────
-import en from '../../locales/en/translation.json';
-import es from '../../locales/es/translation.json';
-import fr from '../../locales/fr/translation.json';
-import ar from '../../locales/ar/translation.json';
+import en from '../../../../locales/en/translation.json';
+import es from '../../../../locales/es/translation.json';
+import fr from '../../../../locales/fr/translation.json';
+import ar from '../../../../locales/ar/translation.json';
 
 i18n
   .use(LanguageDetector)

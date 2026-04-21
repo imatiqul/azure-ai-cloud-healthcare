@@ -119,7 +119,7 @@ function GrantConsentDialog({ patientId, open, onClose, onGranted }: GrantDialog
           Cancel
         </Button>
         <Button
-          variant="primary"
+          variant="default"
           onClick={handleGrant}
           disabled={submitting || !scope.trim()}
         >
@@ -190,7 +190,7 @@ export function ConsentManagementPanel() {
             <CardTitle>Consent Management</CardTitle>
             {patientId && (
               <Button
-                variant="primary"
+                variant="default"
                 size="sm"
                 onClick={() => setGrantDialogOpen(true)}
               >
@@ -216,7 +216,7 @@ export function ConsentManagementPanel() {
               sx={{ minWidth: 320 }}
             />
             <Button
-              variant="primary"
+              variant="default"
               disabled={!patientIdInput.trim()}
               onClick={() => setPatientId(patientIdInput.trim())}
             >

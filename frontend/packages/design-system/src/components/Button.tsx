@@ -3,7 +3,7 @@ import MuiButton, { type ButtonProps as MuiButtonProps } from '@mui/material/But
 import CircularProgress from '@mui/material/CircularProgress';
 
 type VariantMap = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-type SizeMap = 'default' | 'sm' | 'lg' | 'icon';
+type SizeMap = 'default' | 'sm' | 'lg' | 'icon' | 'small' | 'md';
 
 export interface ButtonProps extends Omit<MuiButtonProps, 'variant' | 'size'> {
   variant?: VariantMap;
@@ -26,6 +26,8 @@ const sizeMapping: Record<SizeMap, MuiButtonProps['size']> = {
   sm: 'small',
   lg: 'large',
   icon: 'small',
+  small: 'small',
+  md: 'medium',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

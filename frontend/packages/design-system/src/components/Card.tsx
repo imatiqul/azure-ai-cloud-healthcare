@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import type { HTMLAttributes } from 'react';
 import MuiCard, { type CardProps } from '@mui/material/Card';
-import MuiCardContent from '@mui/material/CardContent';
+import MuiCardContent, { type CardContentProps } from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 
@@ -66,7 +66,7 @@ export const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadi
 );
 CardTitle.displayName = 'CardTitle';
 
-export const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+export const CardContent = forwardRef<HTMLDivElement, CardContentProps>(
   ({ children, ...props }, ref) => (
     <MuiCardContent ref={ref} {...props}>{children}</MuiCardContent>
   )

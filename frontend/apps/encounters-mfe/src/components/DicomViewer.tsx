@@ -81,7 +81,7 @@ export const DicomViewer: React.FC<DicomViewerProps> = ({
   // Resolve OHIF base URL from props → env var → null (fallback mode)
   const ohifUrl = ohifBaseUrl
     ?? (typeof import.meta !== 'undefined'
-        ? (import.meta as Record<string, unknown> & { env?: Record<string, string> })
+        ? (import.meta as unknown as { env?: Record<string, string> })
             .env?.VITE_OHIF_VIEWER_URL
         : undefined);
 

@@ -215,7 +215,7 @@ export default function UserPreferencesPanel() {
 
       {/* ── Actions ── */}
       <Stack direction="row" spacing={2}>
-        <Button variant="primary" size="md" onClick={handleSave}>
+        <Button variant="default" size="md" onClick={handleSave}>
           Save Preferences
         </Button>
         <Button variant="ghost" size="md" onClick={handleReset}>

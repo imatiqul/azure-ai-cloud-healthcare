@@ -1,12 +1,7 @@
-import Timeline from '@mui/lab/Timeline';
-import TimelineItem from '@mui/lab/TimelineItem';
-import TimelineSeparator from '@mui/lab/TimelineSeparator';
-import TimelineConnector from '@mui/lab/TimelineConnector';
-import TimelineContent from '@mui/lab/TimelineContent';
-import TimelineDot from '@mui/lab/TimelineDot';
-import TimelineOppositeContent from '@mui/lab/TimelineOppositeContent';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
+import Divider from '@mui/material/Divider';
 import { type ReactNode } from 'react';
 
 type EventType =
@@ -18,7 +13,7 @@ type EventType =
   | 'note'
   | 'discharge';
 
-const eventColors: Record<EventType, 'error' | 'warning' | 'primary' | 'secondary' | 'info' | 'success' | 'grey'> = {
+const _eventColors: Record<EventType, string> = {
   triage:     'error',
   encounter:  'primary',
   medication: 'warning',
@@ -46,31 +41,44 @@ export interface ClinicalTimelineProps {
 /**
  * Vertical chronological timeline of clinical events (encounters, labs, medications, notes).
  * Used in patient portal overview tab and care gap summary.
+ * Built with standard MUI components (no @mui/lab dependency).
  */
 export function ClinicalTimeline({ events, maxItems }: ClinicalTimelineProps) {
   const displayed = maxItems ? events.slice(0, maxItems) : events;
 
+  const dotColors: Record<EventType, string> = {
+    triage:     'error.main',
+    encounter:  'primary.main',
+    medication: 'warning.main',
+    lab:        'info.main',
+    imaging:    'secondary.main',
+    note:       'text.disabled',
+    discharge:  'success.main',
+  };
+
   return (
-    <Timeline sx={{ m: 0, p: 0 }}>
+    <Box component="ol" sx={{ m: 0, p: 0, listStyle: 'none' }}>
       {displayed.map((event, index) => (
-        <TimelineItem key={event.id}>
-          <TimelineOppositeContent
-            sx={{ flex: 0.2, pr: 1 }}
-            color="text.secondary"
+        <Box component="li" key={event.id} sx={{ display: 'flex', gap: 1.5, pb: index < displayed.length - 1 ? 2 : 0 }}>
+          {/* Date column */}
+          <Typography
             variant="caption"
+            color="text.secondary"
+            sx={{ minWidth: 48, pt: 0.5, textAlign: 'right', flexShrink: 0 }}
           >
-            {new Date(event.timestamp).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-            })}
-          </TimelineOppositeContent>
+            {new Date(event.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </Typography>
 
-          <TimelineSeparator>
-            <TimelineDot color={eventColors[event.type]} variant="filled" />
-            {index < displayed.length - 1 && <TimelineConnector />}
-          </TimelineSeparator>
+          {/* Connector column */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: dotColors[event.type], mt: 0.5 }} />
+            {index < displayed.length - 1 && (
+              <Divider orientation="vertical" sx={{ flex: 1, my: 0.5 }} />
+            )}
+          </Box>
 
-          <TimelineContent sx={{ pb: 2 }}>
+          {/* Content column */}
+          <Stack sx={{ pb: 0.5, flex: 1 }} spacing={0.25}>
             <Typography variant="subtitle2" fontWeight={600}>
               {event.title}
             </Typography>
@@ -85,9 +93,9 @@ export function ClinicalTimeline({ events, maxItems }: ClinicalTimelineProps) {
               </Typography>
             )}
             {event.action && <Box mt={0.5}>{event.action}</Box>}
-          </TimelineContent>
-        </TimelineItem>
+          </Stack>
+        </Box>
       ))}
-    </Timeline>
+    </Box>
   );
 }

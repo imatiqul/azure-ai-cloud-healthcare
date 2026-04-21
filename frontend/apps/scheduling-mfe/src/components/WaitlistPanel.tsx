@@ -174,7 +174,7 @@ export function WaitlistPanel() {
                 <Button type="submit" disabled={submitting}>
                   {submitting ? 'Adding...' : 'Add to Waitlist'}
                 </Button>
-                <Button type="button" variant="outlined" onClick={handleConflictCheck}>
+                <Button type="button" variant="outline" onClick={handleConflictCheck}>
                   Check Conflict
                 </Button>
               </Stack>
@@ -235,7 +235,7 @@ export function WaitlistPanel() {
                         size="small"
                       />
                       <Button
-                        variant="outlined"
+                        variant="outline"
                         size="small"
                         onClick={() => handleRemove(entry.id)}
                         aria-label={`Remove ${entry.patientId} from waitlist`}

@@ -4,4 +4,6 @@ export interface UserSession {
   email: string;
   role: 'Patient' | 'Practitioner' | 'Admin';
   accessToken: string;
+  /** JWT expiry as Unix timestamp (seconds). Used by SessionExpiryGuard. */
+  exp?: number;
 }

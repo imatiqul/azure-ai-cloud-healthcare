@@ -638,7 +638,14 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
-  packages/mfe-events: {}
+  packages/mfe-events:
+    devDependencies:
+      '@healthcare/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
 
   packages/signalr-client:
     dependencies:

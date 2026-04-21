@@ -158,7 +158,7 @@ export function PushSubscriptionPanel() {
                   Search
                 </Button>
                 {patientId && (
-                  <Button variant="primary" onClick={() => setRegisterOpen(true)}>
+                  <Button variant="default" onClick={() => setRegisterOpen(true)}>
                     + Register
                   </Button>
                 )}
@@ -256,7 +256,7 @@ export function PushSubscriptionPanel() {
           <Button variant="ghost" onClick={() => setRegisterOpen(false)} disabled={registering}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleRegister} disabled={registering || !canRegister}>
+          <Button variant="default" onClick={handleRegister} disabled={registering || !canRegister}>
             {registering ? 'Registering…' : 'Register'}
           </Button>
         </DialogActions>

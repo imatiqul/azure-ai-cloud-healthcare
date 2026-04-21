@@ -6,11 +6,9 @@ import { forwardRef } from 'react';
 import type { ReactNode } from 'react';
 
 function stub(displayName: string) {
-  const Cmp = forwardRef<HTMLDivElement, { children?: ReactNode; [key: string]: unknown }>(
-    ({ children }, ref) => (
-      <div ref={ref} data-testid={`mui-lab-${displayName.toLowerCase()}`}>{children}</div>
-    ),
-  );
+  const Cmp = forwardRef<HTMLDivElement, { children?: ReactNode }>(({ children }, ref) => (
+    <div ref={ref} data-testid={`mui-lab-${displayName.toLowerCase()}`}>{children}</div>
+  ));
   Cmp.displayName = displayName;
   return Cmp;
 }

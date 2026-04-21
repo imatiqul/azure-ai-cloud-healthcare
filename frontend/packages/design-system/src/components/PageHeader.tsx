@@ -56,10 +56,10 @@ export function PageHeader({ title, subtitle, breadcrumbs, actions, icon }: Page
                 onClick={crumb.onClick}
                 sx={[
                   { textDecoration: 'none' },
-                  (crumb.href || crumb.onClick) && {
+                  (crumb.href || crumb.onClick) ? {
                     cursor: 'pointer',
                     '&:hover': { color: 'primary.main', textDecoration: 'underline' },
-                  },
+                  } : {},
                 ]}
               >
                 {crumb.label}

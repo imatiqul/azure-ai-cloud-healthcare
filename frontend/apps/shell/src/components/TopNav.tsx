@@ -147,6 +147,7 @@ export function TopNav({ onOpenSearch }: TopNavProps) {
   };
 
   return (
+    <>
     <AppBar position="static" color="inherit" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', zIndex: (t) => t.zIndex.drawer - 1 }}>
       <Toolbar variant="dense" sx={{ justifyContent: 'space-between', minHeight: 56 }}>
 
@@ -325,6 +326,7 @@ export function TopNav({ onOpenSearch }: TopNavProps) {
       </Toolbar>
     </AppBar>
     <ContextualHelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} />
-    <WhatsNewPanel open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} /> {/* Phase 38 */}
+    <WhatsNewPanel open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
+    </>
   );
 }
