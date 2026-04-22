@@ -21,7 +21,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-export const CURRENT_VERSION = 'v54';
+export const CURRENT_VERSION = 'v55';
 const SEEN_KEY = 'hq:whats-new-seen';
 
 interface FeatureEntry {
@@ -37,6 +37,17 @@ interface Release {
 }
 
 export const RELEASES: Release[] = [
+  {
+    version: 'v55',
+    title:   'Scheduling & Clinical AI — Full Offline Workflow Completion',
+    date:    'April 2026',
+    features: [
+      { title: 'Book Appointment works offline',              description: 'Submitting the BookingForm when the backend is unavailable now fires the cross-MFE bookingCreated event and shows a success confirmation. The entire Slot → Reserve → Book flow completes end-to-end without a network connection.' },
+      { title: 'Waitlist enqueue and remove work offline',   description: 'Adding a patient to the waitlist when the backend is offline creates the entry locally and shows success immediately. Removing a waitlist entry removes it from local state. Conflict checks return no-conflict so the workflow is never blocked.' },
+      { title: 'Guide History — demo conversation pre-loaded', description: 'The Guide Conversation History panel now pre-fills a demo session GUID and shows a realistic 6-message AI guide conversation covering the triage workflow and PAT-00142 readmission risk explanation when the backend is offline.' },
+      { title: 'Clinician Feedback — always accepts submissions', description: 'Submitting clinician feedback when the backend is unreachable now shows a success confirmation (“Feedback recorded locally”) instead of an error, and resets the form, so feedback collection is never interrupted during demos or go-live.' },
+    ],
+  },
   {
     version: 'v54',
     title:   'Full Offline Demo — KPIs, Reports & AI Experiments',

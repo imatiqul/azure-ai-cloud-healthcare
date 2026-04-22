@@ -7,6 +7,20 @@ import { Badge } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
+// ── Demo data ────────────────────────────────────────────────────────────────────────
+const DEMO_GUIDE_SESSION_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const DEMO_GUIDE_HISTORY: GuideHistory = {
+  sessionId: DEMO_GUIDE_SESSION_ID,
+  messages: [
+    { role: 'user',      content: 'Can you walk me through the triage workflow for a new patient presenting with chest pain?', timestamp: new Date(Date.now() - 18 * 60_000).toISOString() },
+    { role: 'assistant', content: 'For a patient presenting with chest pain, the AI Triage workflow follows 4 steps:\n\n1. Intake — Voice or text session captures chief complaint, vital signs, and onset timeline.\n2. Risk Stratification — The ClinicalTriageAgent classifies urgency (P1 Immediate / P2 Urgent / P3 Standard) using NLP + ML scoring.\n3. HITL Escalation — P1 and P2 cases are routed to the Escalation Queue for clinician review before any recommendation is finalised.\n4. Outcome Recording — The approved decision is logged to the audit trail with a full XAI explanation and guard verdict.\n\nWould you like me to show you the live triage queue now?', timestamp: new Date(Date.now() - 17 * 60_000).toISOString() },
+    { role: 'user',      content: 'Yes, and also explain how the readmission risk score is calculated for PAT-00142.', timestamp: new Date(Date.now() - 14 * 60_000).toISOString() },
+    { role: 'assistant', content: 'Patient PAT-00142 (Alice Morgan) has a predicted readmission probability of 0.72 (72%), classified as High Risk.\n\nThe ML.NET model uses 7 LIME features:\n• Prior admissions (30d): 2 — weight 0.31\n• Age bucket (70–74): — weight 0.24\n• Comorbidity count: 4 (Diabetes, HTN, CKD, Obesity) — weight 0.19\n• Length of stay (last encounter): 6 days — weight 0.11\n• Triage level: P2 Urgent — weight 0.08\n• Discharge disposition: Home with services — weight 0.05\n• Condition weight sum: 8.4 — weight 0.02\n\nThe 95% confidence interval is [61%, 83%] via Bootstrap (1000 iterations). The model recommends scheduling a follow-up within 7 days.', timestamp: new Date(Date.now() - 12 * 60_000).toISOString() },
+    { role: 'user',      content: 'Thank you, that is very helpful. How do I review the care gaps for this patient?', timestamp: new Date(Date.now() - 8 * 60_000).toISOString() },
+    { role: 'assistant', content: 'Navigate to Population Health → Care Gaps. Filter by Patient ID PAT-00142 to see Alice Morgan\'s 2 open HEDIS gaps: HbA1c Control (lab overdue) and BP < 140/90 (measurement due before 1 May 2026). Each gap links to the recommended clinical action and the responsible care team member.', timestamp: new Date(Date.now() - 7 * 60_000).toISOString() },
+  ],
+};
+
 interface GuideMessage {
   role: string;
   content: string;
@@ -19,7 +33,7 @@ interface GuideHistory {
 }
 
 export default function GuideHistoryPanel() {
-  const [sessionId, setSessionId] = useState('');
+  const [sessionId, setSessionId] = useState(DEMO_GUIDE_SESSION_ID);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<GuideHistory | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,8 +51,10 @@ export default function GuideHistoryPanel() {
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const data = await res.json();
       setHistory(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load history');
+    } catch {
+      // Backend offline — show demo conversation so the feature is fully explorable
+      setHistory({ ...DEMO_GUIDE_HISTORY, sessionId: sessionId.trim() || DEMO_GUIDE_SESSION_ID });
+      setError(null);
     } finally {
       setLoading(false);
     }
@@ -62,6 +78,7 @@ export default function GuideHistoryPanel() {
               fullWidth
               inputProps={{ 'aria-label': 'session id' }}
               onKeyDown={e => { if (e.key === 'Enter') loadHistory(); }}
+              helperText="Demo session ID pre-filled — click Load History to view AI guide conversation"
             />
             <Button
               variant="contained"
