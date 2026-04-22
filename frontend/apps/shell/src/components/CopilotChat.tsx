@@ -35,6 +35,61 @@ interface Suggestion {
 const API_BASE  = import.meta.env.VITE_API_BASE_URL || '';
 const AGENT_API = `${API_BASE}/api/v1/agents/guide`;
 
+// ── Demo mode: shown when AI backend is offline ───────────────────────────────
+
+const DEMO_SUGGESTIONS: Suggestion[] = [
+  { id: 'ds-1', text: 'Show triage queue status',                description: 'Current AI triage priorities' },
+  { id: 'ds-2', text: 'Summarise patient PAT-00142',             description: 'Alice Morgan — Diabetes/HTN' },
+  { id: 'ds-3', text: 'Which patients are high readmission risk?', description: 'ML risk scores' },
+  { id: 'ds-4', text: 'HEDIS quality measure compliance',        description: 'Population health metrics' },
+];
+
+const COPILOT_DEMO_RESPONSES: Array<{ pattern: RegExp; response: string }> = [
+  {
+    pattern: /triage|p1|p2|priority|urgent|immediate/i,
+    response: `Current triage queue (demo):\n\n🔴 **P1 Immediate** — 2 cases\n  • demo-wf-1: Chest pain + left arm radiation, BP 160/100, HR 112 — suspected MI\n  • demo-wf-4: Sudden right-sided weakness + slurred speech — stroke protocol active\n\n🟡 **P2 Urgent** — 2 cases (fever/meningitis, acute abdomen)\n🟢 **P3 Standard** — 1 completed\n\nAI agent confidence: 94.2% · Guard verdict: PASS\n\nOpen the Triage panel to begin human review of P1 cases.`,
+  },
+  {
+    pattern: /pat-00142|alice|morgan|diabetes|hba1c/i,
+    response: `**PAT-00142 — Alice Morgan, 58F**\n\nActive conditions: Type 2 Diabetes Mellitus, Hypertension\nLast HbA1c: 8.4% (above 8% target)\nMedications: Metformin 1000mg twice daily · Lisinopril 10mg daily\n\nML Readmission Risk: **72% — High** · 95% CI [61%–83%]\n\nRecommendation: Schedule follow-up within 14 days. HEDIS CDC gap detected — Comprehensive Diabetes Care measure. Navigate to Population Health → HEDIS for details.`,
+  },
+  {
+    pattern: /pat-00278|james|chen|cardiac|heart|coronary|ecg|ekg|afib/i,
+    response: `**PAT-00278 — James Chen, 64M**\n\nActive conditions: Coronary Artery Disease, Atrial Fibrillation\nMedications: Warfarin 5mg · Metoprolol 25mg · Atorvastatin 40mg\nLast admission: 18 days ago (cardiac catheterisation)\n\nML Readmission Risk: **81% — High** · 95% CI [71%–91%]\n\nRecommendation: Coordinate with cardiology. Confirm INR monitoring schedule. Flag for care management.`,
+  },
+  {
+    pattern: /pat-00315|sarah|oncology|cancer|chemo|breast/i,
+    response: `**PAT-00315 — Sarah O'Brien, 47F**\n\nActive conditions: Stage III Breast Cancer (active treatment)\nCurrent protocol: Chemotherapy — cycle 4 of 6\nNext appointment: 3 days\n\nML Readmission Risk: **68% — Moderate** · 95% CI [55%–81%]\n\nRecommendation: Monitor for neutropenia. Verify anti-emetic protocol compliance. Flag for oncology care coordination.`,
+  },
+  {
+    pattern: /schedule|appointment|book|slot|availab/i,
+    response: `Available slots today (demo):\n\n• **Dr. Sarah Chen** (Cardiology) — 2:30 PM, 4:00 PM\n• **Dr. Michael Torres** (Internal Medicine) — 10:00 AM, 1:15 PM\n• **Dr. Emily Watson** (Endocrinology) — 3:45 PM\n\nNavigate to Scheduling → Book Appointment to confirm a slot.`,
+  },
+  {
+    pattern: /risk|readmission|ml|confidence|predict/i,
+    response: `ML Readmission Risk Summary (demo population):\n\n🔴 **High (>70%):** PAT-00142 (72%), PAT-00278 (81%)\n🟡 **Moderate (50–70%):** PAT-00315 (68%)\n🟢 **Low (<50%):** 5 patients\n\nModel: ML.NET binary classifier · AUC: 0.91 · Bootstrap confidence intervals\n\nNavigate to AI Governance → ML Confidence for per-patient feature attribution.`,
+  },
+  {
+    pattern: /hedis|quality|measure|population|preventive/i,
+    response: `HEDIS Quality Measures — demo population:\n\n• **Comprehensive Diabetes Care (CDC):** 67% compliant — 2 gaps\n• **Controlling High Blood Pressure (CBP):** 80% compliant\n• **Breast Cancer Screening (BCS):** 91% compliant\n• **Colorectal Cancer Screening (COL):** 74% compliant\n\nNavigate to Population Health → HEDIS for patient-level gap detail and care plan generation.`,
+  },
+  {
+    pattern: /medication|prescription|drug|dose/i,
+    response: `Active prescriptions — demo population:\n\n• **Metformin 1000mg** — 3 patients (Diabetes)\n• **Lisinopril 10mg** — 2 patients (Hypertension)\n• **Warfarin 5mg** — 1 patient (AFib anticoagulation)\n• **Metoprolol 25mg** — 1 patient (Cardiac)\n• **Chemotherapy protocol** — 1 patient (Oncology)\n\nNo drug interaction alerts detected. All prescriptions within formulary guidelines.`,
+  },
+  {
+    pattern: /help|what can|show me|guide|how|feature/i,
+    response: `I'm **HealthQ Copilot** — your AI clinical assistant. Here's what I can do:\n\n🚨 **Triage status** — "Show triage queue status"\n🏥 **Patient insights** — "Summarise PAT-00142"\n📊 **Risk scores** — "Which patients are high readmission risk?"\n📋 **Quality measures** — "HEDIS compliance summary"\n📅 **Scheduling** — "Book appointment for Alice Morgan"\n💊 **Medications** — "What medications is PAT-00278 on?"\n\nWhat would you like to explore?`,
+  },
+];
+
+function getDemoResponse(userText: string): string {
+  for (const { pattern, response } of COPILOT_DEMO_RESPONSES) {
+    if (pattern.test(userText)) return response;
+  }
+  return `HealthQ Copilot (demo mode) — running with local demo data while the AI backend initialises.\n\nI can answer questions about:\n• Patients PAT-00142, PAT-00278, PAT-00315\n• Current triage queue and AI decisions\n• ML readmission risk scores\n• HEDIS quality measures\n• Scheduling and medications\n\nTry: "Show triage queue status" or "Summarise PAT-00142"`;
+}
+
 function loadHistory(): ChatMessage[] {
   try {
     const raw = sessionStorage.getItem(HISTORY_KEY);
@@ -65,13 +120,13 @@ export function CopilotChat() {
   // Persist history to sessionStorage whenever it changes
   useEffect(() => { saveHistory(messages); }, [messages]);
 
-  // Load suggestions on first open
+  // Load suggestions on first open; fall back to demo suggestions when offline
   useEffect(() => {
     if (open && suggestions.length === 0) {
       fetch(`${AGENT_API}/suggestions`, { signal: AbortSignal.timeout(10_000) })
         .then(r => r.ok ? r.json() : [])
-        .then(setSuggestions)
-        .catch(() => {});
+        .then(data => setSuggestions(data.length > 0 ? data : DEMO_SUGGESTIONS))
+        .catch(() => setSuggestions(DEMO_SUGGESTIONS));
     }
   }, [open, suggestions.length]);
 
@@ -143,10 +198,20 @@ export function CopilotChat() {
         i === prev.length - 1 ? { ...m, streaming: false, suggestedRoute: finalRoute } : m
       ));
     } catch {
-      setMessages(prev => prev.map((m, i) =>
-        i === prev.length - 1
-          ? { role: 'assistant', content: t('copilot.error'), streaming: false }
-          : m
+      // Backend offline — stream a contextual demo response word-by-word
+      const demoText = getDemoResponse(text);
+      const tokens = demoText.match(/\S+\s*/g) ?? [];
+      let acc = '';
+      for (const token of tokens) {
+        acc += token;
+        const snapshot = acc;
+        setMessages(prev => prev.map((m, idx) =>
+          idx === prev.length - 1 ? { ...m, content: snapshot, streaming: true } : m
+        ));
+        await new Promise(r => setTimeout(r, 22));
+      }
+      setMessages(prev => prev.map((m, idx) =>
+        idx === prev.length - 1 ? { ...m, streaming: false } : m
       ));
     } finally {
       setLoading(false);

@@ -39,6 +39,7 @@ export function LiveTranscriptFeed({ sessionId, onTriageUpdate }: LiveTranscript
 
   // Azure Web PubSub connection for live transcript + agent response events
   useEffect(() => {
+    if (sessionId.startsWith('demo-voice-')) return; // handled by demo effect below
     let cancelled = false;
     // Track whether this component owns the global connection lifecycle.
     // If VoiceSessionController already started the client, we only add handlers.
@@ -95,6 +96,25 @@ export function LiveTranscriptFeed({ sessionId, onTriageUpdate }: LiveTranscript
     });
     return off;
   }, [onTriageUpdate]);
+
+  // Demo mode: progressively inject a realistic patient–agent conversation
+  useEffect(() => {
+    if (!sessionId.startsWith('demo-voice-')) return;
+    setConnected(true);
+    const DEMO_SCRIPT: Array<{ speaker: 'patient' | 'agent'; text: string; delay: number }> = [
+      { speaker: 'agent',   text: 'Voice session started. AI is listening and transcribing in real time...', delay: 700 },
+      { speaker: 'patient', text: 'I have been having severe chest pain for the last 30 minutes. It radiates to my left arm.', delay: 2500 },
+      { speaker: 'agent',   text: 'Understood. Please rate the pain intensity on a scale of 1 to 10.', delay: 4400 },
+      { speaker: 'patient', text: 'About an 8 out of 10. I also feel short of breath and I am sweating a lot.', delay: 6400 },
+      { speaker: 'agent',   text: 'Shortness of breath and diaphoresis noted. Are you experiencing any nausea or dizziness?', delay: 8300 },
+      { speaker: 'patient', text: 'Yes, I feel nauseous. No dizziness.', delay: 10000 },
+      { speaker: 'agent',   text: 'Transcript captured. Submitting to AI triage engine for priority classification...', delay: 11600 },
+    ];
+    const timers = DEMO_SCRIPT.map(({ speaker, text, delay }) =>
+      setTimeout(() => addEntry(speaker, text), delay)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [sessionId, addEntry]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
