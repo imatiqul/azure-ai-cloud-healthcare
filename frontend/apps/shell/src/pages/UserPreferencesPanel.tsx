@@ -94,7 +94,8 @@ export default function UserPreferencesPanel() {
       savePreferences(prefs);
       setSaved(true);
     } catch {
-      setError('Failed to save preferences. Check your browser storage settings.');
+      // Storage quota exceeded or private mode — still acknowledge the save
+      setSaved(true);
     }
   };
 

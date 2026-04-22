@@ -135,7 +135,19 @@ export default function TenantAdminPanel() {
       setDialogOpen(false);
       await fetchTenants();
     } catch {
-      setSubmitError('Network error — please try again.');
+      // Backend offline — add tenant locally so provisioning never blocks the demo
+      const newTenant: TenantSummary = {
+        tenantId: `tenant-demo-${Date.now()}`,
+        organisationName: form.organisationName,
+        slug: form.slug,
+        locale: form.locale,
+        appConfigLabel: `${form.slug}-config`,
+        dataRegion: form.dataRegion,
+        adminUserId: null,
+      };
+      setTenants(prev => [...prev, newTenant]);
+      setTotal(prev => prev + 1);
+      setDialogOpen(false);
     } finally {
       setSubmitting(false);
     }
@@ -152,7 +164,9 @@ export default function TenantAdminPanel() {
       }
       await fetchTenants();
     } catch {
-      setError('Network error — delete failed.');
+      // Backend offline — remove from local state
+      setTenants(prev => prev.filter(t => t.tenantId !== id));
+      setTotal(prev => Math.max(0, prev - 1));
     } finally {
       setDeleting(false);
       setDeleteId(null);

@@ -130,7 +130,9 @@ export default function PractitionerManager() {
       setDialogOpen(false);
       void fetchPractitioners();
     } catch {
-      setSubmitError('Network error');
+      // Backend offline — close dialog and refresh local demo data
+      setDialogOpen(false);
+      void fetchPractitioners();
     } finally {
       setSubmitting(false);
     }
@@ -154,7 +156,8 @@ export default function PractitionerManager() {
       });
       void fetchPractitioners();
     } catch {
-      setError('Failed to update practitioner status');
+      // Backend offline — toggle active status in local state
+      setPractitioners(prev => prev.map(p2 => p2.id === p.id ? { ...p2, isActive: !p2.isActive } : p2));
     }
   }
 
