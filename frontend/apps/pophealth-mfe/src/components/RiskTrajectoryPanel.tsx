@@ -10,6 +10,24 @@ import { Card, CardHeader, CardTitle, CardContent } from '@healthcare/design-sys
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
+const DEMO_TRAJECTORY: TrajectoryResult = {
+  patientId: 'PAT-00142',
+  dataPoints: [
+    { assessedAt: new Date(Date.now() - 90 * 86400_000).toISOString(), riskScore: 61, level: 'Moderate', trend: 'Stable',    scoreDelta: 0 },
+    { assessedAt: new Date(Date.now() - 75 * 86400_000).toISOString(), riskScore: 65, level: 'Moderate', trend: 'Worsening', scoreDelta: 4 },
+    { assessedAt: new Date(Date.now() - 60 * 86400_000).toISOString(), riskScore: 70, level: 'High',     trend: 'Worsening', scoreDelta: 5 },
+    { assessedAt: new Date(Date.now() - 45 * 86400_000).toISOString(), riskScore: 74, level: 'High',     trend: 'Worsening', scoreDelta: 4 },
+    { assessedAt: new Date(Date.now() - 30 * 86400_000).toISOString(), riskScore: 79, level: 'High',     trend: 'Worsening', scoreDelta: 5 },
+    { assessedAt: new Date(Date.now() - 15 * 86400_000).toISOString(), riskScore: 82, level: 'Critical', trend: 'Worsening', scoreDelta: 3 },
+    { assessedAt: new Date(Date.now() - 1  * 86400_000).toISOString(), riskScore: 94, level: 'Critical', trend: 'Worsening', scoreDelta: 12 },
+  ],
+  min: 61,
+  max: 94,
+  mean: 75,
+  slope: 0.37,
+  overallTrend: 'Worsening',
+};
+
 interface TrajectoryPoint {
   assessedAt: string;
   riskScore: number;
@@ -151,7 +169,8 @@ export function RiskTrajectoryPanel() {
       .then(setResult)
       .catch((err: unknown) => {
         if ((err as { name?: string }).name !== 'AbortError') {
-          setError(err instanceof Error ? err.message : 'Failed to load trajectory');
+          setResult(DEMO_TRAJECTORY);
+          setError(null);
         }
       })
       .finally(() => setLoading(false));

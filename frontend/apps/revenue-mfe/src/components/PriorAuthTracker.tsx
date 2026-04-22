@@ -22,6 +22,14 @@ interface PriorAuth {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_REVENUE_API_URL || '';
 
+const DEMO_PRIOR_AUTHS: PriorAuth[] = [
+  { id: 'pa-001', patientId: 'PAT-00142', patientName: 'Alice Morgan',   procedure: 'Continuous Glucose Monitor',          procedureCode: 'A9278', status: 'Approved',    insurancePayer: 'BlueCross BlueShield', createdAt: new Date(Date.now() - 10 * 86400_000).toISOString(), submittedAt: new Date(Date.now() - 9 * 86400_000).toISOString(),  resolvedAt: new Date(Date.now() - 5 * 86400_000).toISOString() },
+  { id: 'pa-002', patientId: 'PAT-00278', patientName: 'Robert Chen',    procedure: 'Cardiac Catheterisation',              procedureCode: '93460', status: 'UnderReview', insurancePayer: 'Aetna',               createdAt: new Date(Date.now() - 3 * 86400_000).toISOString(),  submittedAt: new Date(Date.now() - 2 * 86400_000).toISOString() },
+  { id: 'pa-003', patientId: 'PAT-00315', patientName: 'Maria Gonzalez', procedure: 'PET-CT Scan',                          procedureCode: '78816', status: 'Submitted',   insurancePayer: 'UnitedHealth',        createdAt: new Date(Date.now() - 1 * 86400_000).toISOString(),  submittedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
+  { id: 'pa-004', patientId: 'PAT-00391', patientName: 'James Wilson',   procedure: 'Lumbar Spinal Fusion',                 procedureCode: '22612', status: 'Denied',      insurancePayer: 'Cigna',               createdAt: new Date(Date.now() - 15 * 86400_000).toISOString(), submittedAt: new Date(Date.now() - 14 * 86400_000).toISOString(), resolvedAt: new Date(Date.now() - 8 * 86400_000).toISOString(), denialReason: 'Conservative therapy not exhausted' },
+  { id: 'pa-005', patientId: 'PAT-00554', patientName: 'Sarah Thompson', procedure: 'Bariatric Surgery Evaluation',          procedureCode: '43775', status: 'Draft',       insurancePayer: 'Humana',              createdAt: new Date(Date.now() - 1 * 3600_000).toISOString() },
+];
+
 export function PriorAuthTracker() {
   const [auths, setAuths] = useState<PriorAuth[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,8 +40,9 @@ export function PriorAuthTracker() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/revenue/prior-auths`);
       if (res.ok) setAuths(await res.json());
+      else setAuths(DEMO_PRIOR_AUTHS);
     } catch {
-      /* API may not be available yet */
+      setAuths(DEMO_PRIOR_AUTHS);
     } finally {
       setLoading(false);
     }

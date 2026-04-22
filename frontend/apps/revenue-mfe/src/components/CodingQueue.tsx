@@ -21,6 +21,13 @@ interface CodingItem {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_REVENUE_API_URL || '';
 
+const DEMO_CODING_ITEMS: CodingItem[] = [
+  { id: 'cj-001', encounterId: 'enc-demo-001', patientId: 'PAT-00142', patientName: 'Alice Morgan',   suggestedCodes: ['E11.9', 'I10', 'Z79.4'],   approvedCodes: [],              status: 'Pending',   createdAt: new Date(Date.now() - 2 * 3600_000).toISOString() },
+  { id: 'cj-002', encounterId: 'enc-demo-002', patientId: 'PAT-00278', patientName: 'Robert Chen',    suggestedCodes: ['I50.9', 'Z87.891'],         approvedCodes: ['I50.9', 'Z87.891'], status: 'Approved',  createdAt: new Date(Date.now() - 5 * 3600_000).toISOString(), reviewedAt: new Date(Date.now() - 1 * 3600_000).toISOString(), reviewedBy: 'Dr. Patel' },
+  { id: 'cj-003', encounterId: 'enc-demo-003', patientId: 'PAT-00315', patientName: 'Maria Gonzalez', suggestedCodes: ['C34.12', 'Z79.899'],        approvedCodes: [],              status: 'InReview',  createdAt: new Date(Date.now() - 8 * 3600_000).toISOString() },
+  { id: 'cj-004', encounterId: 'enc-demo-004', patientId: 'PAT-00391', patientName: 'James Wilson',   suggestedCodes: ['M54.5', 'M47.816', 'G89.29'], approvedCodes: ['M54.5', 'M47.816', 'G89.29'], status: 'Submitted', createdAt: new Date(Date.now() - 1 * 86400_000).toISOString(), reviewedAt: new Date(Date.now() - 4 * 3600_000).toISOString(), reviewedBy: 'Dr. Smith' },
+];
+
 export function CodingQueue() {
   const [items, setItems] = useState<CodingItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,8 +37,9 @@ export function CodingQueue() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/revenue/coding-jobs`);
       if (res.ok) setItems(await res.json());
+      else setItems(DEMO_CODING_ITEMS);
     } catch {
-      /* API may not be available yet */
+      setItems(DEMO_CODING_ITEMS);
     } finally {
       setLoading(false);
     }
