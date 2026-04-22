@@ -33,7 +33,7 @@ const MFE_PAGES = [
   },
   {
     name: 'engagement',
-    route: '/engagement',
+    route: '/patient-portal',
     expectedText: /engagement|portal|notification|appointment/i,
   },
 ];

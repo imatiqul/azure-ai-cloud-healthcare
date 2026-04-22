@@ -22,7 +22,8 @@ test.describe('Shell App — Cloud Navigation', () => {
 
   test('shell loads and shows the dashboard', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveTitle(/Healthcare AI/i);
+    // Phase 56 set document.title = 'HealthQ Copilot'; initial HTML is 'Healthcare AI Platform'
+    await expect(page).toHaveTitle(/HealthQ Copilot|Healthcare AI/i);
     await expect(page.locator('body')).not.toBeEmpty();
   });
 
