@@ -11,6 +11,7 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import Tooltip from '@mui/material/Tooltip';
 import LinearProgress from '@mui/material/LinearProgress';
+import Chip from '@mui/material/Chip';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
@@ -33,6 +34,7 @@ export function DemoControlBar({ countdown, totalSec }: DemoControlBarProps) {
     demoWorkflowIdx,
     demoSceneIdx,
     demoPaused,
+    demoSpeed,
     demoClientName,
     demoCompany,
     pauseDemo,
@@ -40,6 +42,8 @@ export function DemoControlBar({ countdown, totalSec }: DemoControlBarProps) {
     advanceDemoScene,
     prevDemoScene,
     exitDemo,
+    setDemoScene,
+    setDemoSpeed,
   } = useGlobalStore();
 
   const workflow  = DEMO_WORKFLOWS[demoWorkflowIdx];
@@ -185,23 +189,52 @@ export function DemoControlBar({ countdown, totalSec }: DemoControlBarProps) {
       {/* Divider */}
       <Box sx={{ width: 1, height: 32, bgcolor: 'rgba(255,255,255,0.1)', mx: 0.5, mt: 1 }} />
 
-      {/* Workflow dots */}
+      {/* Workflow dots — click to jump to any workflow */}
       <Box sx={{ display: 'flex', gap: 0.4, alignItems: 'center', mx: 0.5 }}>
         {DEMO_WORKFLOWS.map((wf, wi) => (
-          <Tooltip key={wf.id} title={wf.name} arrow placement="top">
+          <Tooltip key={wf.id} title={`Jump to: ${wf.name}`} arrow placement="top">
             <Box
+              onClick={() => setDemoScene(wi, 0)}
               sx={{
                 width:        wi === demoWorkflowIdx ? 14 : 7,
                 height:       7,
                 borderRadius: 4,
                 bgcolor:      wi === demoWorkflowIdx ? (wf.color ?? '#fff') : 'rgba(255,255,255,0.2)',
                 transition:   'all 0.3s ease',
-                cursor:       'default',
+                cursor:       'pointer',
+                '&:hover':    { bgcolor: wf.color ?? '#90caf9', opacity: 0.8 },
               }}
             />
           </Tooltip>
         ))}
       </Box>
+
+      {/* Divider */}
+      <Box sx={{ width: 1, height: 32, bgcolor: 'rgba(255,255,255,0.1)', mx: 0.5 }} />
+
+      {/* Speed toggle — 1× / 2× */}
+      <Tooltip title="Playback speed" arrow>
+        <Box sx={{ display: 'flex', gap: 0.3 }}>
+          {([1, 2] as const).map(speed => (
+            <Chip
+              key={speed}
+              label={`${speed}×`}
+              size="small"
+              onClick={() => setDemoSpeed(speed)}
+              sx={{
+                height:     22,
+                fontSize:   '0.65rem',
+                fontWeight: 700,
+                cursor:     'pointer',
+                bgcolor:    demoSpeed === speed ? (workflow?.color ?? '#90caf9') + '44' : 'rgba(255,255,255,0.08)',
+                color:      demoSpeed === speed ? '#fff' : 'rgba(255,255,255,0.5)',
+                border:     demoSpeed === speed ? `1px solid ${workflow?.color ?? '#90caf9'}` : '1px solid transparent',
+                '&:hover':  { bgcolor: 'rgba(255,255,255,0.14)' },
+              }}
+            />
+          ))}
+        </Box>
+      </Tooltip>
 
       {/* Divider */}
       <Box sx={{ width: 1, height: 32, bgcolor: 'rgba(255,255,255,0.1)', mx: 0.5 }} />

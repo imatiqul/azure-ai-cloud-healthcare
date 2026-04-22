@@ -17,6 +17,7 @@ import { useGlobalStore } from '../../store';
 import { DEMO_WORKFLOWS } from './demoScripts';
 import { DemoNarratorPanel } from './DemoNarratorPanel';
 import { DemoControlBar } from './DemoControlBar';
+import { DemoCompletionOverlay } from './DemoCompletionOverlay';
 
 // How many milliseconds between each word appearing in the typewriter
 const WORD_INTERVAL_MS = 110;
@@ -29,6 +30,8 @@ export function AutoDemoPlayer() {
     demoWorkflowIdx,
     demoSceneIdx,
     demoPaused,
+    demoSpeed,
+    isDemoComplete,
     advanceDemoScene,
   } = useGlobalStore();
 
@@ -40,9 +43,11 @@ export function AutoDemoPlayer() {
   const countdownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const demoPausedRef = useRef(demoPaused);
   const advanceRef    = useRef(advanceDemoScene);
+  const demoSpeedRef  = useRef(demoSpeed);
 
   useEffect(() => { demoPausedRef.current = demoPaused; }, [demoPaused]);
   useEffect(() => { advanceRef.current    = advanceDemoScene; }, [advanceDemoScene]);
+  useEffect(() => { demoSpeedRef.current  = demoSpeed; }, [demoSpeed]);
 
   // ── Clear helpers ─────────────────────────────────────────────────────────
   const clearNarration = useCallback(() => {
@@ -95,12 +100,14 @@ export function AutoDemoPlayer() {
       if (demoPausedRef.current) return;
 
       setCountdown(prev => {
-        if (prev <= 1) {
+        const tick = demoSpeedRef.current ?? 1;
+        const next = prev - tick;
+        if (next <= 0) {
           clearCountdown();
           advanceRef.current();
           return 0;
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
 
@@ -130,17 +137,24 @@ export function AutoDemoPlayer() {
 
   return (
     <>
-      <DemoNarratorPanel
-        workflow={workflow}
-        scene={scene}
-        narrationText={narrationText}
-        workflowIdx={demoWorkflowIdx}
-        sceneIdx={demoSceneIdx}
-      />
-      <DemoControlBar
-        countdown={countdown}
-        totalSec={scene.durationSec}
-      />
+      {isDemoComplete && <DemoCompletionOverlay />}
+      {!isDemoComplete && (
+        <>
+          <DemoNarratorPanel
+            workflow={workflow}
+            scene={scene}
+            narrationText={narrationText}
+            workflowIdx={demoWorkflowIdx}
+            sceneIdx={demoSceneIdx}
+            countdown={countdown}
+            totalSec={scene.durationSec}
+          />
+          <DemoControlBar
+            countdown={countdown}
+            totalSec={scene.durationSec}
+          />
+        </>
+      )}
     </>
   );
 }

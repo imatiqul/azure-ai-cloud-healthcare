@@ -24,6 +24,9 @@ export interface GlobalState {
   demoPaused:            boolean;
   demoClientName:        string;
   demoCompany:           string;
+  // Phase 61 additions
+  demoSpeed:             number;    // 1 = normal · 2 = 2× fast-forward
+  isDemoComplete:        boolean;   // true after the last scene auto-advances
   startSelfDrivenDemo:   (clientName: string, company: string) => void;
   advanceDemoScene:      () => void;
   prevDemoScene:         () => void;
@@ -31,6 +34,8 @@ export interface GlobalState {
   resumeDemo:            () => void;
   exitDemo:              () => void;
   setDemoScene:          (workflowIdx: number, sceneIdx: number) => void;
+  setDemoSpeed:          (speed: number) => void;
+  markDemoComplete:      () => void;
 }
 
 export const useGlobalStore = create<GlobalState>((set) => ({
@@ -54,6 +59,9 @@ export const useGlobalStore = create<GlobalState>((set) => ({
   demoPaused:      false,
   demoClientName:  '',
   demoCompany:     '',
+  // Phase 61 additions
+  demoSpeed:       1,
+  isDemoComplete:  false,
 
   startSelfDrivenDemo: (clientName, company) =>
     set({ isDemoActive: true, demoWorkflowIdx: 0, demoSceneIdx: 0, demoPaused: false, demoClientName: clientName, demoCompany: company }),
@@ -72,8 +80,8 @@ export const useGlobalStore = create<GlobalState>((set) => ({
       if (nextWorkflow < workflowCount) {
         return { demoWorkflowIdx: nextWorkflow, demoSceneIdx: 0 };
       }
-      // Demo complete — stay on last scene, mark paused
-      return { demoPaused: true };
+      // Demo complete — stay on last scene, mark done
+      return { demoPaused: true, isDemoComplete: true };
     }),
 
   prevDemoScene: () =>
@@ -92,8 +100,12 @@ export const useGlobalStore = create<GlobalState>((set) => ({
 
   pauseDemo:  () => set({ demoPaused: true }),
   resumeDemo: () => set({ demoPaused: false }),
-  exitDemo:   () => set({ isDemoActive: false, demoWorkflowIdx: 0, demoSceneIdx: 0, demoPaused: false }),
+  exitDemo:   () => set({ isDemoActive: false, demoWorkflowIdx: 0, demoSceneIdx: 0, demoPaused: false, isDemoComplete: false, demoSpeed: 1 }),
 
   setDemoScene: (workflowIdx, sceneIdx) =>
     set({ demoWorkflowIdx: workflowIdx, demoSceneIdx: sceneIdx, demoPaused: false }),
+
+  // Phase 61
+  setDemoSpeed:    (speed)  => set({ demoSpeed: speed }),
+  markDemoComplete: ()      => set({ isDemoComplete: true, demoPaused: true }),
 }));

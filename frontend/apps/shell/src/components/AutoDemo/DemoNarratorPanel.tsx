@@ -9,6 +9,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
+import LinearProgress from '@mui/material/LinearProgress';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import type { DemoWorkflow, DemoScene } from './demoScripts';
@@ -19,6 +20,8 @@ interface DemoNarratorPanelProps {
   narrationText:  string;       // partial typewriter text
   workflowIdx:    number;
   sceneIdx:       number;
+  countdown:      number;       // seconds remaining in current scene
+  totalSec:       number;       // total seconds for current scene
 }
 
 export function DemoNarratorPanel({
@@ -27,8 +30,17 @@ export function DemoNarratorPanel({
   narrationText,
   workflowIdx,
   sceneIdx,
+  countdown,
+  totalSec,
 }: DemoNarratorPanelProps) {
-  const totalScenes = workflow.scenes.length;
+  const totalScenes   = workflow.scenes.length;
+  const elapsed       = Math.max(0, totalSec - countdown);
+  const progressPct   = totalSec > 0 ? (elapsed / totalSec) * 100 : 0;
+  const mins          = Math.floor(countdown / 60);
+  const secs          = countdown % 60;
+  const countdownStr  = mins > 0
+    ? `${mins}:${String(secs).padStart(2, '0')}`
+    : `${secs}s`;
 
   return (
     <Box
@@ -86,14 +98,29 @@ export function DemoNarratorPanel({
         <SmartToyIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.4)' }} />
       </Box>
 
-      {/* Scene title */}
-      <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
-        <Typography
-          variant="subtitle2"
-          sx={{ color: '#fff', fontWeight: 700, fontSize: '0.9rem', lineHeight: 1.3 }}
-        >
-          {scene.title}
-        </Typography>
+      {/* Scene progress bar + countdown */}
+      <Box sx={{ px: 2, pt: 1, pb: 0.5 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.68rem' }}>
+            {scene.title}
+          </Typography>
+          <Typography
+            variant="caption"
+            sx={{ color: workflow.color, fontWeight: 700, fontSize: '0.72rem', fontVariantNumeric: 'tabular-nums' }}
+          >
+            {countdownStr}
+          </Typography>
+        </Box>
+        <LinearProgress
+          variant="determinate"
+          value={progressPct}
+          sx={{
+            height: 2,
+            borderRadius: 1,
+            bgcolor: 'rgba(255,255,255,0.1)',
+            '& .MuiLinearProgress-bar': { bgcolor: workflow.color, transition: 'transform 1s linear' },
+          }}
+        />
       </Box>
 
       {/* Typewriter narration */}

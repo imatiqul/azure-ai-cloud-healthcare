@@ -258,6 +258,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [visibleSections, setVisibleSections] = useState<DashboardSection[]>(loadVisibleSections); // Phase 37
 
   const applyPushUpdate = useCallback((payload: RawDashboardPayload) => {
@@ -276,21 +277,30 @@ export default function Dashboard() {
     }));
   }, []);
 
-  useEffect(() => {
-    async function loadStats() {
-      const failed: string[] = [];
-      const [agents, scheduling, popHealth, revenue] = await Promise.all([
-        fetchSafe('/api/v1/agents/stats',           DEMO_AGENTS,     { pendingTriage: 0, awaitingReview: 0, completed: 0 }, failed),
-        fetchSafe('/api/v1/scheduling/stats',        DEMO_SCHEDULING, { availableToday: 0, bookedToday: 0 }, failed),
-        fetchSafe('/api/v1/population-health/stats', DEMO_POPHEALTH,  { highRiskPatients: 0, openCareGaps: 0 }, failed),
-        fetchSafe('/api/v1/revenue/stats',           DEMO_REVENUE,    { codingQueue: 0, priorAuthsPending: 0 }, failed),
-      ]);
-      setStats(buildStats(agents, scheduling, popHealth, revenue));
-      setFetchError(failed.length > 0);
-      setLoading(false);
-    }
-    loadStats();
+  const loadStats = useCallback(async () => {
+    const failed: string[] = [];
+    const [agents, scheduling, popHealth, revenue] = await Promise.all([
+      fetchSafe('/api/v1/agents/stats',           DEMO_AGENTS,     { pendingTriage: 0, awaitingReview: 0, completed: 0 }, failed),
+      fetchSafe('/api/v1/scheduling/stats',        DEMO_SCHEDULING, { availableToday: 0, bookedToday: 0 }, failed),
+      fetchSafe('/api/v1/population-health/stats', DEMO_POPHEALTH,  { highRiskPatients: 0, openCareGaps: 0 }, failed),
+      fetchSafe('/api/v1/revenue/stats',           DEMO_REVENUE,    { codingQueue: 0, priorAuthsPending: 0 }, failed),
+    ]);
+    setStats(buildStats(agents, scheduling, popHealth, revenue));
+    setFetchError(failed.length > 0);
+    setLastRefreshed(new Date());
+    setLoading(false);
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  // Auto-refresh every 30s
+  useEffect(() => {
+    const id = setInterval(loadStats, 30_000);
+    return () => clearInterval(id);
+  }, [loadStats]);
 
   useEffect(() => {
     if (!SIGNALR_HUB_URL) return; // skip when hub not configured — avoids 405 console errors
@@ -335,7 +345,14 @@ export default function Dashboard() {
     <Box>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
         <Typography variant="h5" fontWeight={700}>{t('dashboard.title', 'Dashboard')}</Typography>
-        <DashboardCustomizer onChange={setVisibleSections} />
+        <Stack direction="row" alignItems="center" spacing={2}>
+          {lastRefreshed && (
+            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
+              Updated {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </Typography>
+          )}
+          <DashboardCustomizer onChange={setVisibleSections} />
+        </Stack>
       </Stack>
       {fetchError && (
         <Alert

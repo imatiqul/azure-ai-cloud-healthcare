@@ -8,14 +8,24 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
+import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import AutoModeIcon from '@mui/icons-material/AutoMode';
 import Alert from '@mui/material/Alert';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useGlobalStore } from '../store'; // Phase 58
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const DEMO_API = `${API_BASE}/api/v1/agents/demo`;
+
+const PROOF_POINTS = [
+  { stat: '94%',  label: 'AI Triage Accuracy' },
+  { stat: '34%',  label: 'No-show Reduction' },
+  { stat: '68%',  label: 'Claim Recovery Rate' },
+  { stat: '~60s', label: 'SOAP Note in Seconds' },
+];
 
 interface DemoStartResponse {
   sessionId: string;
@@ -185,6 +195,26 @@ export default function DemoLanding() {
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
             The AI automatically navigates all 8 workflows with live narration
           </Typography>
+
+          {/* Phase 61 — Proof-points */}
+          <Stack
+            direction="row"
+            spacing={1}
+            justifyContent="center"
+            flexWrap="wrap"
+            sx={{ mt: 1.5, mb: 0.5, gap: 1 }}
+          >
+            {PROOF_POINTS.map(({ stat, label }) => (
+              <Tooltip key={label} title={label} arrow>
+                <Chip
+                  label={<><strong>{stat}</strong>&nbsp;<span style={{ fontSize: 10, opacity: 0.8 }}>{label}</span></>}
+                  size="small"
+                  variant="outlined"
+                  sx={{ borderColor: 'primary.light', color: 'primary.main', fontSize: 11 }}
+                />
+              </Tooltip>
+            ))}
+          </Stack>
 
           <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
             No sign-up required · 5-minute guided tour · Provide feedback at each step
