@@ -18,8 +18,11 @@ import SkipNextIcon from '@mui/icons-material/SkipNext';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import CloseIcon from '@mui/icons-material/Close';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CheckIcon from '@mui/icons-material/Check';
 import { useGlobalStore } from '../../store';
 import { DEMO_WORKFLOWS, getGlobalSceneIndex, TOTAL_SCENES } from './demoScripts';
+import { useState } from 'react';
 
 interface DemoControlBarProps {
   countdown:  number;   // seconds remaining in current scene
@@ -38,6 +41,7 @@ export function DemoControlBar({ countdown, totalSec, elapsedSec }: DemoControlB
     demoSpeed,
     demoClientName,
     demoCompany,
+    demoWorkflowIndices,
     pauseDemo,
     resumeDemo,
     advanceDemoScene,
@@ -46,6 +50,21 @@ export function DemoControlBar({ countdown, totalSec, elapsedSec }: DemoControlB
     setDemoScene,
     setDemoSpeed,
   } = useGlobalStore();
+
+  const [copied, setCopied] = useState(false);
+
+  const copyShareLink = () => {
+    const wf = demoWorkflowIndices.length > 0 ? demoWorkflowIndices.join(',') : '0,1,2,3,4,5,6,7';
+    const url = new URL('/demo', window.location.origin);
+    if (demoClientName) url.searchParams.set('name',      demoClientName);
+    if (demoCompany)    url.searchParams.set('company',   demoCompany);
+    if (demoWorkflowIndices.length > 0) url.searchParams.set('workflows', wf);
+    url.searchParams.set('auto', '1');
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }).catch(() => { /* clipboard denied */ });
+  };
 
   const workflow  = DEMO_WORKFLOWS[demoWorkflowIdx];
   const globalIdx = getGlobalSceneIndex(demoWorkflowIdx, demoSceneIdx);
@@ -197,24 +216,32 @@ export function DemoControlBar({ countdown, totalSec, elapsedSec }: DemoControlB
       {/* Divider */}
       <Box sx={{ width: 1, height: 32, bgcolor: 'rgba(255,255,255,0.1)', mx: 0.5, mt: 1 }} />
 
-      {/* Workflow dots — click to jump to any workflow */}
+      {/* Workflow dots — only selected workflows fully visible, others dimmed */}
       <Box sx={{ display: 'flex', gap: 0.4, alignItems: 'center', mx: 0.5 }}>
-        {DEMO_WORKFLOWS.map((wf, wi) => (
-          <Tooltip key={wf.id} title={`Jump to: ${wf.name}`} arrow placement="top">
-            <Box
-              onClick={() => setDemoScene(wi, 0)}
-              sx={{
-                width:        wi === demoWorkflowIdx ? 14 : 7,
-                height:       7,
-                borderRadius: 4,
-                bgcolor:      wi === demoWorkflowIdx ? (wf.color ?? '#fff') : 'rgba(255,255,255,0.2)',
-                transition:   'all 0.3s ease',
-                cursor:       'pointer',
-                '&:hover':    { bgcolor: wf.color ?? '#90caf9', opacity: 0.8 },
-              }}
-            />
-          </Tooltip>
-        ))}
+        {DEMO_WORKFLOWS.map((wf, wi) => {
+          const isSelected = demoWorkflowIndices.length === 0 || demoWorkflowIndices.includes(wi);
+          const isActive   = wi === demoWorkflowIdx;
+          return (
+            <Tooltip key={wf.id} title={isSelected ? `Jump to: ${wf.name}` : `${wf.name} (not in tour)`} arrow placement="top">
+              <Box
+                onClick={() => isSelected && setDemoScene(wi, 0)}
+                sx={{
+                  width:        isActive ? 14 : 7,
+                  height:       7,
+                  borderRadius: 4,
+                  bgcolor:      isActive
+                    ? (wf.color ?? '#fff')
+                    : isSelected
+                      ? 'rgba(255,255,255,0.35)'
+                      : 'rgba(255,255,255,0.08)',
+                  transition:   'all 0.3s ease',
+                  cursor:       isSelected ? 'pointer' : 'default',
+                  '&:hover':    isSelected ? { bgcolor: wf.color ?? '#90caf9', opacity: 0.8 } : {},
+                }}
+              />
+            </Tooltip>
+          );
+        })}
       </Box>
 
       {/* Divider */}
@@ -242,6 +269,20 @@ export function DemoControlBar({ countdown, totalSec, elapsedSec }: DemoControlB
             />
           ))}
         </Box>
+      </Tooltip>
+
+      {/* Divider */}
+      <Box sx={{ width: 1, height: 32, bgcolor: 'rgba(255,255,255,0.1)', mx: 0.5 }} />
+
+      {/* Phase 66 — Copy share link */}
+      <Tooltip title={copied ? 'Link copied!' : 'Copy shareable demo link'} arrow>
+        <IconButton
+          size="small"
+          onClick={copyShareLink}
+          sx={{ color: copied ? '#66bb6a' : 'rgba(255,255,255,0.55)', '&:hover': { color: '#90caf9' } }}
+        >
+          {copied ? <CheckIcon sx={{ fontSize: 16 }} /> : <ContentCopyIcon sx={{ fontSize: 16 }} />}
+        </IconButton>
       </Tooltip>
 
       {/* Divider */}

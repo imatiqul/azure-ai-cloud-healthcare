@@ -14,6 +14,7 @@ import IconButton from '@mui/material/IconButton';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import WifiTetheringIcon from '@mui/icons-material/WifiTethering';
+import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useState } from 'react';
@@ -241,6 +242,29 @@ export function DemoNarratorPanel({
           <LightbulbIcon sx={{ fontSize: 15, color: '#ffd54f', mt: 0.2, flexShrink: 0 }} />
           <Typography variant="caption" sx={{ color: '#ffd54f', lineHeight: 1.5 }}>
             {scene.highlightHint}
+          </Typography>
+        </Box>
+      )}
+
+      {/* Phase 66 — Presenter talking point (amber, discreet) */}
+      {scene.presenterNotes && (
+        <Box
+          sx={{
+            mx:           1.5,
+            mb:           1.5,
+            px:           1.5,
+            py:           1,
+            borderRadius: 2,
+            bgcolor:      'rgba(255,152,0,0.08)',
+            border:       '1px solid rgba(255,152,0,0.22)',
+            display:      'flex',
+            alignItems:   'flex-start',
+            gap:          1,
+          }}
+        >
+          <TipsAndUpdatesIcon sx={{ fontSize: 14, color: '#ff9800', mt: 0.25, flexShrink: 0 }} />
+          <Typography variant="caption" sx={{ color: 'rgba(255,152,0,0.9)', lineHeight: 1.5, fontSize: '0.7rem' }}>
+            {scene.presenterNotes}
           </Typography>
         </Box>
       )}
