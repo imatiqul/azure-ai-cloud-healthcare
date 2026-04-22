@@ -78,7 +78,13 @@ const SCHEDULING_STATS = {
 
 const POP_HEALTH_STATS = {
   highRiskPatients: 127,
+  HighRiskPatients: 127,
   openCareGaps: 84,
+  OpenCareGaps: 84,
+  closedCareGaps: 52,
+  ClosedCareGaps: 52,
+  totalPatients: 451,
+  TotalPatients: 451,
   interventionsDue: 31,
   chronicConditionsManaged: 412,
 };
@@ -91,14 +97,14 @@ const REVENUE_STATS = {
 };
 
 const RISK_PATIENTS = [
-  { id: 'r-001', patientId: 'PAT-00142', patientName: 'Sarah Mitchell',    level: 'Critical', riskScore: 94, conditions: ['HF', 'CKD'],         assessedAt: hoursAgo(2) },
-  { id: 'r-002', patientId: 'PAT-00278', patientName: 'David Okafor',      level: 'Critical', riskScore: 91, conditions: ['COPD', 'T2DM'],       assessedAt: hoursAgo(3) },
-  { id: 'r-003', patientId: 'PAT-00391', patientName: 'Maria Gonzalez',    level: 'High',     riskScore: 82, conditions: ['CAD', 'HTN'],          assessedAt: hoursAgo(5) },
-  { id: 'r-004', patientId: 'PAT-00554', patientName: 'James Patel',       level: 'High',     riskScore: 79, conditions: ['T2DM', 'Obesity'],     assessedAt: hoursAgo(6) },
-  { id: 'r-005', patientId: 'PAT-00619', patientName: 'Linda Nguyen',      level: 'High',     riskScore: 76, conditions: ['HTN', 'Dyslipidemia'], assessedAt: hoursAgo(8) },
-  { id: 'r-006', patientId: 'PAT-00731', patientName: 'Robert Chen',       level: 'Moderate', riskScore: 58, conditions: ['Asthma'],              assessedAt: hoursAgo(10) },
-  { id: 'r-007', patientId: 'PAT-00842', patientName: 'Angela Thompson',   level: 'Moderate', riskScore: 54, conditions: ['HTN'],                 assessedAt: daysAgo(1) },
-  { id: 'r-008', patientId: 'PAT-00953', patientName: 'Michael Rodriguez', level: 'Low',      riskScore: 32, conditions: ['Hyperthyroidism'],     assessedAt: daysAgo(2) },
+  { id: 'r-001', patientId: 'PAT-00142', patientName: 'Sarah Mitchell',    level: 'Critical', riskLevel: 'Critical', riskScore: 0.94, conditions: ['HF', 'CKD'],         assessedAt: hoursAgo(2) },
+  { id: 'r-002', patientId: 'PAT-00278', patientName: 'David Okafor',      level: 'Critical', riskLevel: 'Critical', riskScore: 0.91, conditions: ['COPD', 'T2DM'],       assessedAt: hoursAgo(3) },
+  { id: 'r-003', patientId: 'PAT-00391', patientName: 'Maria Gonzalez',    level: 'High',     riskLevel: 'High',     riskScore: 0.82, conditions: ['CAD', 'HTN'],          assessedAt: hoursAgo(5) },
+  { id: 'r-004', patientId: 'PAT-00554', patientName: 'James Patel',       level: 'High',     riskLevel: 'High',     riskScore: 0.79, conditions: ['T2DM', 'Obesity'],     assessedAt: hoursAgo(6) },
+  { id: 'r-005', patientId: 'PAT-00619', patientName: 'Linda Nguyen',      level: 'High',     riskLevel: 'High',     riskScore: 0.76, conditions: ['HTN', 'Dyslipidemia'], assessedAt: hoursAgo(8) },
+  { id: 'r-006', patientId: 'PAT-00731', patientName: 'Robert Chen',       level: 'Moderate', riskLevel: 'Moderate', riskScore: 0.58, conditions: ['Asthma'],              assessedAt: hoursAgo(10) },
+  { id: 'r-007', patientId: 'PAT-00842', patientName: 'Angela Thompson',   level: 'Moderate', riskLevel: 'Moderate', riskScore: 0.54, conditions: ['HTN'],                 assessedAt: daysAgo(1) },
+  { id: 'r-008', patientId: 'PAT-00953', patientName: 'Michael Rodriguez', level: 'Low',      riskLevel: 'Low',      riskScore: 0.32, conditions: ['Hyperthyroidism'],     assessedAt: daysAgo(2) },
 ];
 
 const CARE_GAPS = [
@@ -113,12 +119,12 @@ const CARE_GAPS = [
 ];
 
 const DENIALS = [
-  { id: 'd-001', claimNumber: 'CLM-20240301', payerName: 'BlueCross BlueShield', denialReasonCode: 'CO-4',  category: 'Coding',            status: 'Open',         deniedAmount: 3200, appealDeadline: daysFromNow(10), daysUntilDeadline: 10 },
-  { id: 'd-002', claimNumber: 'CLM-20240285', payerName: 'Aetna',                denialReasonCode: 'PR-96', category: 'Coverage',          status: 'UnderAppeal',  deniedAmount: 1850, appealDeadline: daysFromNow(3),  daysUntilDeadline: 3  },
-  { id: 'd-003', claimNumber: 'CLM-20240241', payerName: 'UnitedHealth',         denialReasonCode: 'CO-11', category: 'Medical Necessity', status: 'Open',         deniedAmount: 7400, appealDeadline: daysFromNow(15), daysUntilDeadline: 15 },
-  { id: 'd-004', claimNumber: 'CLM-20240198', payerName: 'Cigna',                denialReasonCode: 'CO-97', category: 'Billing',           status: 'Resubmitted',  deniedAmount: 920,  appealDeadline: daysFromNow(21), daysUntilDeadline: 21 },
-  { id: 'd-005', claimNumber: 'CLM-20240177', payerName: 'Humana',               denialReasonCode: 'CO-16', category: 'Authorization',     status: 'Open',         deniedAmount: 4750, appealDeadline: daysFromNow(6),  daysUntilDeadline: 6  },
-  { id: 'd-006', claimNumber: 'CLM-20240155', payerName: 'Medicare',             denialReasonCode: 'PR-27', category: 'Coding',            status: 'UnderAppeal',  deniedAmount: 2100, appealDeadline: daysFromNow(8),  daysUntilDeadline: 8  },
+  { id: 'd-001', claimNumber: 'CLM-20240301', payerName: 'BlueCross BlueShield', denialReasonCode: 'CO-4',  category: 'Coding',            status: 'Open',         denialStatus: 'Open',         deniedAmount: 3200, deniedAmountUsd: 3200, appealDeadline: daysFromNow(6),  daysUntilDeadline: 6  },
+  { id: 'd-002', claimNumber: 'CLM-20240285', payerName: 'Aetna',                denialReasonCode: 'PR-96', category: 'Coverage',          status: 'UnderAppeal',  denialStatus: 'UnderAppeal',  deniedAmount: 1850, deniedAmountUsd: 1850, appealDeadline: daysFromNow(3),  daysUntilDeadline: 3  },
+  { id: 'd-003', claimNumber: 'CLM-20240241', payerName: 'UnitedHealth',         denialReasonCode: 'CO-11', category: 'Medical Necessity', status: 'Open',         denialStatus: 'Open',         deniedAmount: 7400, deniedAmountUsd: 7400, appealDeadline: daysFromNow(4),  daysUntilDeadline: 4  },
+  { id: 'd-004', claimNumber: 'CLM-20240198', payerName: 'Cigna',                denialReasonCode: 'CO-97', category: 'Billing',           status: 'Resubmitted',  denialStatus: 'Resubmitted',  deniedAmount: 920,  deniedAmountUsd: 920,  appealDeadline: daysFromNow(21), daysUntilDeadline: 21 },
+  { id: 'd-005', claimNumber: 'CLM-20240177', payerName: 'Humana',               denialReasonCode: 'CO-16', category: 'Authorization',     status: 'Open',         denialStatus: 'Open',         deniedAmount: 4750, deniedAmountUsd: 4750, appealDeadline: daysFromNow(2),  daysUntilDeadline: 2  },
+  { id: 'd-006', claimNumber: 'CLM-20240155', payerName: 'Medicare',             denialReasonCode: 'PR-27', category: 'Coding',            status: 'UnderAppeal',  denialStatus: 'UnderAppeal',  deniedAmount: 2100, deniedAmountUsd: 2100, appealDeadline: daysFromNow(8),  daysUntilDeadline: 8  },
 ];
 
 const DENIAL_ANALYTICS = {
@@ -185,8 +191,9 @@ const ESCALATIONS = [
 ];
 
 const BREAK_GLASS = [
-  { id: 'bg-001', userId: 'USR-411', userName: 'Dr. E. Parker',  patientId: 'PAT-00891', reason: 'Emergency — unresponsive patient, identity unknown.',    accessedAt: hoursAgo(0.5), expiresAt: hoursAgo(-1.5) },
-  { id: 'bg-002', userId: 'USR-289', userName: 'Dr. M. Chandra', patientId: 'PAT-00142', reason: 'Code blue override — cardiac arrest response.',          accessedAt: hoursAgo(2),   expiresAt: hoursAgo(-0.5) },
+  { id: 'bg-001', requestedByUserId: 'USR-411', requestedByName: 'Dr. E. Parker',  targetPatientId: 'PAT-00891', clinicalJustification: 'Emergency — unresponsive patient, identity unknown.',    grantedAt: hoursAgo(0.5), expiresAt: hoursAgo(-1.5), isRevoked: false },
+  { id: 'bg-002', requestedByUserId: 'USR-289', requestedByName: 'Dr. M. Chandra', targetPatientId: 'PAT-00142', clinicalJustification: 'Code blue override — cardiac arrest response.',          grantedAt: hoursAgo(2),   expiresAt: hoursAgo(-0.5), isRevoked: false },
+  { id: 'bg-003', requestedByUserId: 'USR-174', requestedByName: 'Nurse T. Williams', targetPatientId: 'PAT-00731', clinicalJustification: 'Unconscious trauma patient — MRN lookup required for surgical consent.', grantedAt: hoursAgo(6),   expiresAt: hoursAgo(2),   isRevoked: true  },
 ];
 
 const AUDIT_SUMMARY = {
@@ -396,6 +403,23 @@ const PRIOR_AUTH_STATUS = [
 
 const CARE_GAP_SUMMARY = { total: 84, critical: 12, dueThisMonth: 31, addressed: 18, complianceRate: 68.4 };
 
+const RISK_TRAJECTORY_PATIENT = {
+  patientId: 'PAT-00142',
+  dataPoints: [
+    { assessedAt: daysAgo(60), riskScore: 0.71, level: 'High',     trend: 'Stable',    scoreDelta: 0.00 },
+    { assessedAt: daysAgo(45), riskScore: 0.76, level: 'High',     trend: 'Worsening', scoreDelta: 0.05 },
+    { assessedAt: daysAgo(30), riskScore: 0.82, level: 'High',     trend: 'Worsening', scoreDelta: 0.06 },
+    { assessedAt: daysAgo(15), riskScore: 0.88, level: 'Critical', trend: 'Worsening', scoreDelta: 0.06 },
+    { assessedAt: daysAgo(7),  riskScore: 0.91, level: 'Critical', trend: 'Worsening', scoreDelta: 0.03 },
+    { assessedAt: daysAgo(2),  riskScore: 0.94, level: 'Critical', trend: 'Worsening', scoreDelta: 0.03 },
+  ],
+  min: 0.71,
+  max: 0.94,
+  mean: 0.84,
+  slope: 0.0038,
+  overallTrend: 'Worsening',
+};
+
 const DRUG_INTERACTION_RESULT = { interactions: [
   { drug1: 'Warfarin', drug2: 'Aspirin', severity: 'Major', description: 'Increased bleeding risk. Monitor INR closely.', recommendation: 'Consider alternative antiplatelet therapy.' },
 ], checkedAt: new Date().toISOString() };
@@ -495,6 +519,7 @@ function matchResponse(url: string, method: string): Promise<Response> | null {
 
   // Population health
   if (path === '/api/v1/population-health/stats')            return ok(POP_HEALTH_STATS);
+  if (/\/population-health\/risks\/.+\/trajectory/.test(path)) return ok(RISK_TRAJECTORY_PATIENT);
   if (/\/population-health\/risks/.test(path))               return ok(RISK_PATIENTS);
   if (/\/population-health\/care-gaps/.test(path))           return ok(CARE_GAPS);
   if (/\/population-health\/cost-prediction/.test(path))     return ok(COST_PREDICTIONS);
