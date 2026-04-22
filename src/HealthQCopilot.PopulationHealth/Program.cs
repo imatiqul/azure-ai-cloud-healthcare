@@ -86,32 +86,69 @@ app.MapPost("/api/v1/population-health/seed", async (PopHealthDbContext db, Care
     // Using PatientRisk.Create() directly so scores are deterministic in demo.
     var risks = new[]
     {
+        // ── Elderly (65+) ───────────────────────────────────────────────────────────────────────────
         PatientRisk.Create("PAT-001", RiskLevel.Critical, 0.94, "risk-v3", ["Heart Failure", "CKD Stage 3", "Age>65", "Multiple ED Visits"]),
         PatientRisk.Create("PAT-002", RiskLevel.Critical, 0.91, "risk-v3", ["COPD", "Type 2 Diabetes", "BMI>35", "Non-adherent"]),
+        PatientRisk.Create("PAT-015", RiskLevel.Critical, 0.92, "risk-v3", ["Alzheimer's Disease", "Osteoporosis", "Age>75", "Fall Risk", "Caregiver Stress"]),
+        PatientRisk.Create("PAT-016", RiskLevel.Critical, 0.96, "risk-v3", ["Advanced CHF (EF 20%)", "CKD Stage 4", "Atrial Fibrillation", "Frailty", "Age>85"]),
+        // ── Adult (36–64) ───────────────────────────────────────────────────────────────────────
         PatientRisk.Create("PAT-003", RiskLevel.High,     0.82, "risk-v3", ["CAD", "Hypertension", "Dyslipidemia", "Smoker"]),
         PatientRisk.Create("PAT-004", RiskLevel.High,     0.79, "risk-v3", ["Type 2 Diabetes", "Obesity", "Peripheral Neuropathy"]),
         PatientRisk.Create("PAT-005", RiskLevel.High,     0.76, "risk-v3", ["Hypertension", "Dyslipidemia", "Pre-diabetes"]),
         PatientRisk.Create("PAT-006", RiskLevel.Moderate, 0.58, "risk-v3", ["Asthma", "Allergic Rhinitis"]),
+        PatientRisk.Create("PAT-013", RiskLevel.High,     0.80, "risk-v3", ["Colorectal Cancer Stage IIa", "Post-surgical", "CEA Elevated", "Surveillance Due"]),
+        PatientRisk.Create("PAT-014", RiskLevel.High,     0.78, "risk-v3", ["Relapsing-Remitting MS", "Optic Neuritis History", "Gait Dysfunction", "Fatigue"]),
+        // ── Young Adult (18–35) ───────────────────────────────────────────────────────────────
         PatientRisk.Create("PAT-007", RiskLevel.Moderate, 0.54, "risk-v3", ["Hypertension"]),
         PatientRisk.Create("PAT-008", RiskLevel.Low,      0.32, "risk-v3", ["Hyperthyroidism"]),
+        PatientRisk.Create("PAT-011", RiskLevel.High,     0.74, "risk-v3", ["Major Depressive Disorder", "Generalized Anxiety", "Substance Use Disorder", "Non-adherent"]),
+        PatientRisk.Create("PAT-012", RiskLevel.Critical, 0.89, "risk-v3", ["Systemic Lupus Erythematosus", "Lupus Nephritis", "Proteinuria", "Anti-dsDNA Positive"]),
+        // ── Pediatric (0–17) ─────────────────────────────────────────────────────────────────────
+        PatientRisk.Create("PAT-009", RiskLevel.Critical, 0.93, "risk-v3", ["Severe Persistent Asthma", "Eczema", "3 ED Visits (12 months)", "Age<12", "Poor Controller Adherence"]),
+        PatientRisk.Create("PAT-010", RiskLevel.High,     0.77, "risk-v3", ["Type 1 Diabetes", "ADHD", "Adolescent", "Missed Insulin Doses", "CGM Non-adherent"]),
     };
     db.PatientRisks.AddRange(risks);
 
     // ── Care gaps — open for high-risk patients ───────────────────────────────
     var gaps = new[]
     {
-        CareGap.Create("PAT-001", "HBA1C",         "HbA1c screening overdue (>6 months) — diabetes management"),
-        CareGap.Create("PAT-001", "EYE-EXAM",      "Diabetic eye exam not completed this year"),
-        CareGap.Create("PAT-002", "BNP",           "BNP monitoring overdue for CHF patient"),
-        CareGap.Create("PAT-002", "BCS",           "Breast cancer screening (mammogram) — 2+ years overdue"),
-        CareGap.Create("PAT-003", "COL",           "Colorectal cancer screening — colonoscopy not on record"),
-        CareGap.Create("PAT-003", "CBP",           "Blood pressure control — BP 148/94 at last visit"),
-        CareGap.Create("PAT-004", "SPIROMETRY",    "Annual spirometry not completed for COPD risk patient"),
-        CareGap.Create("PAT-005", "STATIN",        "Statin therapy not initiated despite ASCVD risk score >12%"),
-        CareGap.Create("PAT-005", "WELLNESS",      "Annual wellness visit not completed this year"),
-        CareGap.Create("PAT-006", "BMI-COUNSEL",   "BMI counseling not documented for obese patient"),
-        CareGap.Create("PAT-007", "PAIN-MGMT",     "Pain management follow-up overdue"),
-        CareGap.Create("PAT-008", "PNEUMO-VAX",    "Pneumococcal vaccination (PPSV23) — age 65+ due"),
+        // ── Existing patients ─────────────────────────────────────────────────────────────────────────────
+        CareGap.Create("PAT-001", "HBA1C",          "HbA1c screening overdue (>6 months) — diabetes management"),
+        CareGap.Create("PAT-001", "EYE-EXAM",       "Diabetic eye exam not completed this year"),
+        CareGap.Create("PAT-002", "BNP",            "BNP monitoring overdue for CHF patient"),
+        CareGap.Create("PAT-002", "BCS",            "Breast cancer screening (mammogram) — 2+ years overdue"),
+        CareGap.Create("PAT-003", "COL",            "Colorectal cancer screening — colonoscopy not on record"),
+        CareGap.Create("PAT-003", "CBP",            "Blood pressure control — BP 148/94 at last visit"),
+        CareGap.Create("PAT-004", "SPIROMETRY",     "Annual spirometry not completed for COPD risk patient"),
+        CareGap.Create("PAT-005", "STATIN",         "Statin therapy not initiated despite ASCVD risk score >12%"),
+        CareGap.Create("PAT-005", "WELLNESS",       "Annual wellness visit not completed this year"),
+        CareGap.Create("PAT-006", "BMI-COUNSEL",    "BMI counseling not documented for obese patient"),
+        CareGap.Create("PAT-007", "PAIN-MGMT",      "Pain management follow-up overdue"),
+        CareGap.Create("PAT-008", "PNEUMO-VAX",     "Pneumococcal vaccination (PPSV23) — age 65+ due"),
+        // ── Pediatric: PAT-009 Severe Asthma (age 11) ───────────────────────────────────────────────
+        CareGap.Create("PAT-009", "ASTHMA-PLAN",    "Personalised asthma action plan not reviewed in 12 months — 3 ED visits this year"),
+        CareGap.Create("PAT-009", "PEAK-FLOW",      "Peak flow monitoring diary — no readings submitted for 8 weeks"),
+        // ── Pediatric: PAT-010 Type 1 Diabetes + ADHD (age 16) ───────────────────────────────
+        CareGap.Create("PAT-010", "CGM-REVIEW",     "Continuous glucose monitor data review overdue — Time-in-Range below 60%"),
+        CareGap.Create("PAT-010", "ADHD-SCREEN",    "Annual ADHD assessment and medication adjustment due — school performance declining"),
+        // ── Young Adult: PAT-011 Major Depression + Anxiety + SUD (age 22) ──────────────────
+        CareGap.Create("PAT-011", "PHQ9-FOLLOWUP",  "PHQ-9 reassessment overdue — last score 16 (moderate-severe depression)"),
+        CareGap.Create("PAT-011", "SUD-SCREENING",  "Substance use disorder AUDIT-C screening not completed this year"),
+        // ── Young Adult: PAT-012 Systemic Lupus + Lupus Nephritis (age 27) ──────────────────
+        CareGap.Create("PAT-012", "UPCR-MONITOR",   "Urine protein:creatinine ratio overdue — lupus nephritis monitoring protocol"),
+        CareGap.Create("PAT-012", "HCQ-EYE-SCREEN", "Annual hydroxychloroquine retinal toxicity screening not completed"),
+        // ── Adult: PAT-013 Colorectal Cancer Stage IIa (age 45) ───────────────────────────
+        CareGap.Create("PAT-013", "CEA-FOLLOWUP",   "CEA tumor marker blood test overdue — post-surgical surveillance protocol (6-monthly)"),
+        CareGap.Create("PAT-013", "SURV-COL",       "12-month post-resection surveillance colonoscopy not yet scheduled"),
+        // ── Adult: PAT-014 Relapsing-Remitting MS (age 53) ──────────────────────────────
+        CareGap.Create("PAT-014", "BRAIN-MRI",      "Annual brain and spinal cord MRI not ordered — MS disease activity monitoring"),
+        CareGap.Create("PAT-014", "PHYSIO-MS",      "Physical therapy referral pending for MS-related gait dysfunction and fall prevention"),
+        // ── Elderly: PAT-015 Alzheimer's Disease + Osteoporosis (age 80) ───────────────────
+        CareGap.Create("PAT-015", "MOCA-SCREEN",    "Montreal Cognitive Assessment (MoCA) not completed in 6 months — Alzheimer's monitoring"),
+        CareGap.Create("PAT-015", "FALL-RISK",      "Fall risk assessment and home safety evaluation not documented — 1 fall reported last month"),
+        // ── Elderly: PAT-016 Advanced CHF + CKD Stage 4 + AFib (age 87) ──────────────────
+        CareGap.Create("PAT-016", "ADVANCE-CARE",   "Advance care planning discussion not documented — CHF Stage D, goals of care critical"),
+        CareGap.Create("PAT-016", "PALLIATIVE",     "Palliative care team consultation not initiated despite NYHA Class IV heart failure"),
     };
     db.CareGaps.AddRange(gaps);
 

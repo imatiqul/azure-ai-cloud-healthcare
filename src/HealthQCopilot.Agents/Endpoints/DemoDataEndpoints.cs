@@ -118,13 +118,13 @@ public static class DemoDataEndpoints
         .WithTags("Demo")
         .WithSummary("AI governance summary");
 
-        // ── Population risk distribution (aggregate, not patient-level) ───────
+        // ── Population risk distribution (16 patients across all age groups) ──
         app.MapGet("/api/v1/population-health/risk-distribution", () => Results.Ok(new[]
         {
-            new { level = "Critical", count = 2,  percentage = 25.0 },
-            new { level = "High",     count = 3,  percentage = 37.5 },
-            new { level = "Moderate", count = 2,  percentage = 25.0 },
-            new { level = "Low",      count = 1,  percentage = 12.5 },
+            new { level = "Critical", count = 6,  percentage = 37.5 },
+            new { level = "High",     count = 7,  percentage = 43.75 },
+            new { level = "Moderate", count = 2,  percentage = 12.5 },
+            new { level = "Low",      count = 1,  percentage = 6.25 },
         }))
         .WithTags("Demo")
         .WithSummary("Population risk level distribution");
@@ -170,28 +170,49 @@ public static class DemoDataEndpoints
         // ── Engagement: care gap summary ──────────────────────────────────────
         app.MapGet("/api/v1/engagement/care-gap-summary", () => Results.Ok(new
         {
-            total = 12,
-            open = 10,
+            total = 28,
+            open = 26,
             closed = 2,
-            overdue = 4,
+            overdue = 10,
             byMeasure = new[]
             {
-                new { measure = "HbA1c",            open = 1, closed = 0 },
-                new { measure = "Eye Exam",          open = 1, closed = 0 },
-                new { measure = "BNP",               open = 1, closed = 1 },
-                new { measure = "Mammogram",         open = 1, closed = 0 },
-                new { measure = "Colonoscopy",       open = 1, closed = 0 },
-                new { measure = "Blood Pressure",    open = 1, closed = 0 },
-                new { measure = "Spirometry",        open = 1, closed = 0 },
-                new { measure = "Statin Therapy",    open = 1, closed = 0 },
-                new { measure = "Wellness Visit",    open = 1, closed = 0 },
-                new { measure = "BMI Counseling",    open = 0, closed = 1 },
-                new { measure = "Pain Management",   open = 1, closed = 0 },
-                new { measure = "Pneumovax",         open = 1, closed = 0 },
+                // Existing patients
+                new { measure = "HbA1c",                  open = 1, closed = 0 },
+                new { measure = "Eye Exam",               open = 1, closed = 0 },
+                new { measure = "BNP",                    open = 1, closed = 1 },
+                new { measure = "Mammogram",              open = 1, closed = 0 },
+                new { measure = "Colonoscopy",            open = 1, closed = 0 },
+                new { measure = "Blood Pressure",         open = 1, closed = 0 },
+                new { measure = "Spirometry",             open = 1, closed = 0 },
+                new { measure = "Statin Therapy",         open = 1, closed = 0 },
+                new { measure = "Wellness Visit",         open = 1, closed = 0 },
+                new { measure = "BMI Counseling",         open = 0, closed = 1 },
+                new { measure = "Pain Management",        open = 1, closed = 0 },
+                new { measure = "Pneumovax",              open = 1, closed = 0 },
+                // Pediatric (PAT-009 Asthma, PAT-010 T1DM+ADHD)
+                new { measure = "Asthma Action Plan",     open = 1, closed = 0 },
+                new { measure = "Peak Flow Monitor",      open = 1, closed = 0 },
+                new { measure = "CGM Review",             open = 1, closed = 0 },
+                new { measure = "ADHD Screening",         open = 1, closed = 0 },
+                // Young Adult (PAT-011 Depression, PAT-012 SLE)
+                new { measure = "PHQ-9 Follow-up",        open = 1, closed = 0 },
+                new { measure = "SUD Screening",          open = 1, closed = 0 },
+                new { measure = "UPCR Monitoring",        open = 1, closed = 0 },
+                new { measure = "HCQ Eye Screening",      open = 1, closed = 0 },
+                // Adult (PAT-013 Oncology, PAT-014 MS)
+                new { measure = "CEA Follow-up",          open = 1, closed = 0 },
+                new { measure = "Surveillance Colonoscopy",open = 1, closed = 0 },
+                new { measure = "Brain MRI",              open = 1, closed = 0 },
+                new { measure = "Physical Therapy",       open = 1, closed = 0 },
+                // Elderly (PAT-015 Alzheimer's, PAT-016 CHF)
+                new { measure = "MoCA Screening",         open = 1, closed = 0 },
+                new { measure = "Fall Risk Assessment",   open = 1, closed = 0 },
+                new { measure = "Advance Care Planning",  open = 1, closed = 0 },
+                new { measure = "Palliative Care Consult",open = 1, closed = 0 },
             },
         }))
         .WithTags("Demo")
-        .WithSummary("Care gap summary across all patients");
+        .WithSummary("Care gap summary across all 16 patients");
 
         // ── Agents: feedback list ─────────────────────────────────────────────
         app.MapGet("/api/v1/agents/feedback", () => Results.Ok(new[]
@@ -255,20 +276,32 @@ public static class DemoDataEndpoints
         .WithTags("Demo")
         .WithSummary("Recent guide viewing history");
 
-        // ── Patient search results (population health) ────────────────────────
+        // ── Patient search results (population health — 16 patients across age groups & specialties) ──
         app.MapGet("/api/v1/population-health/patients", () => Results.Ok(new[]
         {
-            new { id = "PAT-001", name = "Sarah Mitchell",   dob = "1952-03-14", mrn = "MRN-00891", riskLevel = "Critical", openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-7).ToString("yyyy-MM-dd") },
-            new { id = "PAT-002", name = "David Okafor",     dob = "1958-09-22", mrn = "MRN-00892", riskLevel = "Critical", openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-14).ToString("yyyy-MM-dd") },
-            new { id = "PAT-003", name = "Maria Gonzalez",   dob = "1965-07-08", mrn = "MRN-00893", riskLevel = "High",     openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-21).ToString("yyyy-MM-dd") },
-            new { id = "PAT-004", name = "James Williams",   dob = "1971-11-30", mrn = "MRN-00894", riskLevel = "High",     openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-28).ToString("yyyy-MM-dd") },
-            new { id = "PAT-005", name = "Elena Petrov",     dob = "1978-04-17", mrn = "MRN-00895", riskLevel = "High",     openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-10).ToString("yyyy-MM-dd") },
-            new { id = "PAT-006", name = "Michael Thompson", dob = "1984-12-05", mrn = "MRN-00896", riskLevel = "Moderate", openCareGaps = 1, lastVisit = DateTime.UtcNow.AddDays(-45).ToString("yyyy-MM-dd") },
-            new { id = "PAT-007", name = "Linda Chen",       dob = "1990-06-19", mrn = "MRN-00897", riskLevel = "Moderate", openCareGaps = 1, lastVisit = DateTime.UtcNow.AddDays(-60).ToString("yyyy-MM-dd") },
-            new { id = "PAT-008", name = "Robert Kim",       dob = "1995-02-28", mrn = "MRN-00898", riskLevel = "Low",      openCareGaps = 1, lastVisit = DateTime.UtcNow.AddDays(-90).ToString("yyyy-MM-dd") },
+            // ── Elderly (65+) ─────────────────────────────────────────────────
+            new { id = "PAT-001", name = "Sarah Mitchell",    dob = "1952-03-14", mrn = "MRN-00891", riskLevel = "Critical", openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-7).ToString("yyyy-MM-dd"),   ageGroup = "Elderly (65+)",       specialist = "Cardiology",              primaryDiagnosis = "Heart Failure + CKD Stage 3" },
+            new { id = "PAT-002", name = "David Okafor",      dob = "1958-09-22", mrn = "MRN-00892", riskLevel = "Critical", openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-14).ToString("yyyy-MM-dd"),  ageGroup = "Elderly (65+)",       specialist = "Pulmonology",             primaryDiagnosis = "COPD + Type 2 Diabetes" },
+            new { id = "PAT-015", name = "Dorothy Hughes",    dob = "1945-11-28", mrn = "MRN-00909", riskLevel = "Critical", openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-9).ToString("yyyy-MM-dd"),   ageGroup = "Elderly (65+)",       specialist = "Geriatrics / Neurology",  primaryDiagnosis = "Alzheimer's Disease + Osteoporosis" },
+            new { id = "PAT-016", name = "Warren Baptiste",   dob = "1938-07-04", mrn = "MRN-00910", riskLevel = "Critical", openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-3).ToString("yyyy-MM-dd"),   ageGroup = "Elderly (65+)",       specialist = "Cardiology / Geriatrics", primaryDiagnosis = "Advanced CHF (EF 20%) + CKD Stage 4 + AFib" },
+            // ── Adult (36–64) ─────────────────────────────────────────────────
+            new { id = "PAT-003", name = "Maria Gonzalez",    dob = "1965-07-08", mrn = "MRN-00893", riskLevel = "High",     openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-21).ToString("yyyy-MM-dd"),  ageGroup = "Adult (36–64)",       specialist = "Cardiology",              primaryDiagnosis = "Coronary Artery Disease" },
+            new { id = "PAT-004", name = "James Williams",    dob = "1971-11-30", mrn = "MRN-00894", riskLevel = "High",     openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-28).ToString("yyyy-MM-dd"),  ageGroup = "Adult (36–64)",       specialist = "Endocrinology",           primaryDiagnosis = "Type 2 Diabetes + Obesity" },
+            new { id = "PAT-005", name = "Elena Petrov",      dob = "1978-04-17", mrn = "MRN-00895", riskLevel = "High",     openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-10).ToString("yyyy-MM-dd"),  ageGroup = "Adult (36–64)",       specialist = "Internal Medicine",       primaryDiagnosis = "Hypertension + Pre-Diabetes" },
+            new { id = "PAT-006", name = "Michael Thompson",  dob = "1984-12-05", mrn = "MRN-00896", riskLevel = "Moderate", openCareGaps = 1, lastVisit = DateTime.UtcNow.AddDays(-45).ToString("yyyy-MM-dd"),  ageGroup = "Adult (36–64)",       specialist = "Allergy & Immunology",    primaryDiagnosis = "Asthma + Allergic Rhinitis" },
+            new { id = "PAT-013", name = "Carlos Mendez",     dob = "1980-09-03", mrn = "MRN-00905", riskLevel = "High",     openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-18).ToString("yyyy-MM-dd"),  ageGroup = "Adult (36–64)",       specialist = "Oncology",                primaryDiagnosis = "Colorectal Cancer Stage IIa (post-resection)" },
+            new { id = "PAT-014", name = "Fatima Al-Hassan",  dob = "1972-02-14", mrn = "MRN-00906", riskLevel = "High",     openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-12).ToString("yyyy-MM-dd"),  ageGroup = "Adult (36–64)",       specialist = "Neurology",               primaryDiagnosis = "Relapsing-Remitting Multiple Sclerosis" },
+            // ── Young Adult (18–35) ───────────────────────────────────────────
+            new { id = "PAT-007", name = "Linda Chen",        dob = "1990-06-19", mrn = "MRN-00897", riskLevel = "Moderate", openCareGaps = 1, lastVisit = DateTime.UtcNow.AddDays(-60).ToString("yyyy-MM-dd"),  ageGroup = "Young Adult (18–35)", specialist = "Internal Medicine",       primaryDiagnosis = "Hypertension" },
+            new { id = "PAT-008", name = "Robert Kim",        dob = "1995-02-28", mrn = "MRN-00898", riskLevel = "Low",      openCareGaps = 1, lastVisit = DateTime.UtcNow.AddDays(-90).ToString("yyyy-MM-dd"),  ageGroup = "Young Adult (18–35)", specialist = "Endocrinology",           primaryDiagnosis = "Hyperthyroidism" },
+            new { id = "PAT-011", name = "Tyler Reeves",      dob = "2003-04-15", mrn = "MRN-00903", riskLevel = "High",     openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-22).ToString("yyyy-MM-dd"),  ageGroup = "Young Adult (18–35)", specialist = "Psychiatry",              primaryDiagnosis = "Major Depressive Disorder + Anxiety + SUD" },
+            new { id = "PAT-012", name = "Priya Sharma",      dob = "1999-01-11", mrn = "MRN-00904", riskLevel = "Critical", openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-5).ToString("yyyy-MM-dd"),   ageGroup = "Young Adult (18–35)", specialist = "Rheumatology / Nephrology",primaryDiagnosis = "Systemic Lupus Erythematosus + Lupus Nephritis" },
+            // ── Pediatric (0–17) ──────────────────────────────────────────────
+            new { id = "PAT-009", name = "Noah Patel",        dob = "2015-06-12", mrn = "MRN-00901", riskLevel = "Critical", openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-6).ToString("yyyy-MM-dd"),   ageGroup = "Pediatric (0–17)",    specialist = "Pediatric Pulmonology",   primaryDiagnosis = "Severe Persistent Asthma + Eczema" },
+            new { id = "PAT-010", name = "Aisha Johnson",     dob = "2009-08-20", mrn = "MRN-00902", riskLevel = "High",     openCareGaps = 2, lastVisit = DateTime.UtcNow.AddDays(-15).ToString("yyyy-MM-dd"),  ageGroup = "Pediatric (0–17)",    specialist = "Pediatric Endocrinology", primaryDiagnosis = "Type 1 Diabetes + ADHD" },
         }))
         .WithTags("Demo")
-        .WithSummary("Patient search results with risk summary");
+        .WithSummary("Patient search results — 16 patients across age groups, specialties, and conditions");
 
         // ── Tenant admin ──────────────────────────────────────────────────────
         app.MapGet("/api/v1/tenant", () => Results.Ok(new
@@ -283,6 +316,37 @@ public static class DemoDataEndpoints
         }))
         .WithTags("Demo")
         .WithSummary("Current tenant configuration");
+
+        // ── Patient breakdown by age group ────────────────────────────────────
+        app.MapGet("/api/v1/population-health/patients/by-age-group", () => Results.Ok(new[]
+        {
+            new { ageGroup = "Pediatric (0–17)",    count = 2, criticalCount = 1, avgRiskScore = 0.88, topConditions = new[] { "Severe Asthma", "Type 1 Diabetes", "ADHD" } },
+            new { ageGroup = "Young Adult (18–35)", count = 4, criticalCount = 1, avgRiskScore = 0.65, topConditions = new[] { "Major Depression", "Lupus", "Lupus Nephritis", "Hypertension" } },
+            new { ageGroup = "Adult (36–64)",       count = 6, criticalCount = 0, avgRiskScore = 0.72, topConditions = new[] { "CAD", "Colorectal Cancer", "Multiple Sclerosis", "Type 2 Diabetes" } },
+            new { ageGroup = "Elderly (65+)",       count = 4, criticalCount = 4, avgRiskScore = 0.84, topConditions = new[] { "Heart Failure", "COPD", "Alzheimer's Disease", "Advanced CHF" } },
+        }))
+        .WithTags("Demo")
+        .WithSummary("Patient counts and top conditions grouped by age band");
+
+        // ── Patient breakdown by specialist ───────────────────────────────────
+        app.MapGet("/api/v1/population-health/patients/by-specialist", () => Results.Ok(new[]
+        {
+            new { specialist = "Cardiology",              patientCount = 2, criticalCount = 2, commonConditions = "Heart Failure, CAD, AFib" },
+            new { specialist = "Pulmonology",             patientCount = 1, criticalCount = 1, commonConditions = "COPD, Type 2 Diabetes" },
+            new { specialist = "Endocrinology",           patientCount = 2, criticalCount = 0, commonConditions = "Type 2 Diabetes, Hyperthyroidism" },
+            new { specialist = "Internal Medicine",       patientCount = 2, criticalCount = 0, commonConditions = "Hypertension, Pre-Diabetes" },
+            new { specialist = "Allergy & Immunology",    patientCount = 1, criticalCount = 0, commonConditions = "Asthma, Allergic Rhinitis" },
+            new { specialist = "Pediatric Pulmonology",   patientCount = 1, criticalCount = 1, commonConditions = "Severe Persistent Asthma, Eczema" },
+            new { specialist = "Pediatric Endocrinology", patientCount = 1, criticalCount = 0, commonConditions = "Type 1 Diabetes, ADHD" },
+            new { specialist = "Psychiatry",              patientCount = 1, criticalCount = 0, commonConditions = "Major Depression, Anxiety, SUD" },
+            new { specialist = "Rheumatology / Nephrology",patientCount = 1, criticalCount = 1, commonConditions = "Systemic Lupus Erythematosus, Lupus Nephritis" },
+            new { specialist = "Oncology",                patientCount = 1, criticalCount = 0, commonConditions = "Colorectal Cancer Stage IIa" },
+            new { specialist = "Neurology",               patientCount = 1, criticalCount = 0, commonConditions = "Relapsing-Remitting Multiple Sclerosis" },
+            new { specialist = "Geriatrics / Neurology",  patientCount = 1, criticalCount = 1, commonConditions = "Alzheimer's Disease, Osteoporosis" },
+            new { specialist = "Cardiology / Geriatrics", patientCount = 1, criticalCount = 1, commonConditions = "Advanced CHF (EF 20%), CKD Stage 4, AFib, Frailty" },
+        }))
+        .WithTags("Demo")
+        .WithSummary("Patient counts and conditions grouped by medical specialty");
 
         // ── Admin audit summary ───────────────────────────────────────────────
         app.MapGet("/api/v1/admin/audit/summary", () => Results.Ok(new

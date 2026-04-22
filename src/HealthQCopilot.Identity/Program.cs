@@ -80,20 +80,35 @@ app.MapPost("/api/v1/identity/seed", async (IdentityDbContext db) =>
     // ── Clinician accounts (known IDs so break-glass FK references work) ──────
     var users = new[]
     {
-        UserAccount.Create(Guid.Parse("00000000-0001-0000-0000-000000000001"), "dr-parker-ext",    "e.parker@healthq.demo",    "Dr. E. Parker",      UserRole.Practitioner),
-        UserAccount.Create(Guid.Parse("00000000-0002-0000-0000-000000000002"), "dr-chandra-ext",   "m.chandra@healthq.demo",   "Dr. M. Chandra",     UserRole.Practitioner),
-        UserAccount.Create(Guid.Parse("00000000-0003-0000-0000-000000000003"), "nurse-williams-ext","t.williams@healthq.demo",  "Nurse T. Williams",  UserRole.Practitioner),
-        UserAccount.Create(Guid.Parse("00000000-0004-0000-0000-000000000004"), "admin-wilson-ext",  "m.wilson@healthq.demo",    "Mark Wilson",        UserRole.Admin),
-        UserAccount.Create(Guid.Parse("00000000-0005-0000-0000-000000000005"), "dr-smith-ext",     "r.smith@healthq.demo",     "Dr. Robert Smith",   UserRole.Practitioner),
+        // Existing clinicians
+        UserAccount.Create(Guid.Parse("00000000-0001-0000-0000-000000000001"), "dr-parker-ext",     "e.parker@healthq.demo",     "Dr. E. Parker",        UserRole.Practitioner),
+        UserAccount.Create(Guid.Parse("00000000-0002-0000-0000-000000000002"), "dr-chandra-ext",    "m.chandra@healthq.demo",    "Dr. M. Chandra",       UserRole.Practitioner),
+        UserAccount.Create(Guid.Parse("00000000-0003-0000-0000-000000000003"), "nurse-williams-ext","t.williams@healthq.demo",   "Nurse T. Williams",    UserRole.Practitioner),
+        UserAccount.Create(Guid.Parse("00000000-0004-0000-0000-000000000004"), "admin-wilson-ext",  "m.wilson@healthq.demo",     "Mark Wilson",          UserRole.Admin),
+        UserAccount.Create(Guid.Parse("00000000-0005-0000-0000-000000000005"), "dr-smith-ext",      "r.smith@healthq.demo",      "Dr. Robert Smith",     UserRole.Practitioner),
+        // New specialist clinicians
+        UserAccount.Create(Guid.Parse("00000000-0006-0000-0000-000000000006"), "dr-kim-ext",        "r.kim@healthq.demo",        "Dr. Rachel Kim",       UserRole.Practitioner), // Pediatric Pulmonology
+        UserAccount.Create(Guid.Parse("00000000-0007-0000-0000-000000000007"), "dr-tanaka-ext",     "k.tanaka@healthq.demo",     "Dr. Kenji Tanaka",     UserRole.Practitioner), // Psychiatry
+        UserAccount.Create(Guid.Parse("00000000-0008-0000-0000-000000000008"), "dr-rivera-ext",     "s.rivera@healthq.demo",     "Dr. Sofia Rivera",     UserRole.Practitioner), // Rheumatology
+        UserAccount.Create(Guid.Parse("00000000-0009-0000-0000-000000000009"), "dr-osei-ext",       "d.osei@healthq.demo",       "Dr. Daniel Osei",      UserRole.Practitioner), // Oncology
+        UserAccount.Create(Guid.Parse("00000000-0010-0000-0000-000000000010"), "dr-awilliams-ext",  "a.williams@healthq.demo",   "Dr. Amara Williams",   UserRole.Practitioner), // Neurology
+        UserAccount.Create(Guid.Parse("00000000-0011-0000-0000-000000000011"), "dr-bosworth-ext",   "h.bosworth@healthq.demo",   "Dr. Helen Bosworth",   UserRole.Practitioner), // Geriatrics
     };
     db.UserAccounts.AddRange(users);
 
     // ── Patient accounts (for consent FK references) ───────────────────────────
     var patients = new[]
     {
-        UserAccount.Create(Guid.Parse("00000000-0011-0000-0000-000000000011"), "pat-001-ext", "s.mitchell@patient.demo", "Sarah Mitchell", UserRole.Patient),
-        UserAccount.Create(Guid.Parse("00000000-0012-0000-0000-000000000012"), "pat-002-ext", "d.okafor@patient.demo",   "David Okafor",   UserRole.Patient),
-        UserAccount.Create(Guid.Parse("00000000-0013-0000-0000-000000000013"), "pat-003-ext", "m.gonzalez@patient.demo", "Maria Gonzalez", UserRole.Patient),
+        // Existing patients
+        UserAccount.Create(Guid.Parse("00000000-0011-0000-0000-000000000011"), "pat-001-ext", "s.mitchell@patient.demo",   "Sarah Mitchell",    UserRole.Patient),
+        UserAccount.Create(Guid.Parse("00000000-0012-0000-0000-000000000012"), "pat-002-ext", "d.okafor@patient.demo",     "David Okafor",      UserRole.Patient),
+        UserAccount.Create(Guid.Parse("00000000-0013-0000-0000-000000000013"), "pat-003-ext", "m.gonzalez@patient.demo",   "Maria Gonzalez",    UserRole.Patient),
+        // New patients (paediatric & young adult)
+        UserAccount.Create(Guid.Parse("00000000-0014-0000-0000-000000000014"), "pat-009-ext", "n.patel@patient.demo",      "Noah Patel",        UserRole.Patient), // age 11, Asthma
+        UserAccount.Create(Guid.Parse("00000000-0015-0000-0000-000000000015"), "pat-010-ext", "a.johnson@patient.demo",    "Aisha Johnson",     UserRole.Patient), // age 16, T1DM+ADHD
+        UserAccount.Create(Guid.Parse("00000000-0016-0000-0000-000000000016"), "pat-011-ext", "t.reeves@patient.demo",     "Tyler Reeves",      UserRole.Patient), // age 22, Depression+SUD
+        UserAccount.Create(Guid.Parse("00000000-0017-0000-0000-000000000017"), "pat-012-ext", "p.sharma@patient.demo",     "Priya Sharma",      UserRole.Patient), // age 27, SLE+Nephritis
+        UserAccount.Create(Guid.Parse("00000000-0018-0000-0000-000000000018"), "pat-013-ext", "c.mendez@patient.demo",     "Carlos Mendez",     UserRole.Patient), // age 45, Colorectal Ca
     };
     db.UserAccounts.AddRange(patients);
 

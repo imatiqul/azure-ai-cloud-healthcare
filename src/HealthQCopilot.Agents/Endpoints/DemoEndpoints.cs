@@ -4,6 +4,9 @@ using HealthQCopilot.Infrastructure.Validation;
 
 namespace HealthQCopilot.Agents.Endpoints;
 
+/// <summary>Logger category marker for <see cref="DemoEndpoints"/>.</summary>
+internal sealed class DemoEndpointsLog;
+
 public static class DemoEndpoints
 {
     public static IEndpointRouteBuilder MapDemoEndpoints(this IEndpointRouteBuilder app)
@@ -118,7 +121,7 @@ public static class DemoEndpoints
         group.MapGet("/live-insights", async (
             IHttpClientFactory http,
             IConfiguration config,
-            ILogger<DemoEndpoints> logger,
+            ILogger<DemoEndpointsLog> logger,
             CancellationToken ct) =>
         {
             var insights = await DemoEndpoints.FetchLiveInsightsAsync(http, config, logger, ct);
@@ -165,7 +168,7 @@ public static class DemoEndpoints
     internal static async Task<DemoLiveInsights> FetchLiveInsightsAsync(
         IHttpClientFactory http,
         IConfiguration config,
-        ILogger<DemoEndpoints> logger,
+        ILogger<DemoEndpointsLog> logger,
         CancellationToken ct)
     {
         var client  = http.CreateClient("internal");

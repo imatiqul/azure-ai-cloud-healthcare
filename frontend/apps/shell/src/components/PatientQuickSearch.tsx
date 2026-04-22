@@ -29,12 +29,24 @@ const RECENT_KEY = 'hq:recent-patients';
 const MAX_RECENT = 5;
 
 const DEMO_RISKS: PatientRisk[] = [
+  // Elderly (65+)
   { id: 'risk-001', patientId: 'PAT-00142', level: 'Critical', riskScore: 94, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
   { id: 'risk-002', patientId: 'PAT-00278', level: 'Critical', riskScore: 91, assessedAt: new Date(Date.now() - 2 * 86400_000).toISOString() },
+  { id: 'risk-015', patientId: 'PAT-00715', level: 'Critical', riskScore: 92, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() }, // Dorothy Hughes, 80, Alzheimer's
+  { id: 'risk-016', patientId: 'PAT-00816', level: 'Critical', riskScore: 96, assessedAt: new Date(Date.now() - 0.5 * 86400_000).toISOString() }, // Warren Baptiste, 87, CHF+AFib
+  // Adult (36–64)
   { id: 'risk-003', patientId: 'PAT-00315', level: 'High',     riskScore: 82, assessedAt: new Date(Date.now() - 3 * 86400_000).toISOString() },
   { id: 'risk-004', patientId: 'PAT-00089', level: 'High',     riskScore: 78, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
+  { id: 'risk-013', patientId: 'PAT-00513', level: 'High',     riskScore: 80, assessedAt: new Date(Date.now() - 2 * 86400_000).toISOString() }, // Carlos Mendez, 45, Colorectal Cancer
+  { id: 'risk-014', patientId: 'PAT-00614', level: 'High',     riskScore: 78, assessedAt: new Date(Date.now() - 3 * 86400_000).toISOString() }, // Fatima Al-Hassan, 53, MS
+  // Young Adult (18–35)
   { id: 'risk-005', patientId: 'PAT-00456', level: 'High',     riskScore: 75, assessedAt: new Date(Date.now() - 4 * 86400_000).toISOString() },
+  { id: 'risk-011', patientId: 'PAT-00311', level: 'High',     riskScore: 74, assessedAt: new Date(Date.now() - 2 * 86400_000).toISOString() }, // Tyler Reeves, 22, Depression+SUD
+  { id: 'risk-012', patientId: 'PAT-00412', level: 'Critical', riskScore: 89, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() }, // Priya Sharma, 27, SLE+Lupus Nephritis
   { id: 'risk-006', patientId: 'PAT-00201', level: 'Moderate', riskScore: 61, assessedAt: new Date(Date.now() - 2 * 86400_000).toISOString() },
+  // Pediatric (0–17)
+  { id: 'risk-009', patientId: 'PAT-00109', level: 'Critical', riskScore: 93, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() }, // Noah Patel, 11, Severe Asthma
+  { id: 'risk-010', patientId: 'PAT-00210', level: 'High',     riskScore: 77, assessedAt: new Date(Date.now() - 2 * 86400_000).toISOString() }, // Aisha Johnson, 16, T1DM+ADHD
   { id: 'risk-007', patientId: 'PAT-00333', level: 'Moderate', riskScore: 55, assessedAt: new Date(Date.now() - 5 * 86400_000).toISOString() },
   { id: 'risk-008', patientId: 'PAT-00099', level: 'Low',      riskScore: 32, assessedAt: new Date(Date.now() - 6 * 86400_000).toISOString() },
 ];
