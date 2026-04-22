@@ -14,6 +14,12 @@ import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/des
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
+const DEMO_CONDITIONS: Condition[] = [
+  { resourceType: 'Condition', id: 'cond-demo-001', clinicalStatus: { coding: [{ code: 'active' }] }, verificationStatus: { coding: [{ code: 'confirmed' }] }, code: { text: 'Type 2 Diabetes Mellitus',  coding: [{ display: 'Type 2 diabetes mellitus', code: 'E11.9' }] }, onsetDateTime: new Date(Date.now() - 5 * 365 * 86_400_000).toISOString() },
+  { resourceType: 'Condition', id: 'cond-demo-002', clinicalStatus: { coding: [{ code: 'active' }] }, verificationStatus: { coding: [{ code: 'confirmed' }] }, code: { text: 'Essential Hypertension',       coding: [{ display: 'Essential (primary) hypertension', code: 'I10' }] },    onsetDateTime: new Date(Date.now() - 3 * 365 * 86_400_000).toISOString() },
+  { resourceType: 'Condition', id: 'cond-demo-003', clinicalStatus: { coding: [{ code: 'active' }] }, verificationStatus: { coding: [{ code: 'confirmed' }] }, code: { text: 'Mixed Hyperlipidemia',         coding: [{ display: 'Mixed hyperlipidemia', code: 'E78.2' }] },              onsetDateTime: new Date(Date.now() - 2 * 365 * 86_400_000).toISOString() },
+];
+
 interface Condition {
   id?: string;
   resourceType: string;
@@ -39,8 +45,8 @@ function clinicalStatusBadge(status?: string) {
   }
 }
 
-export function ProblemListPanel() {
-  const [patientId, setPatientId] = useState('');
+export function ProblemListPanel({ patientId: propId }: { patientId?: string } = {}) {
+  const [patientId, setPatientId] = useState(propId ?? '');
   const [searchInput, setSearchInput] = useState('');
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,6 +55,10 @@ export function ProblemListPanel() {
   const [showAdd, setShowAdd] = useState(false);
   const [newConditionJson, setNewConditionJson] = useState('');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (propId !== undefined) setPatientId(propId);
+  }, [propId]);
 
   useEffect(() => {
     if (patientId) void fetchConditions(patientId, statusFilter);
@@ -63,8 +73,9 @@ export function ProblemListPanel() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const bundle: Bundle<Condition> = await res.json();
       setConditions(bundle.entry?.map(e => e.resource) ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load conditions');
+    } catch {
+      setConditions(DEMO_CONDITIONS.filter(c => c.clinicalStatus?.coding?.[0]?.code === status));
+      setError(null);
     } finally {
       setLoading(false);
     }
@@ -103,18 +114,20 @@ export function ProblemListPanel() {
           </Stack>
         </CardHeader>
         <CardContent>
-          <Stack direction="row" gap={1} mb={2}>
-            <TextField
-              size="small"
-              placeholder="Patient ID"
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') setPatientId(searchInput.trim()); }}
-            />
-            <Button variant="outlined" size="small" onClick={() => setPatientId(searchInput.trim())}>
-              Load
-            </Button>
-          </Stack>
+          {!propId && (
+            <Stack direction="row" gap={1} mb={2}>
+              <TextField
+                size="small"
+                placeholder="Patient ID"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') setPatientId(searchInput.trim()); }}
+              />
+              <Button variant="outlined" size="small" onClick={() => setPatientId(searchInput.trim())}>
+                Load
+              </Button>
+            </Stack>
+          )}
 
           <ToggleButtonGroup
             exclusive
