@@ -22,6 +22,8 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write   # allow AI triage job to post PR comments
+  issues: write          # allow AI triage job to post issue comments
 
 defaults:
   run:
@@ -149,10 +151,11 @@ jobs:
 
       - name: Run full cloud E2E suite
         id: e2e
-        run: npx playwright test --config=playwright.cloud.config.ts --reporter=list,github,html
+        run: npx playwright test --config=playwright.cloud.config.ts --reporter=list,github,html,json
         env:
           ENCOUNTERS_URL: https://calm-river-02bddc70f.7.azurestaticapps.net
           ENGAGEMENT_URL: https://agreeable-hill-0d3115b0f.7.azurestaticapps.net
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/results.json
 
       - name: Write E2E summary
         if: always()
@@ -178,6 +181,14 @@ jobs:
           path: frontend/playwright-report/
           retention-days: 30
 
+      - name: Upload E2E JSON results
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: cloud-e2e-results-json-${{ github.run_number }}
+          path: frontend/test-results/results.json
+          retention-days: 7
+
       # Notify Slack on failure — configure SLACK_WEBHOOK_URL as a repo secret
       - name: Notify Slack on failure
         if: failure() && env.SLACK_WEBHOOK_URL != ''
@@ -198,3 +209,131 @@ jobs:
             }"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # ── Job 3: AI Triage — analyses failures and posts a plain-English summary ──
+  # Uses GitHub Models (gpt-4o-mini) to read the Playwright JSON results and
+  # produce actionable diagnosis: which MFEs failed, likely root causes, and
+  # suggested fixes. Posts the analysis as a GitHub Step Summary and, when
+  # triggered from a PR, as a PR comment.
+  ai-triage:
+    name: AI Failure Triage
+    needs: full-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Only run when the E2E suite produced failures worth triaging
+    if: >
+      always() &&
+      needs.full-e2e.result == 'failure'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download E2E JSON results
+        uses: actions/download-artifact@v4
+        with:
+          name: cloud-e2e-results-json-${{ github.run_number }}
+          path: ./results
+
+      # Extract the failed test titles, error messages, and browser console errors
+      # into a compact JSON blob that fits within the LLM context window.
+      - name: Extract failures for AI context
+        id: extract
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, sys
+
+          results_path = "results/results.json"
+          if not os.path.exists(results_path):
+              print("No results.json found — skipping AI triage.")
+              sys.exit(0)
+
+          with open(results_path) as f:
+              data = json.load(f)
+
+          failures = []
+          for suite in data.get("suites", []):
+              for spec in suite.get("specs", []):
+                  for test in spec.get("tests", []):
+                      for result in test.get("results", []):
+                          if result.get("status") not in ("passed", "skipped"):
+                              failures.append({
+                                  "title": f"{suite.get('title', '')} > {spec.get('title', '')}",
+                                  "status": result.get("status"),
+                                  "error": result.get("error", {}).get("message", "")[:400],
+                                  "duration_ms": result.get("duration"),
+                              })
+
+          summary = {
+              "total_tests": data.get("stats", {}).get("expected", 0),
+              "failed": len(failures),
+              "failures": failures[:20],   # cap at 20 to stay within LLM token limit
+          }
+
+          payload = json.dumps(summary, indent=2)
+          # Write as an env file variable (multi-line safe)
+          with open(os.environ["GITHUB_ENV"], "a") as env_file:
+              env_file.write(f"FAILURE_PAYLOAD<<EOF\n{payload}\nEOF\n")
+
+          print(f"Extracted {len(failures)} failures.")
+          PYEOF
+
+      # Call GitHub Models API (free, no external key needed — uses GITHUB_TOKEN)
+      - name: AI failure diagnosis
+        id: ai
+        run: |
+          SYSTEM_PROMPT="You are a senior QA engineer for HealthQ Copilot, a React 19 micro-frontend healthcare platform on Azure. Analyse the Playwright E2E test failures and produce a concise diagnosis (max 400 words) with: 1) Which MFE pages / backend APIs failed. 2) Likely root cause (e.g. API 404, field name mismatch, CSP violation, MFE not loaded). 3) Suggested fix per failure group. Use bullet points and be specific to the HealthQ platform."
+
+          USER_MSG="Post-deploy Playwright results:\n\n$FAILURE_PAYLOAD"
+
+          RESPONSE=$(curl -s -X POST \
+            "https://models.inference.ai.azure.com/chat/completions" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg sys "$SYSTEM_PROMPT" \
+              --arg usr "$USER_MSG" \
+              '{model:"gpt-4o-mini",max_tokens:600,messages:[{role:"system",content:$sys},{role:"user",content:$usr}]}')" \
+          )
+
+          DIAGNOSIS=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // "AI response unavailable."')
+          echo "DIAGNOSIS<<EOF" >> "$GITHUB_ENV"
+          echo "$DIAGNOSIS" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write AI diagnosis to Step Summary
+        run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          cat >> "$GITHUB_STEP_SUMMARY" <<SUMMARY
+          ## 🤖 AI Failure Triage
+
+          **Run:** [#${{ github.run_number }}]($RUN_URL) | **Commit:** \`${{ github.sha }}\` | **Trigger:** \`${{ github.event_name }}\`
+
+          $DIAGNOSIS
+
+          ---
+          *Analysis generated by GitHub Models (gpt-4o-mini). Verify before acting.*
+          SUMMARY
+
+      # Post diagnosis as a PR comment when the workflow is triggered on a PR
+      - name: Post AI diagnosis as PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              '## 🤖 AI Failure Triage — Cloud E2E',
+              '',
+              process.env.DIAGNOSIS,
+              '',
+              `---`,
+              `*[View full Playwright report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})*`,
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+        env:
+          DIAGNOSIS: ${{ env.DIAGNOSIS }}
