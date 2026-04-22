@@ -22,3 +22,6 @@ export type { EmptyStateProps } from './components/EmptyState';
 export { PageHeader } from './components/PageHeader';
 export type { PageHeaderProps, BreadcrumbItem } from './components/PageHeader';
 export { SkeletonCard, SkeletonList, SkeletonStatGrid } from './components/Skeleton';
+// AI streaming
+export { AiThinkingPanel, useStreamText } from './components/AiThinkingPanel';
+export type { AiThinkingPanelProps } from './components/AiThinkingPanel';

@@ -8,7 +8,7 @@ import TextField from '@mui/material/TextField';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
-import { Button } from '@healthcare/design-system';
+import { Button, AiThinkingPanel, useStreamText } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -30,6 +30,11 @@ export function HitlEscalationModal({
   const [clinicianNote, setClinicianNote]   = useState('');
   const [submitting, setSubmitting]         = useState(false);
   const [error, setError]                   = useState<string | null>(null);
+
+  // Stream the AI reasoning word-by-word when the modal opens so clinicians
+  // can watch the AI explain its decision rather than seeing a wall of text.
+  const { displayed: streamedReasoning, streaming: reasoningStreaming, done: reasoningDone } =
+    useStreamText(agentReasoning ?? '');
 
   async function handleApprove() {
     if (!clinicianNote.trim()) {
@@ -97,9 +102,11 @@ export function HitlEscalationModal({
           {agentReasoning && (
             <Stack spacing={0.5}>
               <Typography variant="caption" color="text.disabled">AI REASONING</Typography>
-              <Typography variant="body2" fontStyle="italic" color="text.secondary">
-                {agentReasoning}
-              </Typography>
+              <AiThinkingPanel
+                thinkingText={streamedReasoning}
+                isStreaming={reasoningStreaming}
+                isDone={reasoningDone}
+              />
             </Stack>
           )}
 

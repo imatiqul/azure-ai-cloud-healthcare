@@ -17,7 +17,7 @@ import {
   type AgentResponseMessage,
 } from '@healthcare/web-pubsub-client';
 import { emitAgentDecision, emitEscalationRequired } from '@healthcare/mfe-events';
-import { AiThinkingPanel } from './AiThinkingPanel';
+import { AiThinkingPanel } from '@healthcare/design-system';
 
 type SessionStatus = 'idle' | 'connecting' | 'live' | 'ended';
 

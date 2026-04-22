@@ -5,9 +5,38 @@ import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
-import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
+import { Card, CardHeader, CardTitle, CardContent, Badge, Button, useStreamText } from '@healthcare/design-system';
 import { onEscalationRequired, onAgentDecision } from '@healthcare/mfe-events';
 import { HitlEscalationModal } from './HitlEscalationModal';
+
+/**
+ * Streams the agentReasoning text word-by-word on first mount.
+ * Because each card has a stable key={wf.id}, this component mounts once per
+ * workflow and does not re-stream on subsequent 5-second polling re-renders.
+ */
+function StreamingReasoningText({ text }: { text: string }) {
+  const { displayed, streaming } = useStreamText(text, 22);
+  return (
+    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', fontStyle: 'italic' }}>
+      AI: {displayed}
+      {streaming && (
+        <Box
+          component="span"
+          sx={{
+            display: 'inline-block',
+            width: '1px',
+            height: '0.85em',
+            bgcolor: 'primary.main',
+            ml: '1px',
+            verticalAlign: 'text-bottom',
+            animation: 'blink 1s step-end infinite',
+            '@keyframes blink': { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0 } },
+          }}
+        />
+      )}
+    </Typography>
+  );
+}
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -164,9 +193,7 @@ export function TriageViewer() {
                 Created: {new Date(wf.createdAt).toLocaleString()}
               </Typography>
               {wf.agentReasoning && (
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', fontStyle: 'italic' }}>
-                  AI: {wf.agentReasoning}
-                </Typography>
+                <StreamingReasoningText text={wf.agentReasoning} />
               )}
               {wf.status === 'AwaitingHumanReview' && (
                 <Button size="sm" sx={{ mt: 1 }} onClick={(e: React.MouseEvent) => {
