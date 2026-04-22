@@ -4,7 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Azure.AI.DocumentIntelligence" Version="1.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.15" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.1" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
