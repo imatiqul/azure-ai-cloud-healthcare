@@ -5,6 +5,7 @@ import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
+import LinearProgress from '@mui/material/LinearProgress';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button, useStreamText } from '@healthcare/design-system';
 import { onEscalationRequired, onAgentDecision } from '@healthcare/mfe-events';
 import { HitlEscalationModal } from './HitlEscalationModal';
@@ -44,32 +45,40 @@ const DEMO_WORKFLOWS: TriageWorkflow[] = [
   {
     id: 'demo-wf-1',
     sessionId: 'a1b2c3d4-0000-0000-0000-000000000001',
+    patientName: 'James Chen',
     status: 'AwaitingHumanReview',
     triageLevel: 'P1_Immediate',
+    confidenceScore: 96,
     agentReasoning: 'Patient reports severe chest pain radiating to left arm with shortness of breath. Vitals: BP 160/100, HR 112. Immediate cardiac evaluation required.',
     createdAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
   },
   {
     id: 'demo-wf-2',
     sessionId: 'a1b2c3d4-0000-0000-0000-000000000002',
+    patientName: 'Alice Morgan',
     status: 'AwaitingHumanReview',
     triageLevel: 'P2_Urgent',
+    confidenceScore: 88,
     agentReasoning: 'Patient presents with persistent high fever (39.8°C), severe headache, and photophobia for 18 hours. Meningitis screening recommended.',
     createdAt: new Date(Date.now() - 22 * 60 * 1000).toISOString(),
   },
   {
     id: 'demo-wf-3',
     sessionId: 'a1b2c3d4-0000-0000-0000-000000000003',
+    patientName: 'Sarah O\'Brien',
     status: 'Completed',
     triageLevel: 'P3_Standard',
+    confidenceScore: 79,
     agentReasoning: 'Patient reports moderate lower back pain (6/10) for 3 days following heavy lifting. No neurological symptoms. Recommend physiotherapy referral.',
     createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
   },
   {
     id: 'demo-wf-4',
     sessionId: 'a1b2c3d4-0000-0000-0000-000000000004',
+    patientName: 'Robert Wilson',
     status: 'Processing',
     triageLevel: 'P2_Urgent',
+    confidenceScore: 91,
     agentReasoning: 'Evaluating patient with sudden onset of right-sided weakness and slurred speech. Stroke protocol being assessed.',
     createdAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
   },
@@ -78,8 +87,10 @@ const DEMO_WORKFLOWS: TriageWorkflow[] = [
 interface TriageWorkflow {
   id: string;
   sessionId: string;
+  patientName?: string;
   status: string;
   triageLevel: string;
+  confidenceScore?: number; // 0-100
   agentReasoning?: string;
   createdAt: string;
 }
@@ -208,12 +219,24 @@ export function TriageViewer() {
           </Card>
         )}
         {visibleWorkflows.map((wf) => (
-          <Card key={wf.id} sx={{ cursor: 'pointer', '&:hover': { boxShadow: 3 } }}
+          <Card key={wf.id} sx={{
+            cursor: 'pointer',
+            borderLeft: wf.triageLevel === 'P1_Immediate' ? '4px solid #d32f2f' : wf.triageLevel === 'P2_Urgent' ? '4px solid #ed6c02' : '4px solid transparent',
+            boxShadow: wf.triageLevel === 'P1_Immediate' && wf.status === 'AwaitingHumanReview' ? '0 0 0 1px rgba(211,47,47,0.25)' : undefined,
+            '&:hover': { boxShadow: 3 },
+          }}
                 onClick={() => setSelectedWorkflow(wf.id)}>
             <CardHeader>
               <CardTitle>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <span>Session {wf.sessionId.substring(0, 8)}...</span>
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      {wf.patientName ?? `Session ${wf.sessionId.substring(0, 8)}...`}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(wf.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {Math.round((Date.now() - new Date(wf.createdAt).getTime()) / 60000)}m ago
+                    </Typography>
+                  </Box>
                   <Stack direction="row" spacing={1}>
                     <Badge variant={getTriageBadgeVariant(wf.triageLevel)}>
                       {wf.triageLevel ?? 'Pending'}
@@ -226,11 +249,24 @@ export function TriageViewer() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Typography variant="body2" color="text.secondary">
-                Created: {new Date(wf.createdAt).toLocaleString()}
-              </Typography>
               {wf.agentReasoning && (
                 <StreamingReasoningText text={wf.agentReasoning} />
+              )}
+              {wf.confidenceScore !== undefined && (
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                    AI Confidence
+                  </Typography>
+                  <LinearProgress
+                    variant="determinate"
+                    value={wf.confidenceScore}
+                    color={wf.confidenceScore >= 90 ? 'error' : wf.confidenceScore >= 75 ? 'warning' : 'success'}
+                    sx={{ flexGrow: 1, height: 6, borderRadius: 3 }}
+                  />
+                  <Typography variant="caption" fontWeight={700} color={wf.confidenceScore >= 90 ? 'error.main' : 'text.secondary'}>
+                    {wf.confidenceScore}%
+                  </Typography>
+                </Stack>
               )}
               {wf.status === 'AwaitingHumanReview' && (
                 <Button size="sm" sx={{ mt: 1 }} onClick={(e: React.MouseEvent) => {

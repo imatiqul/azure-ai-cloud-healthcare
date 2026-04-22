@@ -4,6 +4,8 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
+import Chip from '@mui/material/Chip';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
 
 interface CodingItem {
@@ -12,6 +14,7 @@ interface CodingItem {
   patientId: string;
   patientName: string;
   suggestedCodes: string[];
+  codeConfidences?: Record<string, number>; // code → 0-100 confidence
   approvedCodes: string[];
   status: 'Pending' | 'InReview' | 'Approved' | 'Submitted';
   createdAt: string;
@@ -22,10 +25,10 @@ interface CodingItem {
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_REVENUE_API_URL || '';
 
 const DEMO_CODING_ITEMS: CodingItem[] = [
-  { id: 'cj-001', encounterId: 'enc-demo-001', patientId: 'PAT-00142', patientName: 'Alice Morgan',   suggestedCodes: ['E11.9', 'I10', 'Z79.4'],   approvedCodes: [],              status: 'Pending',   createdAt: new Date(Date.now() - 2 * 3600_000).toISOString() },
-  { id: 'cj-002', encounterId: 'enc-demo-002', patientId: 'PAT-00278', patientName: 'Robert Chen',    suggestedCodes: ['I50.9', 'Z87.891'],         approvedCodes: ['I50.9', 'Z87.891'], status: 'Approved',  createdAt: new Date(Date.now() - 5 * 3600_000).toISOString(), reviewedAt: new Date(Date.now() - 1 * 3600_000).toISOString(), reviewedBy: 'Dr. Patel' },
-  { id: 'cj-003', encounterId: 'enc-demo-003', patientId: 'PAT-00315', patientName: 'Maria Gonzalez', suggestedCodes: ['C34.12', 'Z79.899'],        approvedCodes: [],              status: 'InReview',  createdAt: new Date(Date.now() - 8 * 3600_000).toISOString() },
-  { id: 'cj-004', encounterId: 'enc-demo-004', patientId: 'PAT-00391', patientName: 'James Wilson',   suggestedCodes: ['M54.5', 'M47.816', 'G89.29'], approvedCodes: ['M54.5', 'M47.816', 'G89.29'], status: 'Submitted', createdAt: new Date(Date.now() - 1 * 86400_000).toISOString(), reviewedAt: new Date(Date.now() - 4 * 3600_000).toISOString(), reviewedBy: 'Dr. Smith' },
+  { id: 'cj-001', encounterId: 'enc-demo-001', patientId: 'PAT-00142', patientName: 'Alice Morgan',   suggestedCodes: ['E11.9', 'I10', 'Z79.4'],   codeConfidences: { 'E11.9': 97, 'I10': 94, 'Z79.4': 88 }, approvedCodes: [],              status: 'Pending',   createdAt: new Date(Date.now() - 2 * 3600_000).toISOString() },
+  { id: 'cj-002', encounterId: 'enc-demo-002', patientId: 'PAT-00278', patientName: 'Robert Chen',    suggestedCodes: ['I50.9', 'Z87.891'],         codeConfidences: { 'I50.9': 96, 'Z87.891': 91 }, approvedCodes: ['I50.9', 'Z87.891'], status: 'Approved',  createdAt: new Date(Date.now() - 5 * 3600_000).toISOString(), reviewedAt: new Date(Date.now() - 1 * 3600_000).toISOString(), reviewedBy: 'Dr. Patel' },
+  { id: 'cj-003', encounterId: 'enc-demo-003', patientId: 'PAT-00315', patientName: 'Maria Gonzalez', suggestedCodes: ['C34.12', 'Z79.899'],        codeConfidences: { 'C34.12': 93, 'Z79.899': 86 }, approvedCodes: [],              status: 'InReview',  createdAt: new Date(Date.now() - 8 * 3600_000).toISOString() },
+  { id: 'cj-004', encounterId: 'enc-demo-004', patientId: 'PAT-00391', patientName: 'James Wilson',   suggestedCodes: ['M54.5', 'M47.816', 'G89.29'], codeConfidences: { 'M54.5': 99, 'M47.816': 95, 'G89.29': 84 }, approvedCodes: ['M54.5', 'M47.816', 'G89.29'], status: 'Submitted', createdAt: new Date(Date.now() - 1 * 86400_000).toISOString(), reviewedAt: new Date(Date.now() - 4 * 3600_000).toISOString(), reviewedBy: 'Dr. Smith' },
 ];
 
 export function CodingQueue() {
@@ -89,7 +92,19 @@ export function CodingQueue() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>ICD-10 Coding Queue</CardTitle>
+        <CardTitle>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <span>ICD-10 Coding Queue</span>
+            <Chip
+              icon={<AutoAwesomeIcon sx={{ fontSize: '14px !important' }} />}
+              label="AI Accuracy 94%"
+              size="small"
+              color="success"
+              variant="outlined"
+              sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700 }}
+            />
+          </Stack>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -117,9 +132,14 @@ export function CodingQueue() {
                   </Badge>
                 </Stack>
                 <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 1 }}>
-                  {(item.approvedCodes.length > 0 ? item.approvedCodes : item.suggestedCodes).map((code) => (
-                    <Badge key={code} variant="outline">{code}</Badge>
-                  ))}
+                  {(item.approvedCodes.length > 0 ? item.approvedCodes : item.suggestedCodes).map((code) => {
+                    const conf = item.codeConfidences?.[code];
+                    return (
+                      <Badge key={code} variant="outline">
+                        {code}{conf !== undefined ? ` · ${conf}%` : ''}
+                      </Badge>
+                    );
+                  })}
                 </Stack>
                 <Stack direction="row" spacing={1}>
                   {item.status === 'Pending' && (

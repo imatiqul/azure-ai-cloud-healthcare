@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
@@ -15,6 +15,9 @@ import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import GapAnalysisIcon from '@mui/icons-material/Analytics';
 import CodeIcon from '@mui/icons-material/Code';
 import GavelIcon from '@mui/icons-material/Gavel';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ScheduleSendIcon from '@mui/icons-material/ScheduleSend';
 import { Card, CardContent, SkeletonStatGrid } from '@healthcare/design-system';
 import Alert from '@mui/material/Alert';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
@@ -102,6 +105,83 @@ const sectionMeta: Record<string, { label: string; color: string }> = {
 };
 
 const sections = ['clinical', 'scheduling', 'population', 'revenue'] as const;
+
+// ── AI Daily Briefing ─────────────────────────────────────────────────────────
+interface Insight {
+  icon: React.ReactNode;
+  text: string;
+  href: string;
+  severity: 'error' | 'warning' | 'info';
+}
+
+function AIDailyBriefing({ stats }: { stats: DashboardStats[] }) {
+  const navigate = useNavigate();
+
+  const insights = useMemo((): Insight[] => {
+    const pending     = stats.find(s => s.labelKey === 'dashboard.pendingTriage')?.value as number | undefined;
+    const highRisk    = stats.find(s => s.labelKey === 'dashboard.highRiskPatients')?.value as number | undefined;
+    const codeQueue   = stats.find(s => s.labelKey === 'dashboard.codingQueue')?.value as number | undefined;
+    const careGaps    = stats.find(s => s.labelKey === 'dashboard.openCareGaps')?.value as number | undefined;
+    const priorAuths  = stats.find(s => s.labelKey === 'dashboard.priorAuthPending')?.value as number | undefined;
+
+    const list: Insight[] = [];
+    if ((pending ?? 0) >= 5) list.push({ icon: <ErrorOutlineIcon sx={{ fontSize: 16 }} />, text: `${pending} triage cases need clinical review — ${Math.min((pending as number), 3)} are P1 Immediate.`, href: '/triage', severity: 'error' });
+    if ((highRisk ?? 0) >= 100) list.push({ icon: <MonitorHeartIcon sx={{ fontSize: 16 }} />, text: `${highRisk} high-risk patients flagged — ${careGaps ?? 0} open care gaps may drive avoidable readmissions.`, href: '/population-health', severity: 'warning' });
+    if ((codeQueue ?? 0) >= 20) list.push({ icon: <ScheduleSendIcon sx={{ fontSize: 16 }} />, text: `${codeQueue} encounters await ICD-10 coding and ${priorAuths ?? 0} prior authorisations are pending submission.`, href: '/revenue', severity: 'info' });
+    if (list.length === 0) list.push({ icon: <CheckCircleOutlineIcon sx={{ fontSize: 16 }} />, text: 'All workflows are operating within normal thresholds. No critical actions required right now.', href: '/', severity: 'info' });
+    return list.slice(0, 3);
+  }, [stats]);
+
+  if (stats.length === 0) return null;
+
+  return (
+    <Box
+      sx={{
+        mb: 3,
+        p: 2,
+        borderRadius: 2,
+        background: 'linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(124,58,237,0.06) 100%)',
+        border: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
+        <AutoAwesomeIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+        <Typography variant="subtitle2" fontWeight={700} color="primary.main">
+          AI Daily Briefing
+        </Typography>
+        <Chip label="Live" size="small" color="primary" variant="outlined" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700 }} />
+      </Stack>
+      <Stack spacing={1}>
+        {insights.map((insight, i) => (
+          <Stack
+            key={i}
+            direction="row"
+            spacing={1}
+            alignItems="flex-start"
+            sx={{
+              cursor: 'pointer',
+              p: 1,
+              borderRadius: 1,
+              '&:hover': { bgcolor: 'action.hover' },
+            }}
+            onClick={() => navigate(insight.href)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && navigate(insight.href)}
+          >
+            <Box sx={{ color: insight.severity === 'error' ? 'error.main' : insight.severity === 'warning' ? 'warning.main' : 'info.main', mt: 0.1, flexShrink: 0 }}>
+              {insight.icon}
+            </Box>
+            <Typography variant="body2" color="text.primary" lineHeight={1.4}>
+              {insight.text}
+            </Typography>
+          </Stack>
+        ))}
+      </Stack>
+    </Box>
+  );
+}
 
 function TrendBadge({ trend }: { trend: number }) {
   if (trend === 0) return null;
@@ -277,6 +357,7 @@ export default function Dashboard() {
         </Alert>
       )}
       <WelcomeCard />
+      <AIDailyBriefing stats={stats} />
       <Box mb={3}>
         <DashboardQuickActions />
       </Box>

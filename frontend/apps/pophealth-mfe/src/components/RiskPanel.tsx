@@ -5,24 +5,27 @@ import Typography from '@mui/material/Typography';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
+import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 const DEMO_RISKS: PatientRisk[] = [
-  { id: 'r-1',  patientId: 'PAT-00142', level: 'Critical', riskScore: 94, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
-  { id: 'r-2',  patientId: 'PAT-00278', level: 'Critical', riskScore: 91, assessedAt: new Date(Date.now() - 2 * 86400_000).toISOString() },
-  { id: 'r-3',  patientId: 'PAT-00391', level: 'High',     riskScore: 82, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
-  { id: 'r-4',  patientId: 'PAT-00554', level: 'High',     riskScore: 79, assessedAt: new Date(Date.now() - 3 * 86400_000).toISOString() },
-  { id: 'r-5',  patientId: 'PAT-00619', level: 'High',     riskScore: 76, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
-  { id: 'r-6',  patientId: 'PAT-00731', level: 'Moderate', riskScore: 58, assessedAt: new Date(Date.now() - 5 * 86400_000).toISOString() },
-  { id: 'r-7',  patientId: 'PAT-00842', level: 'Moderate', riskScore: 54, assessedAt: new Date(Date.now() - 4 * 86400_000).toISOString() },
-  { id: 'r-8',  patientId: 'PAT-00953', level: 'Low',      riskScore: 32, assessedAt: new Date(Date.now() - 7 * 86400_000).toISOString() },
+  { id: 'r-1',  patientId: 'PAT-00142', patientName: 'Alice Morgan',     level: 'Critical', riskScore: 94, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
+  { id: 'r-2',  patientId: 'PAT-00278', patientName: 'James Chen',       level: 'Critical', riskScore: 91, assessedAt: new Date(Date.now() - 2 * 86400_000).toISOString() },
+  { id: 'r-3',  patientId: 'PAT-00391', patientName: 'Robert Wilson',    level: 'High',     riskScore: 82, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
+  { id: 'r-4',  patientId: 'PAT-00554', patientName: 'Maria Gonzalez',   level: 'High',     riskScore: 79, assessedAt: new Date(Date.now() - 3 * 86400_000).toISOString() },
+  { id: 'r-5',  patientId: 'PAT-00619', patientName: 'Sarah O\'Brien',   level: 'High',     riskScore: 76, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
+  { id: 'r-6',  patientId: 'PAT-00731', patientName: 'David Kim',        level: 'Moderate', riskScore: 58, assessedAt: new Date(Date.now() - 5 * 86400_000).toISOString() },
+  { id: 'r-7',  patientId: 'PAT-00842', patientName: 'Linda Patel',      level: 'Moderate', riskScore: 54, assessedAt: new Date(Date.now() - 4 * 86400_000).toISOString() },
+  { id: 'r-8',  patientId: 'PAT-00953', patientName: 'Thomas Nguyen',    level: 'Low',      riskScore: 32, assessedAt: new Date(Date.now() - 7 * 86400_000).toISOString() },
 ];
 
 interface PatientRisk {
   id: string;
   patientId: string;
+  patientName?: string;
   level: string;
   riskScore: number;
   assessedAt: string;
@@ -100,19 +103,35 @@ export function RiskPanel() {
                   justifyContent: 'space-between',
                   p: 1.5,
                   border: 1,
-                  borderColor: 'divider',
+                  borderColor: risk.level === 'Critical' ? 'error.light' : 'divider',
                   borderRadius: 1,
+                  bgcolor: risk.level === 'Critical' ? 'error.50' : undefined,
                 }}
               >
                 <Box>
                   <Typography variant="body2" fontWeight="medium">
-                    Patient {risk.patientId.substring(0, 8)}...
+                    {risk.patientName ?? risk.patientId}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Score: {risk.riskScore.toFixed(2)}
+                    {risk.patientId} · Score {risk.riskScore}
                   </Typography>
                 </Box>
-                <Badge variant={getRiskBadge(risk.level)}>{risk.level}</Badge>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Badge variant={getRiskBadge(risk.level)}>{risk.level}</Badge>
+                  <Tooltip title={`Schedule follow-up for ${risk.patientName ?? risk.patientId}`}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      sx={{ height: 24, fontSize: '0.65rem', px: 1, minWidth: 0 }}
+                      onClick={() => {
+                        // Emit a scheduling intent — in full implementation this routes to scheduler
+                        window.dispatchEvent(new CustomEvent('healthq:scheduleFollowUp', { detail: { patientId: risk.patientId } }));
+                      }}
+                    >
+                      Intervene
+                    </Button>
+                  </Tooltip>
+                </Stack>
               </Box>
             ))}
           </Stack>

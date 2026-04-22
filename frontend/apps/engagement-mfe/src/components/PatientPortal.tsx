@@ -8,6 +8,8 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Divider from '@mui/material/Divider';
 import CircularProgress from '@mui/material/CircularProgress';
+import Chip from '@mui/material/Chip';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { AppointmentHistory } from './AppointmentHistory';
 import { CareGapSummary } from './CareGapSummary';
 import { NotificationInbox } from './NotificationInbox';
@@ -16,6 +18,13 @@ import { PatientRegistrationForm } from './PatientRegistrationForm';
 import { AuthStatus } from './AuthStatus';
 import { b2cConfigured } from '../auth/msalConfig';
 import { useAuthPatientId } from '../hooks/useAuthPatientId';
+
+// Demo engagement summary data keyed by patient ID
+const DEMO_ENGAGEMENT: Record<string, { name: string; score: number; nextAppt: string; careGaps: number; channel: string }> = {
+  'PAT-00142': { name: 'Alice Morgan',   score: 74, nextAppt: 'Tomorrow, 10:00 AM', careGaps: 3, channel: 'SMS' },
+  'PAT-00278': { name: 'James Chen',     score: 61, nextAppt: 'In 5 days, 2:30 PM', careGaps: 5, channel: 'Email' },
+  'PAT-00315': { name: "Sarah O'Brien",  score: 88, nextAppt: 'In 2 days, 9:00 AM', careGaps: 1, channel: 'Push' },
+};
 
 interface PatientPortalProps {
   /** Initial patient ID — overridden by the authenticated user's ID when B2C is configured. */
@@ -98,6 +107,52 @@ export function PatientPortal({ patientId: propId = 'PAT-00142' }: PatientPortal
 
       {activePatientId && (
         <>
+          {/* AI Engagement Summary Bar */}
+          {DEMO_ENGAGEMENT[activePatientId] && (() => {
+            const eng = DEMO_ENGAGEMENT[activePatientId];
+            const scoreColor = eng.score >= 80 ? '#16a34a' : eng.score >= 60 ? '#d97706' : '#d32f2f';
+            return (
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  background: 'linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(22,163,74,0.06) 100%)',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                  <AutoAwesomeIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                  <Typography variant="caption" fontWeight={700} color="primary.main">
+                    AI Engagement Summary — {eng.name}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                  <Stack alignItems="center">
+                    <Typography variant="h5" fontWeight={800} sx={{ color: scoreColor, lineHeight: 1 }}>
+                      {eng.score}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">Engagement Score</Typography>
+                  </Stack>
+                  <Divider orientation="vertical" flexItem />
+                  <Stack justifyContent="center">
+                    <Typography variant="body2" fontWeight={600}>{eng.nextAppt}</Typography>
+                    <Typography variant="caption" color="text.secondary">Next Appointment</Typography>
+                  </Stack>
+                  <Divider orientation="vertical" flexItem />
+                  <Stack justifyContent="center">
+                    <Typography variant="body2" fontWeight={600}>{eng.careGaps} open</Typography>
+                    <Typography variant="caption" color="text.secondary">Care Gaps</Typography>
+                  </Stack>
+                  <Divider orientation="vertical" flexItem />
+                  <Stack justifyContent="center">
+                    <Chip label={eng.channel} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                    <Typography variant="caption" color="text.secondary">Preferred Channel</Typography>
+                  </Stack>
+                </Stack>
+              </Box>
+            );
+          })()}
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs
               value={activeTab}

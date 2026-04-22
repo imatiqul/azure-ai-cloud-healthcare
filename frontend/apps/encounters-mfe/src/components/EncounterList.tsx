@@ -3,6 +3,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
+import Chip from '@mui/material/Chip';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
 import type { Bundle, Encounter } from '@healthcare/fhir-types';
 import { CreateEncounterModal } from './CreateEncounterModal';
@@ -14,6 +15,13 @@ const DEMO_ENCOUNTERS: Encounter[] = [
   { resourceType: 'Encounter', id: 'enc-demo-002', status: 'finished',    class: { code: 'IMP', display: 'Inpatient'   }, period: { start: new Date(Date.now() - 30 * 86_400_000).toISOString(), end: new Date(Date.now() - 27 * 86_400_000).toISOString() }, reasonCode: [{ coding: [{ display: 'Hypertensive urgency management' }] }] },
   { resourceType: 'Encounter', id: 'enc-demo-003', status: 'planned',     class: { code: 'AMB', display: 'Ambulatory' }, period: { start: new Date(Date.now() + 7  * 86_400_000).toISOString() }, reasonCode: [{ coding: [{ display: 'Annual wellness visit' }] }] },
 ];
+
+// AI-generated flags keyed by encounter ID — shown as colour-coded chips on each card
+const DEMO_AI_FLAGS: Record<string, string[]> = {
+  'enc-demo-001': ['HbA1c Overdue', 'BP Target Not Met'],
+  'enc-demo-002': ['Rx Renewal Required', 'Cardiology Follow-up'],
+  'enc-demo-003': ['Preventive Screening Due', 'Flu Vaccination Pending'],
+};
 
 type EncounterStatus = Encounter['status'];
 
@@ -30,6 +38,7 @@ export function EncounterList({ patientId: propId }: { patientId?: string } = {}
   const [patientId, setPatientId] = useState(propId ?? '');
   const [searchInput, setSearchInput] = useState('');
   const [encounters, setEncounters] = useState<Encounter[]>([]);
+  const [aiFlags, setAiFlags] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -50,8 +59,10 @@ export function EncounterList({ patientId: propId }: { patientId?: string } = {}
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const bundle: Bundle<Encounter> = await res.json();
       setEncounters(bundle.entry?.map((e) => e.resource) ?? []);
+      setAiFlags({});
     } catch {
       setEncounters(DEMO_ENCOUNTERS);
+      setAiFlags(DEMO_AI_FLAGS);
       setError(null);
     } finally {
       setLoading(false);
@@ -171,6 +182,20 @@ export function EncounterList({ patientId: propId }: { patientId?: string } = {}
                       <Typography variant="body2">
                         <strong>Reason:</strong> {reason}
                       </Typography>
+                    )}
+                    {enc.id && aiFlags[enc.id] && aiFlags[enc.id].length > 0 && (
+                      <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+                        {aiFlags[enc.id].map(flag => (
+                          <Chip
+                            key={flag}
+                            label={flag}
+                            size="small"
+                            color="warning"
+                            variant="outlined"
+                            sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600 }}
+                          />
+                        ))}
+                      </Stack>
                     )}
                   </Stack>
                 </CardContent>

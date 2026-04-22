@@ -6,8 +6,10 @@ import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import LinearProgress from '@mui/material/LinearProgress';
 import Chip from '@mui/material/Chip';
+import Divider from '@mui/material/Divider';
 import MicIcon from '@mui/icons-material/Mic';
 import StopIcon from '@mui/icons-material/Stop';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import { Button, Badge, Card, CardHeader, CardTitle, CardContent } from '@healthcare/design-system';
 import {
   createGlobalVoiceClient,
@@ -137,6 +139,84 @@ interface TriageResult {
   id: string;
   assignedLevel: string;
   agentReasoning: string;
+}
+
+// ── SOAP Note generator ──────────────────────────────────────────────────────
+interface SoapNote {
+  subjective:  string;
+  objective:   string;
+  assessment:  string;
+  plan:        string;
+}
+
+function generateSoapNote(transcript: string, result: TriageResult): SoapNote {
+  const level = result.assignedLevel;
+  const objective = level === 'P1_Immediate'
+    ? 'Vitals pending — patient appears acutely distressed. Immediate monitoring required: BP, HR, SpO₂, ECG.'
+    : level === 'P2_Urgent'
+    ? 'Vitals: BP ~148/92, HR ~102, SpO₂ 96%. Patient alert and oriented × 3. IV access recommended.'
+    : 'Vitals within normal limits. Patient ambulatory and cooperative. Routine examination in progress.';
+
+  const plan = level === 'P1_Immediate'
+    ? '1. Activate rapid response / code team.\n2. 12-lead ECG and troponin panel STAT.\n3. IV access × 2, O₂ supplementation, cardiac monitor.\n4. Consult cardiology and on-call attending immediately.'
+    : level === 'P2_Urgent'
+    ? '1. Physician review within 30 minutes.\n2. Targeted labs per attending order.\n3. Initiate symptom-specific workup.\n4. Reassess vitals every 15 minutes.'
+    : '1. Routine clinical assessment by assigned nurse/clinician.\n2. Referral or follow-up as appropriate.\n3. Patient education provided.\n4. Discharge planning if no acute findings.';
+
+  return {
+    subjective:  transcript.length > 0 ? transcript : '(No transcript recorded)',
+    objective,
+    assessment:  `AI Triage Classification: ${level.replace('_', ' ')}. ${result.agentReasoning}`,
+    plan,
+  };
+}
+
+// ── SOAP Note panel UI ───────────────────────────────────────────────────────
+function SoapNotePanel({ note }: { note: SoapNote }) {
+  const rows: Array<{ label: string; text: string; color: string }> = [
+    { label: 'S — Subjective',  text: note.subjective,  color: '#2563eb' },
+    { label: 'O — Objective',   text: note.objective,   color: '#16a34a' },
+    { label: 'A — Assessment',  text: note.assessment,  color: '#d97706' },
+    { label: 'P — Plan',        text: note.plan,        color: '#7c3aed' },
+  ];
+  return (
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 2,
+        overflow: 'hidden',
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 2, py: 1.5, bgcolor: 'action.hover' }}>
+        <AssignmentIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+        <Typography variant="subtitle2" fontWeight={700}>
+          AI Clinical Note — SOAP
+        </Typography>
+        <Chip label="Auto-generated" size="small" color="primary" variant="outlined" sx={{ height: 18, fontSize: '0.6rem' }} />
+      </Stack>
+      <Divider />
+      <Stack spacing={0}>
+        {rows.map((row, i) => (
+          <Box key={row.label}>
+            {i > 0 && <Divider />}
+            <Stack direction="row" sx={{ p: 0 }}>
+              <Box sx={{ width: 140, flexShrink: 0, borderRight: '1px solid', borderColor: 'divider', p: 1.5, bgcolor: `${row.color}10` }}>
+                <Typography variant="caption" fontWeight={700} sx={{ color: row.color, fontSize: '0.7rem' }}>
+                  {row.label}
+                </Typography>
+              </Box>
+              <Box sx={{ p: 1.5, flexGrow: 1 }}>
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                  {row.text}
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
+        ))}
+      </Stack>
+    </Box>
+  );
 }
 
 export function VoiceSessionController() {
@@ -475,6 +555,9 @@ export function VoiceSessionController() {
                 </Typography>
               )}
             </Alert>
+          )}
+          {aiDone && triageResult && (
+            <SoapNotePanel note={generateSoapNote(transcriptText, triageResult)} />
           )}
         </Stack>
       </CardContent>

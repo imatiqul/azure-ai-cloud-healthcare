@@ -5,6 +5,8 @@ import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
+import Chip from '@mui/material/Chip';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
 import { emitSlotReserved } from '@healthcare/mfe-events';
 
@@ -18,6 +20,7 @@ function makeDemoSlots(date: string): Slot[] {
     startTime: new Date(base.getTime() + i * 30 * 60_000).toISOString(),
     endTime:   new Date(base.getTime() + (i + 1) * 30 * 60_000).toISOString(),
     status: 'Available',
+    aiRecommended: i === 1 || i === 4, // 9:00am and 10:00am are AI-recommended
   }));
 }
 
@@ -27,6 +30,7 @@ interface Slot {
   startTime: string;
   endTime: string;
   status: string;
+  aiRecommended?: boolean;
 }
 
 export function SlotCalendar() {
@@ -102,19 +106,33 @@ export function SlotCalendar() {
                   onClick={() => reserveSlot(slot.id)}
                   sx={{
                     p: 1.5,
-                    border: 1,
-                    borderColor: 'divider',
+                    border: slot.aiRecommended ? '2px solid' : 1,
+                    borderColor: slot.aiRecommended ? 'primary.main' : 'divider',
                     borderRadius: 1,
                     cursor: 'pointer',
-                    '&:hover': { bgcolor: 'primary.50' },
+                    bgcolor: slot.aiRecommended ? 'primary.50' : undefined,
+                    position: 'relative',
+                    '&:hover': { bgcolor: 'primary.100' },
                   }}
                 >
+                  {slot.aiRecommended && (
+                    <Chip
+                      icon={<AutoAwesomeIcon sx={{ fontSize: '11px !important' }} />}
+                      label="AI Pick"
+                      size="small"
+                      color="primary"
+                      sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, position: 'absolute', top: 4, right: 4 }}
+                    />
+                  )}
                   <Typography variant="body2" fontWeight="medium">
                     {new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     {' - '}
                     {new Date(slot.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Typography>
-                  <Badge variant="success">{slot.status}</Badge>
+                  <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.5 }}>
+                    <Badge variant="success">{slot.status}</Badge>
+                    <Typography variant="caption" color="text.secondary">{slot.practitionerId}</Typography>
+                  </Stack>
                 </Box>
               </Grid>
             ))}
