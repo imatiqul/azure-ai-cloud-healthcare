@@ -33,23 +33,87 @@ export function AutoDemoPlayer() {
     demoSpeed,
     isDemoComplete,
     advanceDemoScene,
+    prevDemoScene,
+    pauseDemo,
+    resumeDemo,
+    exitDemo,
+    setDemoScene,
   } = useGlobalStore();
 
   const [narrationText, setNarrationText] = useState('');
   const [countdown, setCountdown] = useState(30);
 
   // Stable refs so interval callbacks always see the latest values
-  const narrationRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const countdownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const demoPausedRef = useRef(demoPaused);
-  const advanceRef    = useRef(advanceDemoScene);
-  const demoSpeedRef  = useRef(demoSpeed);
+  const narrationRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const demoPausedRef   = useRef(demoPaused);
+  const advanceRef      = useRef(advanceDemoScene);
+  const prevRef         = useRef(prevDemoScene);
+  const pauseRef        = useRef(pauseDemo);
+  const resumeRef       = useRef(resumeDemo);
+  const exitRef         = useRef(exitDemo);
+  const setDemoSceneRef = useRef(setDemoScene);
+  const demoSpeedRef    = useRef(demoSpeed);
 
-  useEffect(() => { demoPausedRef.current = demoPaused; }, [demoPaused]);
-  useEffect(() => { advanceRef.current    = advanceDemoScene; }, [advanceDemoScene]);
-  useEffect(() => { demoSpeedRef.current  = demoSpeed; }, [demoSpeed]);
+  useEffect(() => { demoPausedRef.current   = demoPaused; },       [demoPaused]);
+  useEffect(() => { advanceRef.current      = advanceDemoScene; }, [advanceDemoScene]);
+  useEffect(() => { prevRef.current         = prevDemoScene; },    [prevDemoScene]);
+  useEffect(() => { pauseRef.current        = pauseDemo; },        [pauseDemo]);
+  useEffect(() => { resumeRef.current       = resumeDemo; },       [resumeDemo]);
+  useEffect(() => { exitRef.current         = exitDemo; },         [exitDemo]);
+  useEffect(() => { setDemoSceneRef.current = setDemoScene; },     [setDemoScene]);
+  useEffect(() => { demoSpeedRef.current    = demoSpeed; },        [demoSpeed]);
 
-  // ── Clear helpers ─────────────────────────────────────────────────────────
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isDemoActive) return;
+    const handleKey = (e: KeyboardEvent) => {
+      // Ignore when typing in an input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          demoPausedRef.current ? resumeRef.current() : pauseRef.current();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          advanceRef.current();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          prevRef.current();
+          break;
+        case 'Escape':
+          e.preventDefault();
+          exitRef.current();
+          break;
+        default:
+          // 1–8 → jump to that workflow (index 0–7)
+          if (e.key >= '1' && e.key <= '8') {
+            const wfIdx = parseInt(e.key, 10) - 1;
+            setDemoSceneRef.current(wfIdx, 0);
+          }
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isDemoActive]);
+
+  // ── Live KPI badge — fetch once when demo starts ──────────────────────────
+  const API_BASE = (import.meta as { env: Record<string, string> }).env.VITE_API_BASE_URL ?? '';
+  interface LiveInsights { pendingTriage: number; highRiskPatients: number; codingQueue: number; bookedToday: number; triageAiAccuracy: number }
+  const [liveKpi, setLiveKpi] = useState<LiveInsights | null>(null);
+
+  useEffect(() => {
+    if (!isDemoActive) return;
+    let cancelled = false;
+    fetch(`${API_BASE}/api/v1/agents/demo/live-insights`)
+      .then(r => r.ok ? r.json() as Promise<LiveInsights> : Promise.reject())
+      .then(data => { if (!cancelled) setLiveKpi(data); })
+      .catch(() => { /* silent — demo works without live KPIs */ });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemoActive]);
   const clearNarration = useCallback(() => {
     if (narrationRef.current !== null) {
       clearInterval(narrationRef.current);
@@ -148,6 +212,7 @@ export function AutoDemoPlayer() {
             sceneIdx={demoSceneIdx}
             countdown={countdown}
             totalSec={scene.durationSec}
+            liveKpi={liveKpi}
           />
           <DemoControlBar
             countdown={countdown}

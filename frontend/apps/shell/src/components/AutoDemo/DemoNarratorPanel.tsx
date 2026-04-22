@@ -12,7 +12,17 @@ import Tooltip from '@mui/material/Tooltip';
 import LinearProgress from '@mui/material/LinearProgress';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import WifiTetheringIcon from '@mui/icons-material/WifiTethering';
 import type { DemoWorkflow, DemoScene } from './demoScripts';
+import { useGlobalStore } from '../../store';
+
+interface LiveKpi {
+  pendingTriage:     number;
+  highRiskPatients:  number;
+  codingQueue:       number;
+  bookedToday:       number;
+  triageAiAccuracy:  number;
+}
 
 interface DemoNarratorPanelProps {
   workflow:       DemoWorkflow;
@@ -22,7 +32,16 @@ interface DemoNarratorPanelProps {
   sceneIdx:       number;
   countdown:      number;       // seconds remaining in current scene
   totalSec:       number;       // total seconds for current scene
+  liveKpi?:       LiveKpi | null;
 }
+
+// Rotate which KPI is shown in the badge every render (stable per scene)
+const KPI_LABELS: Array<{ key: keyof LiveKpi; label: string }> = [
+  { key: 'pendingTriage',    label: 'cases pending triage' },
+  { key: 'highRiskPatients', label: 'high-risk patients' },
+  { key: 'codingQueue',      label: 'coding jobs queued' },
+  { key: 'bookedToday',      label: 'appointments today' },
+];
 
 export function DemoNarratorPanel({
   workflow,
@@ -32,7 +51,12 @@ export function DemoNarratorPanel({
   sceneIdx,
   countdown,
   totalSec,
+  liveKpi,
 }: DemoNarratorPanelProps) {
+  const { setDemoScene } = useGlobalStore();
+  // Pick a KPI to feature based on the current scene index
+  const kpiSlot = KPI_LABELS[(workflowIdx * 3 + sceneIdx) % KPI_LABELS.length];
+  const kpiValue = liveKpi ? liveKpi[kpiSlot.key] : null;
   const totalScenes   = workflow.scenes.length;
   const elapsed       = Math.max(0, totalSec - countdown);
   const progressPct   = totalSec > 0 ? (elapsed / totalSec) * 100 : 0;
@@ -95,7 +119,32 @@ export function DemoNarratorPanel({
             Scene {sceneIdx + 1} of {totalScenes} · Workflow {workflowIdx + 1}
           </Typography>
         </Box>
-        <SmartToyIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.4)' }} />
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.3 }}>
+          <SmartToyIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.4)' }} />
+          {kpiValue !== null && (
+            <Tooltip title="Live platform data" arrow placement="left">
+              <Chip
+                icon={<WifiTetheringIcon sx={{ fontSize: '0.7rem !important' }} />}
+                label={`${kpiValue} ${kpiSlot.label}`}
+                size="small"
+                sx={{
+                  height:     18,
+                  fontSize:   '0.6rem',
+                  fontWeight: 700,
+                  bgcolor:    workflow.color + '33',
+                  color:      workflow.color,
+                  border:     `1px solid ${workflow.color}55`,
+                  '& .MuiChip-icon': { color: workflow.color },
+                  animation:  'hq-pulse 2s ease-in-out infinite',
+                  '@keyframes hq-pulse': {
+                    '0%, 100%': { opacity: 1 },
+                    '50%':      { opacity: 0.65 },
+                  },
+                }}
+              />
+            </Tooltip>
+          )}
+        </Box>
       </Box>
 
       {/* Scene progress bar + countdown */}
@@ -177,18 +226,20 @@ export function DemoNarratorPanel({
         </Box>
       )}
 
-      {/* Scene dot indicators */}
+      {/* Scene dot indicators — clickable */}
       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.6, pb: 1.5 }}>
         {workflow.scenes.map((_, i) => (
-          <Tooltip key={i} title={workflow.scenes[i].title} arrow placement="top">
+          <Tooltip key={i} title={`Jump to: ${workflow.scenes[i].title}`} arrow placement="top">
             <Box
+              onClick={() => setDemoScene(workflowIdx, i)}
               sx={{
                 width:        i === sceneIdx ? 18 : 6,
                 height:       6,
                 borderRadius: 3,
                 bgcolor:      i === sceneIdx ? workflow.color : 'rgba(255,255,255,0.25)',
                 transition:   'all 0.3s ease',
-                cursor:       'default',
+                cursor:       'pointer',
+                '&:hover':    { bgcolor: workflow.color, opacity: 0.7 },
               }}
             />
           </Tooltip>
