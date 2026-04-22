@@ -24,12 +24,18 @@ type SessionStatus = 'idle' | 'connecting' | 'live' | 'ended';
 // ── PCM audio capture hook ──────────────────────────────────────────────────
 // Captures microphone audio as 16kHz 16-bit mono PCM, streaming chunks to the
 // voice service's audio-chunk endpoint for Azure Speech transcription.
+// Also captures a full-quality WebM blob in parallel for local replay.
 function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: (text: string) => void) {
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const [recording, setRecording] = useState(false);
-  const [micError, setMicError] = useState<string | null>(null);
+  const audioContextRef  = useRef<AudioContext | null>(null);
+  const processorRef     = useRef<ScriptProcessorNode | null>(null);
+  const streamRef        = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioBlobChunks  = useRef<Blob[]>([]);
+  const [recording,  setRecording]  = useState(false);
+  const [micError,   setMicError]   = useState<string | null>(null);
+  // Object URL for the most recent completed recording — revoked on each new start
+  const [audioUrl,   setAudioUrl]   = useState<string | null>(null);
+  const prevAudioUrl = useRef<string | null>(null);
 
   const sendChunk = useCallback(async (pcmBuffer: ArrayBuffer) => {
     if (!sessionId) return;
@@ -48,33 +54,53 @@ function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: 
 
   const startRecording = useCallback(async () => {
     setMicError(null);
+    // Revoke the previous object URL to avoid memory leaks
+    if (prevAudioUrl.current) {
+      URL.revokeObjectURL(prevAudioUrl.current);
+      prevAudioUrl.current = null;
+    }
+    setAudioUrl(null);
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       streamRef.current = stream;
 
-      // Use 16kHz to match Azure Speech SDK expectations
+      // ── MediaRecorder: full-quality audio blob for local replay ─────────
+      audioBlobChunks.current = [];
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm';
+      const mr = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mr;
+      mr.ondataavailable = (e) => { if (e.data.size > 0) audioBlobChunks.current.push(e.data); };
+      mr.onstop = () => {
+        const blob = new Blob(audioBlobChunks.current, { type: mimeType });
+        const url  = URL.createObjectURL(blob);
+        prevAudioUrl.current = url;
+        setAudioUrl(url);
+      };
+      mr.start(250); // collect chunks every 250ms
+
+      // ── PCM ScriptProcessor: 16kHz stream for Azure Speech ──────────────
       const audioContext = new AudioContext({ sampleRate: 16000 });
       audioContextRef.current = audioContext;
-
       const source = audioContext.createMediaStreamSource(stream);
       // 4096-sample buffer = ~256ms at 16kHz
       // eslint-disable-next-line @typescript-eslint/no-deprecated
       const processor = audioContext.createScriptProcessor(4096, 1, 1);
       processorRef.current = processor;
-
       processor.onaudioprocess = (e) => {
         const float32 = e.inputBuffer.getChannelData(0);
-        // Convert Float32 [-1,1] to Int16 PCM
-        const int16 = new Int16Array(float32.length);
+        const int16   = new Int16Array(float32.length);
         for (let i = 0; i < float32.length; i++) {
           const s = Math.max(-1, Math.min(1, float32[i]));
           int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
         void sendChunk(int16.buffer);
       };
-
       source.connect(processor);
       processor.connect(audioContext.destination);
+
       setRecording(true);
     } catch (err) {
       setMicError(err instanceof Error ? err.message : 'Microphone access denied');
@@ -82,6 +108,8 @@ function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: 
   }, [sendChunk]);
 
   const stopRecording = useCallback(() => {
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
     processorRef.current?.disconnect();
     void audioContextRef.current?.close();
     streamRef.current?.getTracks().forEach(t => t.stop());
@@ -91,12 +119,15 @@ function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: 
     setRecording(false);
   }, []);
 
-  // Auto-stop when session ends
+  // Cleanup object URL on unmount
   useEffect(() => {
-    return () => { stopRecording(); };
+    return () => {
+      stopRecording();
+      if (prevAudioUrl.current) URL.revokeObjectURL(prevAudioUrl.current);
+    };
   }, [stopRecording]);
 
-  return { recording, micError, startRecording, stopRecording };
+  return { recording, micError, audioUrl, startRecording, stopRecording };
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
@@ -136,7 +167,7 @@ export function VoiceSessionController() {
     setTranscriptText(prev => prev ? `${prev} ${text}` : text);
   }, []);
 
-  const { recording, micError, startRecording, stopRecording } =
+  const { recording, micError, audioUrl, startRecording, stopRecording } =
     useMicCapture(sessionId, API_BASE, handlePartialTranscript);
 
   // -- Azure Web PubSub lifecycle ---------------------------------------------
@@ -200,6 +231,8 @@ export function VoiceSessionController() {
   async function startSession() {
     setStatus('connecting');
     setTriageResult(null);
+    setTriage(null);
+    setTranscriptText('');
     setAiThinkingText('');
     setAiStreaming(false);
     setAiDone(false);
@@ -243,21 +276,45 @@ export function VoiceSessionController() {
       });
 
       const triageRes = await fetch(`${API_BASE}/api/v1/agents/triage`, {
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(30_000),
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, transcriptText }),
       });
       const result = await triageRes.json() as { assignedLevel: string; agentReasoning: string };
 
-      // When Web PubSub is NOT connected, use the HTTP response directly
-      if (!pubSubConnected) {
-        const level = result.assignedLevel ?? 'Unknown';
-        setTriage(level);
-        setTriageResult({ id: sessionId, assignedLevel: level, agentReasoning: result.agentReasoning });
-        emitAgentDecision({ sessionId, triageLevel: level, reasoning: result.agentReasoning });
-      }
       // When Web PubSub IS connected, AgentResponse + AiThinking messages update state
+      if (pubSubConnected) return;
+
+      // When Web PubSub is NOT connected: stream the AI reasoning progressively
+      // so users can watch the AI "think" rather than seeing an instant result.
+      const reasoning = result.agentReasoning ?? '';
+      const level     = result.assignedLevel  ?? 'Unknown';
+
+      // Split into word-sized tokens for a natural streaming feel (~30ms/token)
+      const tokens = reasoning.match(/\S+\s*/g) ?? [];
+      setAiStreaming(true);
+      setSubmitting(false); // release the button while streaming
+
+      await new Promise<void>((resolve) => {
+        let i = 0;
+        const tick = () => {
+          if (i >= tokens.length) {
+            setAiStreaming(false);
+            setAiDone(true);
+            resolve();
+            return;
+          }
+          setAiThinkingText((prev) => prev + tokens[i]);
+          i++;
+          setTimeout(tick, 28);
+        };
+        tick();
+      });
+
+      setTriage(level);
+      setTriageResult({ id: sessionId, assignedLevel: level, agentReasoning: reasoning });
+      emitAgentDecision({ sessionId, triageLevel: level, reasoning });
     } catch {
       // silent
     } finally {
@@ -324,6 +381,20 @@ export function VoiceSessionController() {
                   />
                 )}
               </Stack>
+
+              {/* Audio replay player — shown after recording stops */}
+              {audioUrl && !recording && (
+                <Box sx={{ mb: 1.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                    Replay recording:
+                  </Typography>
+                  <audio
+                    controls
+                    src={audioUrl}
+                    style={{ width: '100%', height: 36 }}
+                  />
+                </Box>
+              )}
               {micError && (
                 <Alert severity="warning" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>
                   Microphone unavailable: {micError}. Use text input below.
@@ -361,9 +432,9 @@ export function VoiceSessionController() {
               </Stack>
               <Button
                 onClick={submitForTriage}
-                disabled={submitting || !transcriptText.trim()}
+                disabled={submitting || aiStreaming || !transcriptText.trim()}
               >
-                {submitting ? 'Contacting AI...' : 'Submit for AI Triage'}
+                {submitting ? 'Contacting AI...' : aiStreaming ? 'AI Thinking...' : 'Submit for AI Triage'}
               </Button>
             </Box>
           )}
