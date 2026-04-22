@@ -25,15 +25,10 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useGlobalStore } from '../../store';
 import { DEMO_WORKFLOWS, TOTAL_SCENES } from './demoScripts';
 
-const STAT_ROWS = [
-  { label: 'Workflows Covered',  value: `${DEMO_WORKFLOWS.length}` },
-  { label: 'Scenes Presented',   value: `${TOTAL_SCENES}` },
-  { label: 'AI Triage Accuracy', value: '94%' },
-  { label: 'Avg Claim Recovery', value: '68%' },
-  { label: 'No-show Reduction',  value: '34%' },
-  { label: 'Readmission Drop',   value: '40%' },
-];
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const DEMO_API = `${API_BASE}/api/v1/agents/demo`;
 
+// NPS colour and label helpers are used inside the component (not as module constants)
 const NPS_LABELS: Record<number, string> = {
   1: 'Very Poor', 2: 'Poor', 3: 'Below Average',
   4: 'Average', 5: 'Fair', 6: 'Good',
@@ -48,9 +43,21 @@ function npsColor(score: number): string {
 }
 
 export function DemoCompletionOverlay() {
-  const { demoClientName, demoCompany, exitDemo, startSelfDrivenDemo } = useGlobalStore();
+  const { demoClientName, demoCompany, demoWorkflowIndices, exitDemo, startSelfDrivenDemo } = useGlobalStore();
   const [npsScore, setNpsScore]   = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  // Phase 64 — dynamic stats based on workflows actually demoed
+  const workflowsShown = demoWorkflowIndices.length > 0 ? demoWorkflowIndices.length : DEMO_WORKFLOWS.length;
+  const scenesShown    = workflowsShown * 3; // 3 scenes per workflow
+  const STAT_ROWS = [
+    { label: 'Workflows Covered',  value: `${workflowsShown}` },
+    { label: 'Scenes Presented',   value: `${scenesShown}` },
+    { label: 'AI Triage Accuracy', value: '94%' },
+    { label: 'Avg Claim Recovery', value: '68%' },
+    { label: 'No-show Reduction',  value: '34%' },
+    { label: 'Readmission Drop',   value: '40%' },
+  ];
 
   const handleReplay = () => {
     const name    = demoClientName || 'Guest';
@@ -60,7 +67,21 @@ export function DemoCompletionOverlay() {
     setTimeout(() => startSelfDrivenDemo(name, company), 50);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!npsScore) return;
+    // Phase 64 — persist NPS to backend best-effort (don't block UI on failure)
+    try {
+      const stored = sessionStorage.getItem('demo');
+      const sessionId: string | null = stored ? JSON.parse(stored).sessionId : null;
+      if (sessionId && !sessionId.startsWith('demo-local-')) {
+        await fetch(`${DEMO_API}/${sessionId}/complete`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ npsScore, featurePriorities: [], comment: null }),
+          signal:  AbortSignal.timeout(5_000),
+        });
+      }
+    } catch { /* best-effort */ }
     setSubmitted(true);
   };
 

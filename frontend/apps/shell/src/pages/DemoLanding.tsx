@@ -16,6 +16,7 @@ import AutoModeIcon from '@mui/icons-material/AutoMode';
 import Alert from '@mui/material/Alert';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useGlobalStore } from '../store'; // Phase 58
+import { DEMO_WORKFLOWS } from '../components/AutoDemo/demoScripts'; // Phase 64
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const DEMO_API = `${API_BASE}/api/v1/agents/demo`;
@@ -44,12 +45,22 @@ interface StepInfo {
 
 export default function DemoLanding() {
   const navigate = useNavigate();
-  const { startSelfDrivenDemo } = useGlobalStore(); // Phase 58
+  const { startSelfDrivenDemo, setDemoWorkflowIndices } = useGlobalStore(); // Phase 58 + 64
   const [clientName, setClientName] = useState('');
-  const [company, setCompany] = useState('');
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [company, setCompany]       = useState('');
+  const [email, setEmail]           = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState('');
+  // Phase 64 — workflow selector (all 8 on by default)
+  const [selectedWorkflows, setSelectedWorkflows] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7]);
+
+  const toggleWorkflow = (i: number) => {
+    setSelectedWorkflows(prev =>
+      prev.includes(i)
+        ? prev.length > 1 ? prev.filter(x => x !== i) : prev  // keep min 1
+        : [...prev, i].sort((a, b) => a - b)
+    );
+  };
 
   const handleStart = async () => {
     if (!clientName.trim() || !company.trim()) {
@@ -102,6 +113,7 @@ export default function DemoLanding() {
       return;
     }
     setError('');
+    setDemoWorkflowIndices(selectedWorkflows); // Phase 64
     startSelfDrivenDemo(clientName.trim(), company.trim());
     navigate('/');
   };
@@ -195,6 +207,45 @@ export default function DemoLanding() {
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
             The AI automatically navigates all 8 workflows with live narration
           </Typography>
+
+          {/* Phase 64 — Workflow selector */}
+          <Box sx={{ mt: 2, textAlign: 'left' }}>
+            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.8 }}>
+              Customise workflows to include ({selectedWorkflows.length} of {DEMO_WORKFLOWS.length}):
+            </Typography>
+            <Stack direction="row" flexWrap="wrap" gap={0.7}>
+              {DEMO_WORKFLOWS.map((wf, i) => {
+                const selected = selectedWorkflows.includes(i);
+                return (
+                  <Chip
+                    key={wf.id}
+                    label={`${wf.icon}\u00a0${wf.name}`}
+                    size="small"
+                    onClick={() => toggleWorkflow(i)}
+                    sx={{
+                      cursor:      'pointer',
+                      fontSize:    11,
+                      fontWeight:  selected ? 700 : 400,
+                      bgcolor:     selected ? 'primary.main' : 'transparent',
+                      color:       selected ? '#fff' : 'text.secondary',
+                      border:      '1px solid',
+                      borderColor: selected ? 'primary.main' : 'divider',
+                      '&:hover':   { bgcolor: selected ? 'primary.dark' : 'action.hover' },
+                    }}
+                  />
+                );
+              })}
+            </Stack>
+            {selectedWorkflows.length < DEMO_WORKFLOWS.length && (
+              <Typography
+                variant="caption"
+                sx={{ color: 'primary.main', cursor: 'pointer', mt: 0.5, display: 'inline-block' }}
+                onClick={() => setSelectedWorkflows([0, 1, 2, 3, 4, 5, 6, 7])}
+              >
+                Select all
+              </Typography>
+            )}
+          </Box>
 
           {/* Phase 61 — Proof-points */}
           <Stack

@@ -27,6 +27,9 @@ export interface GlobalState {
   // Phase 61 additions
   demoSpeed:             number;    // 1 = normal · 2 = 2× fast-forward
   isDemoComplete:        boolean;   // true after the last scene auto-advances
+  // Phase 64 additions
+  demoWorkflowIndices:   number[];  // which workflow indices to include; empty = all 8
+  setDemoWorkflowIndices:(indices: number[]) => void;
   startSelfDrivenDemo:   (clientName: string, company: string) => void;
   advanceDemoScene:      () => void;
   prevDemoScene:         () => void;
@@ -62,23 +65,33 @@ export const useGlobalStore = create<GlobalState>((set) => ({
   // Phase 61 additions
   demoSpeed:       1,
   isDemoComplete:  false,
+  // Phase 64 additions
+  demoWorkflowIndices: [],
+
+  setDemoWorkflowIndices: (indices) => set({ demoWorkflowIndices: indices }),
 
   startSelfDrivenDemo: (clientName, company) =>
-    set({ isDemoActive: true, demoWorkflowIdx: 0, demoSceneIdx: 0, demoPaused: false, demoClientName: clientName, demoCompany: company }),
+    set((state) => {
+      const indices = state.demoWorkflowIndices.length > 0
+        ? state.demoWorkflowIndices
+        : [0, 1, 2, 3, 4, 5, 6, 7];
+      return { isDemoActive: true, demoWorkflowIdx: indices[0], demoSceneIdx: 0, demoPaused: false, isDemoComplete: false, demoClientName: clientName, demoCompany: company };
+    }),
 
   advanceDemoScene: () =>
     set((state) => {
-      // Lazy import to avoid circular dep at module level — use a flat total from env
       const SCENES_PER_WORKFLOW = [3, 3, 3, 3, 3, 3, 3, 3]; // kept in sync with demoScripts
-      const workflowCount = SCENES_PER_WORKFLOW.length;
+      const allIndices = Array.from({ length: SCENES_PER_WORKFLOW.length }, (_, i) => i);
+      const indices = state.demoWorkflowIndices.length > 0 ? state.demoWorkflowIndices : allIndices;
       const sceneCount = SCENES_PER_WORKFLOW[state.demoWorkflowIdx] ?? 3;
       const nextScene = state.demoSceneIdx + 1;
       if (nextScene < sceneCount) {
         return { demoSceneIdx: nextScene };
       }
-      const nextWorkflow = state.demoWorkflowIdx + 1;
-      if (nextWorkflow < workflowCount) {
-        return { demoWorkflowIdx: nextWorkflow, demoSceneIdx: 0 };
+      const currentPos = indices.indexOf(state.demoWorkflowIdx);
+      const nextPos = currentPos + 1;
+      if (nextPos < indices.length) {
+        return { demoWorkflowIdx: indices[nextPos], demoSceneIdx: 0 };
       }
       // Demo complete — stay on last scene, mark done
       return { demoPaused: true, isDemoComplete: true };
@@ -87,11 +100,15 @@ export const useGlobalStore = create<GlobalState>((set) => ({
   prevDemoScene: () =>
     set((state) => {
       const SCENES_PER_WORKFLOW = [3, 3, 3, 3, 3, 3, 3, 3];
+      const allIndices = Array.from({ length: SCENES_PER_WORKFLOW.length }, (_, i) => i);
+      const indices = state.demoWorkflowIndices.length > 0 ? state.demoWorkflowIndices : allIndices;
       if (state.demoSceneIdx > 0) {
         return { demoSceneIdx: state.demoSceneIdx - 1 };
       }
-      const prevWorkflow = state.demoWorkflowIdx - 1;
-      if (prevWorkflow >= 0) {
+      const currentPos = indices.indexOf(state.demoWorkflowIdx);
+      const prevPos = currentPos - 1;
+      if (prevPos >= 0) {
+        const prevWorkflow = indices[prevPos];
         const prevSceneCount = SCENES_PER_WORKFLOW[prevWorkflow] ?? 3;
         return { demoWorkflowIdx: prevWorkflow, demoSceneIdx: prevSceneCount - 1 };
       }
