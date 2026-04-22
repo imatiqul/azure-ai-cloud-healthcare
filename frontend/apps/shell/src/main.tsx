@@ -1,7 +1,3 @@
-import { installDemoFetchInterceptor } from './lib/demoFetchInterceptor';
-// Install before any component mounts so every fetch() call gets demo data
-installDemoFetchInterceptor();
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';

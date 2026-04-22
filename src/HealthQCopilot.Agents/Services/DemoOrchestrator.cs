@@ -280,14 +280,21 @@ public sealed class DemoOrchestrator
         try
         {
             var client = _http.CreateClient();
-            var schedulingBase = _config["Services:SchedulingUrl"] ?? "http://scheduling-service";
-            var pophealthBase = _config["Services:PopHealthUrl"] ?? "http://pophealth-service";
-            var revenueBase = _config["Services:RevenueUrl"] ?? "http://revenue-service";
+            var schedulingBase = _config["Services:SchedulingUrl"]  ?? "http://scheduling-service";
+            var pophealthBase  = _config["Services:PopHealthUrl"]    ?? "http://pophealth-service";
+            var revenueBase    = _config["Services:RevenueUrl"]      ?? "http://revenue-service";
+            var identityBase   = _config["Services:IdentityUrl"]     ?? "http://identity-service";
+            var voiceBase      = _config["Services:VoiceUrl"]        ?? "http://voice-service";
+            // Agents seed is self-hosted — call localhost to avoid circular dependency via APIM
+            var agentsBase     = _config["Services:AgentsUrl"]       ?? "http://localhost";
 
             await Task.WhenAll(
-                client.PostAsync($"{schedulingBase}/api/v1/scheduling/seed", null),
-                client.PostAsync($"{pophealthBase}/api/v1/population-health/seed", null),
-                client.PostAsync($"{revenueBase}/api/v1/revenue/seed", null));
+                client.PostAsync($"{schedulingBase}/api/v1/scheduling/seed",         null),
+                client.PostAsync($"{pophealthBase}/api/v1/population-health/seed",   null),
+                client.PostAsync($"{revenueBase}/api/v1/revenue/seed",               null),
+                client.PostAsync($"{identityBase}/api/v1/identity/seed",             null),
+                client.PostAsync($"{voiceBase}/api/v1/voice/seed",                   null),
+                client.PostAsync($"{agentsBase}/api/v1/agents/seed",                 null));
         }
         catch (Exception ex)
         {

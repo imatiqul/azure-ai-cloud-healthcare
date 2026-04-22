@@ -67,26 +67,50 @@ app.MapPost("/api/v1/scheduling/seed", async (SchedulingDbContext db) =>
 {
     if (await db.Slots.AnyAsync()) return Results.Ok(new { message = "Already seeded" });
 
+    // ── Practitioners ─────────────────────────────────────────────────────────
+    var pracRecords = new[]
+    {
+        Practitioner.Create("DR-001", "Dr. Robert Smith",    "Cardiology",        "r.smith@healthq.demo",    new TimeOnly(9,0), new TimeOnly(17,0)),
+        Practitioner.Create("DR-002", "Dr. Ananya Patel",    "Pulmonology",       "a.patel@healthq.demo",    new TimeOnly(8,0), new TimeOnly(16,0)),
+        Practitioner.Create("DR-003", "Dr. Timothy Johnson", "General Surgery",   "t.johnson@healthq.demo",  new TimeOnly(10,0), new TimeOnly(18,0)),
+        Practitioner.Create("DR-004", "Dr. Lisa Nguyen",     "Endocrinology",     "l.nguyen@healthq.demo",   new TimeOnly(9,0), new TimeOnly(17,0)),
+    };
+    db.Practitioners.AddRange(pracRecords);
+
+    // ── Appointment slots — 7 days rolling for all 4 practitioners ─────────
     var today = DateTime.UtcNow.Date;
-    var practitioners = new[] { "DR-001", "DR-002", "DR-003" };
+    var practitionerIds = pracRecords.Select(p => p.PractitionerId).ToArray();
     var slots = new List<Slot>();
-    foreach (var practitioner in practitioners)
+    foreach (var practitionerId in practitionerIds)
     {
         for (var dayOffset = 0; dayOffset < 7; dayOffset++)
         {
             var date = today.AddDays(dayOffset);
             for (var hour = 9; hour < 17; hour++)
             {
-                slots.Add(Slot.Create(Guid.NewGuid(), practitioner,
+                slots.Add(Slot.Create(Guid.NewGuid(), practitionerId,
                     date.AddHours(hour), date.AddHours(hour).AddMinutes(30)));
-                slots.Add(Slot.Create(Guid.NewGuid(), practitioner,
+                slots.Add(Slot.Create(Guid.NewGuid(), practitionerId,
                     date.AddHours(hour).AddMinutes(30), date.AddHours(hour + 1)));
             }
         }
     }
     db.Slots.AddRange(slots);
+
+    // ── Waitlist entries ─────────────────────────────────────────────────────
+    var todayOnly = DateOnly.FromDateTime(today);
+    var waitlist = new[]
+    {
+        WaitlistEntry.Create("PAT-001", "DR-002", todayOnly.AddDays(2), todayOnly.AddDays(7),  priority: 1, reason: "Urgent cardiac follow-up post-exacerbation"),
+        WaitlistEntry.Create("PAT-002", "DR-001", todayOnly.AddDays(3), todayOnly.AddDays(10), priority: 2, reason: "COPD management consultation"),
+        WaitlistEntry.Create("PAT-003", "DR-003", todayOnly.AddDays(5), todayOnly.AddDays(14), priority: 3, reason: "Pre-op surgical clearance"),
+        WaitlistEntry.Create("PAT-004", "DR-002", todayOnly.AddDays(4), todayOnly.AddDays(12), priority: 2, reason: "Insulin adjustment needed — recent A1C spike"),
+        WaitlistEntry.Create("PAT-005", "DR-004", todayOnly.AddDays(7), todayOnly.AddDays(21), priority: 3, reason: "Dyslipidemia management and statin initiation"),
+    };
+    db.WaitlistEntries.AddRange(waitlist);
+
     await db.SaveChangesAsync();
-    return Results.Ok(new { message = "Seeded", slots = slots.Count });
+    return Results.Ok(new { message = "Seeded", practitioners = pracRecords.Length, slots = slots.Count, waitlist = waitlist.Length });
 });
 
 app.Run();

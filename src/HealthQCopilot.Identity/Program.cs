@@ -1,5 +1,6 @@
 using Azure.Communication.Sms;
 using FluentValidation;
+using HealthQCopilot.Domain.Identity;
 using HealthQCopilot.Identity.BackgroundServices;
 using HealthQCopilot.Identity.Endpoints;
 using HealthQCopilot.Identity.Persistence;
@@ -70,6 +71,62 @@ app.MapConsentEndpoints();
 app.MapBreakGlassEndpoints();
 app.MapTenantOnboardingEndpoints();
 app.MapAuditExportEndpoints();
+
+// ── Demo seed endpoint (idempotent — safe to call on every startup) ───────────
+app.MapPost("/api/v1/identity/seed", async (IdentityDbContext db) =>
+{
+    if (await db.UserAccounts.AnyAsync()) return Results.Ok(new { message = "Already seeded" });
+
+    // ── Clinician accounts (known IDs so break-glass FK references work) ──────
+    var users = new[]
+    {
+        UserAccount.Create(Guid.Parse("00000000-0001-0000-0000-000000000001"), "dr-parker-ext",    "e.parker@healthq.demo",    "Dr. E. Parker",      UserRole.Practitioner),
+        UserAccount.Create(Guid.Parse("00000000-0002-0000-0000-000000000002"), "dr-chandra-ext",   "m.chandra@healthq.demo",   "Dr. M. Chandra",     UserRole.Practitioner),
+        UserAccount.Create(Guid.Parse("00000000-0003-0000-0000-000000000003"), "nurse-williams-ext","t.williams@healthq.demo",  "Nurse T. Williams",  UserRole.Practitioner),
+        UserAccount.Create(Guid.Parse("00000000-0004-0000-0000-000000000004"), "admin-wilson-ext",  "m.wilson@healthq.demo",    "Mark Wilson",        UserRole.Admin),
+        UserAccount.Create(Guid.Parse("00000000-0005-0000-0000-000000000005"), "dr-smith-ext",     "r.smith@healthq.demo",     "Dr. Robert Smith",   UserRole.Practitioner),
+    };
+    db.UserAccounts.AddRange(users);
+
+    // ── Patient accounts (for consent FK references) ───────────────────────────
+    var patients = new[]
+    {
+        UserAccount.Create(Guid.Parse("00000000-0011-0000-0000-000000000011"), "pat-001-ext", "s.mitchell@patient.demo", "Sarah Mitchell", UserRole.Patient),
+        UserAccount.Create(Guid.Parse("00000000-0012-0000-0000-000000000012"), "pat-002-ext", "d.okafor@patient.demo",   "David Okafor",   UserRole.Patient),
+        UserAccount.Create(Guid.Parse("00000000-0013-0000-0000-000000000013"), "pat-003-ext", "m.gonzalez@patient.demo", "Maria Gonzalez", UserRole.Patient),
+    };
+    db.UserAccounts.AddRange(patients);
+
+    // ── Break-glass access records — two active, one revoked ─────────────────
+    var bg1 = BreakGlassAccess.Create(
+        users[0].Id, "PAT-00891",
+        "Emergency — unresponsive patient, identity unknown. Activation time-critical.",
+        TimeSpan.FromHours(4));
+    var bg2 = BreakGlassAccess.Create(
+        users[1].Id, "PAT-001",
+        "Code blue override — cardiac arrest response in bay 3.",
+        TimeSpan.FromHours(4));
+    var bg3 = BreakGlassAccess.Create(
+        users[2].Id, "PAT-006",
+        "Unconscious trauma patient — MRN lookup required for surgical consent.",
+        TimeSpan.FromHours(1));
+    bg3.Revoke(users[3].Id, "Access window closed after patient ID confirmed via wristband.");
+    db.BreakGlassAccesses.AddRange(bg1, bg2, bg3);
+
+    // ── Consent records ────────────────────────────────────────────────────────
+    var consents = new[]
+    {
+        ConsentRecord.Grant(patients[0].Id, "research",    "phi-share-research", "v2.1", DateTime.UtcNow.AddDays(245)),
+        ConsentRecord.Grant(patients[1].Id, "data-sharing","phi-share-payer",    "v2.1", DateTime.UtcNow.AddDays(275)),
+        ConsentRecord.Grant(patients[2].Id, "telemedicine","phi-read",           "v2.1", DateTime.UtcNow.AddDays(305)),
+    };
+    db.ConsentRecords.AddRange(consents);
+
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = "Seeded", users = users.Length + patients.Length, breakGlass = 3, consents = consents.Length });
+})
+.WithTags("Seed")
+.WithSummary("Seed demo identity data (idempotent)");
 
 app.Run();
 

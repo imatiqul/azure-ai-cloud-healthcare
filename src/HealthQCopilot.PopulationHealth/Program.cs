@@ -78,38 +78,66 @@ app.MapSubscribeHandler();
 app.MapDefaultEndpoints();
 app.MapPopHealthEndpoints();
 
-app.MapPost("/api/v1/population-health/seed", async (PopHealthDbContext db, RiskCalculationService calculator, CareGapNotificationDispatcher notificationDispatcher) =>
+app.MapPost("/api/v1/population-health/seed", async (PopHealthDbContext db, CareGapNotificationDispatcher notificationDispatcher) =>
 {
     if (await db.PatientRisks.AnyAsync()) return Results.Ok(new { message = "Already seeded" });
 
-    // Risk scores are now calculated by the deterministic scoring engine rather than hardcoded
-    var riskData = new[]
+    // ── Patient risk records — 8 diverse patients with explicit risk scores ────
+    // Using PatientRisk.Create() directly so scores are deterministic in demo.
+    var risks = new[]
     {
-        ("PAT-001", new List<string> { "Diabetes", "Hypertension", "Age>65" }),
-        ("PAT-002", new List<string> { "CHF", "COPD" }),
-        ("PAT-003", new List<string> { "Chronic Pain", "Opioid Use" }),
-        ("PAT-004", new List<string> { "Asthma", "Smoking" }),
-        ("PAT-005", new List<string> { "Obesity", "Pre-diabetes" }),
-        ("PAT-006", new List<string> { "Seasonal Allergies" }),
-        ("PAT-007", new List<string> { "Routine Care" }),
+        PatientRisk.Create("PAT-001", RiskLevel.Critical, 0.94, "risk-v3", ["Heart Failure", "CKD Stage 3", "Age>65", "Multiple ED Visits"]),
+        PatientRisk.Create("PAT-002", RiskLevel.Critical, 0.91, "risk-v3", ["COPD", "Type 2 Diabetes", "BMI>35", "Non-adherent"]),
+        PatientRisk.Create("PAT-003", RiskLevel.High,     0.82, "risk-v3", ["CAD", "Hypertension", "Dyslipidemia", "Smoker"]),
+        PatientRisk.Create("PAT-004", RiskLevel.High,     0.79, "risk-v3", ["Type 2 Diabetes", "Obesity", "Peripheral Neuropathy"]),
+        PatientRisk.Create("PAT-005", RiskLevel.High,     0.76, "risk-v3", ["Hypertension", "Dyslipidemia", "Pre-diabetes"]),
+        PatientRisk.Create("PAT-006", RiskLevel.Moderate, 0.58, "risk-v3", ["Asthma", "Allergic Rhinitis"]),
+        PatientRisk.Create("PAT-007", RiskLevel.Moderate, 0.54, "risk-v3", ["Hypertension"]),
+        PatientRisk.Create("PAT-008", RiskLevel.Low,      0.32, "risk-v3", ["Hyperthyroidism"]),
     };
-    var risks = riskData.Select(r => calculator.Calculate(r.Item1, r.Item2)).ToArray();
     db.PatientRisks.AddRange(risks);
 
+    // ── Care gaps — open for high-risk patients ───────────────────────────────
     var gaps = new[]
     {
-        CareGap.Create("PAT-001", "HBA1C", "HbA1c screening overdue (>6 months)"),
-        CareGap.Create("PAT-001", "EYE-EXAM", "Diabetic eye exam not completed this year"),
-        CareGap.Create("PAT-002", "BNP", "BNP monitoring overdue for CHF patient"),
-        CareGap.Create("PAT-003", "PAIN-MGMT", "Pain management follow-up needed"),
-        CareGap.Create("PAT-004", "SPIROMETRY", "Annual spirometry not completed"),
-        CareGap.Create("PAT-005", "BMI-COUNSEL", "BMI counseling not documented"),
+        CareGap.Create("PAT-001", "HBA1C",         "HbA1c screening overdue (>6 months) — diabetes management"),
+        CareGap.Create("PAT-001", "EYE-EXAM",      "Diabetic eye exam not completed this year"),
+        CareGap.Create("PAT-002", "BNP",           "BNP monitoring overdue for CHF patient"),
+        CareGap.Create("PAT-002", "BCS",           "Breast cancer screening (mammogram) — 2+ years overdue"),
+        CareGap.Create("PAT-003", "COL",           "Colorectal cancer screening — colonoscopy not on record"),
+        CareGap.Create("PAT-003", "CBP",           "Blood pressure control — BP 148/94 at last visit"),
+        CareGap.Create("PAT-004", "SPIROMETRY",    "Annual spirometry not completed for COPD risk patient"),
+        CareGap.Create("PAT-005", "STATIN",        "Statin therapy not initiated despite ASCVD risk score >12%"),
+        CareGap.Create("PAT-005", "WELLNESS",      "Annual wellness visit not completed this year"),
+        CareGap.Create("PAT-006", "BMI-COUNSEL",   "BMI counseling not documented for obese patient"),
+        CareGap.Create("PAT-007", "PAIN-MGMT",     "Pain management follow-up overdue"),
+        CareGap.Create("PAT-008", "PNEUMO-VAX",    "Pneumococcal vaccination (PPSV23) — age 65+ due"),
     };
     db.CareGaps.AddRange(gaps);
+
+    // ── Risk history for PAT-001 — enables trajectory chart ──────────────────
+    // Six snapshots over 60 days showing a worsening trend.
+    (int daysAgo, RiskLevel level, double score, double? delta, string[] factors)[] historyData =
+    [
+        (60, RiskLevel.High,     0.71, null, ["Heart Failure", "CKD Stage 3"]),
+        (45, RiskLevel.High,     0.76, 0.05, ["Heart Failure", "CKD Stage 3", "ED Visit"]),
+        (30, RiskLevel.High,     0.82, 0.06, ["Heart Failure", "CKD Stage 3", "Multiple ED Visits"]),
+        (15, RiskLevel.Critical, 0.88, 0.06, ["Heart Failure", "CKD Stage 3", "Multiple ED Visits", "Age>65"]),
+        (7,  RiskLevel.Critical, 0.91, 0.03, ["Heart Failure", "CKD Stage 3", "Multiple ED Visits", "Age>65"]),
+        (2,  RiskLevel.Critical, 0.94, 0.03, ["Heart Failure", "CKD Stage 3", "Multiple ED Visits", "Age>65"]),
+    ];
+
+    foreach (var (daysAgo, level, score, delta, factors) in historyData)
+    {
+        var h = PatientRiskHistory.Create("PAT-001", level, score, "risk-v3", factors, delta);
+        db.PatientRiskHistories.Add(h);
+        // Override AssessedAt to simulate historical timestamps (private setter, set via EF tracker)
+        db.Entry(h).Property("AssessedAt").CurrentValue = DateTime.UtcNow.AddDays(-daysAgo);
+    }
+
     await db.SaveChangesAsync();
-    // Fire-and-forget: bulk notification campaigns for all open care gaps
     _ = Task.Run(() => notificationDispatcher.DispatchOpenCareGapCampaignsAsync(gaps, CancellationToken.None));
-    return Results.Ok(new { message = "Seeded", risks = risks.Length, careGaps = gaps.Length });
+    return Results.Ok(new { message = "Seeded", risks = risks.Length, careGaps = gaps.Length, historySnapshots = historyData.Length });
 });
 
 app.Run();

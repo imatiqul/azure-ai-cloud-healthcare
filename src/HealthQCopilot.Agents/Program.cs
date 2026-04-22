@@ -5,6 +5,7 @@ using HealthQCopilot.Agents.Infrastructure;
 using HealthQCopilot.Agents.Plugins;
 using HealthQCopilot.Agents.Rag;
 using HealthQCopilot.Agents.Services;
+using HealthQCopilot.Domain.Agents;
 using HealthQCopilot.Infrastructure.AI;
 using HealthQCopilot.Infrastructure.Auth;
 using HealthQCopilot.Infrastructure.Messaging;
@@ -159,6 +160,44 @@ app.MapAgentEndpoints();
 app.MapGuideEndpoints();
 app.MapDemoEndpoints();
 app.MapModelGovernanceEndpoints();
+app.MapDemoDataEndpoints();
+
+// ── Agents seed endpoint (idempotent) ────────────────────────────────────────
+app.MapPost("/api/v1/agents/seed", async (AgentDbContext db) =>
+{
+    if (await db.TriageWorkflows.AnyAsync()) return Results.Ok(new { message = "Already seeded" });
+
+    // Triage workflows — mix of active (P1) and resolved (P2/P3)
+    var tw1 = TriageWorkflow.Create(Guid.NewGuid(), "SES-DEMO-001", "Chest pain + dyspnoea at rest. Troponin I elevated at 1.8 ng/mL. 12-lead ECG shows ST elevation in V1-V4. STEMI protocol initiated, cath lab on standby.");
+    tw1.AssignTriage(TriageLevel.P1_Immediate, "STEMI — time-critical catheterisation required within 90 minutes.");
+
+    var tw2 = TriageWorkflow.Create(Guid.NewGuid(), "SES-DEMO-002", "Elevated troponin 0.4 ng/mL in NSTEMI presentation. BP 148/92. Echo ordered to evaluate wall motion abnormality and LV function.");
+    tw2.AssignTriage(TriageLevel.P2_Urgent, "NSTEMI — echo and cardiology consult placed, monitoring bed assigned.");
+
+    var tw3 = TriageWorkflow.Create(Guid.NewGuid(), "SES-DEMO-003", "Routine hypertension follow-up. BP 145/92 at home. No target organ damage. Patient requesting medication adjustment.");
+    tw3.AssignTriage(TriageLevel.P3_Standard, "Hypertension — dose titration, telehealth follow-up arranged.");
+
+    var tw4 = TriageWorkflow.Create(Guid.NewGuid(), "SES-DEMO-004", "Anaphylaxis post bee sting. Urticaria, angioedema, BP 78/48, O2Sat 91%. Epinephrine 0.3mg IM administered. IV access obtained.");
+    tw4.AssignTriage(TriageLevel.P1_Immediate, "Anaphylaxis — immediate resus. ICU bed requested.");
+
+    var tw5 = TriageWorkflow.Create(Guid.NewGuid(), "SES-DEMO-005", "RLQ pain, rebound tenderness, Rovsing sign positive. CT abdomen confirms appendicitis. WBC 14.2k.");
+    tw5.AssignTriage(TriageLevel.P2_Urgent, "Appendicitis confirmed — surgical consult placed for same-day appendectomy.");
+
+    var tw6 = TriageWorkflow.Create(Guid.NewGuid(), "SES-DEMO-006", "Mild URI symptoms — sore throat, rhinorrhea, low-grade fever 37.8°C. Flu and COVID rapid tests negative. No respiratory distress.");
+    tw6.AssignTriage(TriageLevel.P3_Standard, "Viral URI — supportive care advised, telehealth follow-up if no improvement in 7 days.");
+
+    db.TriageWorkflows.AddRange(tw1, tw2, tw3, tw4, tw5, tw6);
+
+    // Escalation queue for P1 cases
+    var esc1 = EscalationQueueItem.Create(tw1.Id, tw1.SessionId, TriageLevel.P1_Immediate);
+    var esc2 = EscalationQueueItem.Create(tw4.Id, tw4.SessionId, TriageLevel.P1_Immediate);
+    db.EscalationQueue.AddRange(esc1, esc2);
+
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = "Seeded", workflows = 6, escalations = 2 });
+})
+.WithTags("Seed")
+.WithSummary("Seed demo triage workflows and escalations (idempotent)");
 
 app.Run();
 

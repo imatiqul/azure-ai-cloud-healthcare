@@ -41,7 +41,8 @@ public class ClaimDenial : AggregateRoot<Guid>
         string denialReasonCode,
         string denialReasonDescription,
         DenialCategory category,
-        decimal deniedAmount)
+        decimal deniedAmount,
+        DateTime? appealDeadlineOverride = null)
     {
         return new ClaimDenial
         {
@@ -57,8 +58,8 @@ public class ClaimDenial : AggregateRoot<Guid>
             DeniedAmount = deniedAmount,
             Status = DenialStatus.Open,
             DeniedAt = DateTime.UtcNow,
-            // Standard 180-day appeal window (NAIC model regulation)
-            AppealDeadline = DateTime.UtcNow.AddDays(180),
+            // Standard 180-day appeal window (NAIC model regulation); seed may override for demo scenarios.
+            AppealDeadline = appealDeadlineOverride ?? DateTime.UtcNow.AddDays(180),
         };
     }
 

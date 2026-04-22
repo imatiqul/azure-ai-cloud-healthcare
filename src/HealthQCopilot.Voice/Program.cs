@@ -1,4 +1,5 @@
 using FluentValidation;
+using HealthQCopilot.Domain.Voice;
 using HealthQCopilot.Infrastructure.Auth;
 using HealthQCopilot.Infrastructure.Messaging;
 using HealthQCopilot.Infrastructure.Middleware;
@@ -59,6 +60,30 @@ app.MapControllers();
 app.MapDefaultEndpoints();
 app.MapVoiceWebPubSubNegotiate();
 app.MapVoiceEndpoints();
+
+// ── Demo seed endpoint (idempotent) ──────────────────────────────────────────
+app.MapPost("/api/v1/voice/seed", async (VoiceDbContext db) =>
+{
+    if (await db.VoiceSessions.AnyAsync()) return Results.Ok(new { message = "Already seeded" });
+
+    var s1 = VoiceSession.Start("PAT-001");
+    s1.AppendTranscript("Patient reported chest tightness and shortness of breath on exertion for 3 days. BP 158/94, HR 92, O2Sat 96%. Provider ordered troponin and ECG. Referral placed to cardiology.");
+    s1.End();
+
+    var s2 = VoiceSession.Start("PAT-002");
+    s2.AppendTranscript("COPD exacerbation — patient presents with increased dyspnoea and productive cough. SpO2 88% on room air. Started on prednisolone 40mg and azithromycin. Oxygen supplementation initiated.");
+    s2.End();
+
+    var s3 = VoiceSession.Start("PAT-003");
+    s3.AppendTranscript("Routine medication refill — lisinopril 10 mg daily. BP 132/82, well controlled. Patient adhering to low-sodium diet. Labs ordered: BMP in 6 weeks. Follow-up in 3 months.");
+    s3.End();
+
+    db.VoiceSessions.AddRange(s1, s2, s3);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = "Seeded", sessions = 3 });
+})
+.WithTags("Seed")
+.WithSummary("Seed demo voice sessions (idempotent)");
 
 app.Run();
 

@@ -79,10 +79,12 @@ public sealed class RiskTrajectoryService(PopHealthDbContext db, ILogger<RiskTra
 
         // Linear regression slope (least squares) over time-indexed scores
         double slope = ComputeSlope(scores);
+        // Thresholds calibrated for 0-1 normalised risk scores over 6-point history.
+        // A per-step slope of ±0.001 (0.1% per snapshot) is sufficient to classify trend.
         var overallTrend = slope switch
         {
-            < -0.5 => RiskTrend.Improving,
-            > 0.5 => RiskTrend.Worsening,
+            < -0.001 => RiskTrend.Improving,
+            > 0.001 => RiskTrend.Worsening,
             _ => RiskTrend.Stable
         };
 

@@ -40,11 +40,13 @@ public class PatientRiskHistory : AggregateRoot<Guid>
         IEnumerable<string> riskFactors,
         double? scoreDelta)
     {
+        // Thresholds use the 0-1 normalised risk score scale.
+        // A delta of ±0.05 (5 percentage-point move) triggers a directional trend.
         var trend = scoreDelta switch
         {
             null => RiskTrend.Stable,
-            < -2.0 => RiskTrend.Improving,
-            > 2.0 => RiskTrend.Worsening,
+            < -0.05 => RiskTrend.Improving,
+            > 0.05 => RiskTrend.Worsening,
             _ => RiskTrend.Stable
         };
 
