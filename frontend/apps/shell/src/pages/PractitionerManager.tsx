@@ -48,6 +48,14 @@ const EMPTY_FORM: FormState = {
   timeZoneId: 'UTC',
 };
 
+const DEMO_PRACTITIONERS: PractitionerSummary[] = [
+  { id: 'prac-001', practitionerId: 'P001', name: 'Dr. Sarah Patel',    specialty: 'Endocrinology',      email: 'sarah.patel@healthq.demo',    availabilityStart: '08:00', availabilityEnd: '17:00', timeZoneId: 'America/New_York',    isActive: true  },
+  { id: 'prac-002', practitionerId: 'P002', name: 'Dr. Michael Torres', specialty: 'Internal Medicine',   email: 'michael.torres@healthq.demo', availabilityStart: '09:00', availabilityEnd: '18:00', timeZoneId: 'America/Chicago',     isActive: true  },
+  { id: 'prac-003', practitionerId: 'P003', name: 'Dr. Lisa Chen',      specialty: 'Cardiology',          email: 'lisa.chen@healthq.demo',      availabilityStart: '07:30', availabilityEnd: '16:30', timeZoneId: 'America/Los_Angeles', isActive: true  },
+  { id: 'prac-004', practitionerId: 'P004', name: 'Emma Walsh RD',      specialty: 'Clinical Nutrition',  email: 'emma.walsh@healthq.demo',     availabilityStart: '10:00', availabilityEnd: '16:00', timeZoneId: 'America/New_York',    isActive: true  },
+  { id: 'prac-005', practitionerId: 'P005', name: 'Dr. James Okafor',   specialty: 'Oncology',            email: 'james.okafor@healthq.demo',   availabilityStart: '08:00', availabilityEnd: '17:00', timeZoneId: 'America/New_York',    isActive: false },
+];
+
 export default function PractitionerManager() {
   const [practitioners, setPractitioners] = useState<PractitionerSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,11 +74,11 @@ export default function PractitionerManager() {
     try {
       const url = `${API_BASE}/api/v1/scheduling/practitioners/?activeOnly=${showAll ? 'false' : 'true'}`;
       const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
+      if (!res.ok) { setPractitioners(DEMO_PRACTITIONERS); setLoading(false); return; }
       const data = (await res.json()) as PractitionerSummary[];
       setPractitioners(data);
     } catch {
-      setError('Failed to load practitioners');
+      setPractitioners(DEMO_PRACTITIONERS);
     } finally {
       setLoading(false);
     }

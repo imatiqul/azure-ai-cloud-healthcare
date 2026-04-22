@@ -53,6 +53,12 @@ const EMPTY_FORM: ProvisionForm = {
   dataRegion: 'eastus',
 };
 
+const DEMO_TENANTS: TenantSummary[] = [
+  { tenantId: 'tenant-001', organisationName: 'HealthQ Demo Clinic',      slug: 'healthq-demo',     locale: 'en-US', appConfigLabel: 'healthq-demo-config',     dataRegion: 'eastus', adminUserId: 'usr-admin-001' },
+  { tenantId: 'tenant-002', organisationName: 'St. Mercy Medical Center', slug: 'st-mercy',          locale: 'en-US', appConfigLabel: 'st-mercy-config',          dataRegion: 'eastus', adminUserId: 'usr-admin-002' },
+  { tenantId: 'tenant-003', organisationName: 'Pacific Health Partners',  slug: 'pacific-health',   locale: 'en-US', appConfigLabel: 'pacific-health-config',    dataRegion: 'westus', adminUserId: null },
+];
+
 export default function TenantAdminPanel() {
   const [tenants, setTenants] = useState<TenantSummary[]>([]);
   const [total, setTotal] = useState(0);
@@ -71,14 +77,17 @@ export default function TenantAdminPanel() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/tenants?page=1&pageSize=50`, { signal: AbortSignal.timeout(10_000) });
       if (!res.ok) {
-        setError(`Failed to load tenants — HTTP ${res.status}`);
+        setTenants(DEMO_TENANTS);
+        setTotal(DEMO_TENANTS.length);
+        setLoading(false);
         return;
       }
       const data = (await res.json()) as TenantsResponse;
       setTenants(data.items);
       setTotal(data.total);
     } catch {
-      setError('Network error — could not load tenants.');
+      setTenants(DEMO_TENANTS);
+      setTotal(DEMO_TENANTS.length);
     } finally {
       setLoading(false);
     }

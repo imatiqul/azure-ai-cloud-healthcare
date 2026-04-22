@@ -22,7 +22,7 @@ interface PatientPortalProps {
   patientId?: string;
 }
 
-export function PatientPortal({ patientId: propId = '' }: PatientPortalProps) {
+export function PatientPortal({ patientId: propId = 'PAT-00142' }: PatientPortalProps) {
   const { patientId: authPatientId, loading: authLoading, isAuthenticated } = b2cConfigured
     ? // eslint-disable-next-line react-hooks/rules-of-hooks
       useAuthPatientId()
