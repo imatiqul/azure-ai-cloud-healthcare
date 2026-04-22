@@ -28,19 +28,19 @@ public static class DemoDataEndpoints
         // ── Business KPIs ─────────────────────────────────────────────────────
         app.MapGet("/api/v1/kpi", () => Results.Ok(new
         {
-            denialRate              = 12.4,
-            denialRateChange        = -2.1,
+            denialRate = 12.4,
+            denialRateChange = -2.1,
             firstPassResolutionRate = 89.3,
-            fprChange               = 3.7,
-            avgTimeToClose          = 8.2,
-            avgTimeToCloseChange    = -1.4,
-            revenueAtRisk           = 320400m,
-            revenueAtRiskChange     = -15200m,
+            fprChange = 3.7,
+            avgTimeToClose = 8.2,
+            avgTimeToCloseChange = -1.4,
+            revenueAtRisk = 320400m,
+            revenueAtRiskChange = -15200m,
             monthlyRecoveredRevenue = 287500m,
-            riskPatients            = 3,
-            openCareGaps            = 12,
-            schedulingUtilization   = 84.6,
-            aiAccuracyRate          = 94.2,
+            riskPatients = 3,
+            openCareGaps = 12,
+            schedulingUtilization = 84.6,
+            aiAccuracyRate = 94.2,
         }))
         .WithTags("Demo")
         .WithSummary("Executive KPI dashboard metrics");
@@ -84,9 +84,9 @@ public static class DemoDataEndpoints
         app.MapGet("/api/v1/xai/explanations", () => Results.Ok(new
         {
             patientId = "PAT-001",
-            model     = "Risk Stratification v3",
+            model = "Risk Stratification v3",
             riskScore = 0.94,
-            features  = new[]
+            features = new[]
             {
                 new { feature = "Heart Failure Diagnosis",    importance = 0.31, direction = "Positive", value = "Present" },
                 new { feature = "CKD Stage >= 3",             importance = 0.24, direction = "Positive", value = "Stage 3" },
@@ -103,13 +103,13 @@ public static class DemoDataEndpoints
         // ── Governance ────────────────────────────────────────────────────────
         app.MapGet("/api/v1/governance", () => Results.Ok(new
         {
-            totalModels     = 6,
+            totalModels = 6,
             compliantModels = 5,
-            underReview     = 1,
-            lastAudit       = DateTime.UtcNow.AddDays(-7),
-            nextAudit       = DateTime.UtcNow.AddDays(23),
-            riskCategories  = new[] { "High", "Medium", "Low" },
-            alerts          = new[]
+            underReview = 1,
+            lastAudit = DateTime.UtcNow.AddDays(-7),
+            nextAudit = DateTime.UtcNow.AddDays(23),
+            riskCategories = new[] { "High", "Medium", "Low" },
+            alerts = new[]
             {
                 new { severity = "Warning", message = "Cost Predictor v1.1 accuracy below 85% threshold — human review recommended" },
                 new { severity = "Info",    message = "Model cards updated for Q2 compliance cycle" },
@@ -135,8 +135,8 @@ public static class DemoDataEndpoints
             var now = DateTime.UtcNow;
             return Results.Ok(Enumerable.Range(0, 90).Select(i => new
             {
-                date      = now.AddDays(-89 + i).ToString("yyyy-MM-dd"),
-                avgScore  = Math.Round(0.55 + 0.08 * Math.Sin(i / 12.0) + i * 0.0009, 3),
+                date = now.AddDays(-89 + i).ToString("yyyy-MM-dd"),
+                avgScore = Math.Round(0.55 + 0.08 * Math.Sin(i / 12.0) + i * 0.0009, 3),
                 critCount = i > 60 ? 2 : (i > 30 ? 1 : 0),
             }));
         })
@@ -170,11 +170,11 @@ public static class DemoDataEndpoints
         // ── Engagement: care gap summary ──────────────────────────────────────
         app.MapGet("/api/v1/engagement/care-gap-summary", () => Results.Ok(new
         {
-            total      = 12,
-            open       = 10,
-            closed     = 2,
-            overdue    = 4,
-            byMeasure  = new[]
+            total = 12,
+            open = 10,
+            closed = 2,
+            overdue = 4,
+            byMeasure = new[]
             {
                 new { measure = "HbA1c",            open = 1, closed = 0 },
                 new { measure = "Eye Exam",          open = 1, closed = 0 },
@@ -208,10 +208,10 @@ public static class DemoDataEndpoints
         // ── Feedback summary ──────────────────────────────────────────────────
         app.MapGet("/api/v1/feedback/summary", () => Results.Ok(new
         {
-            totalFeedback    = 5,
-            avgRating        = 4.4,
-            positiveRate     = 80.0,
-            byCategory       = new[]
+            totalFeedback = 5,
+            avgRating = 4.4,
+            positiveRate = 80.0,
+            byCategory = new[]
             {
                 new { category = "Triage",   avg = 5.0, count = 1 },
                 new { category = "CareGap",  avg = 4.0, count = 1 },
@@ -226,14 +226,14 @@ public static class DemoDataEndpoints
         // ── Delivery analytics (notifications) ───────────────────────────────
         app.MapGet("/api/v1/delivery/analytics", () => Results.Ok(new
         {
-            totalSent       = 1840,
-            delivered       = 1792,
-            opened          = 1124,
-            clicked         = 387,
-            deliveryRate    = 97.4,
-            openRate        = 62.7,
-            clickRate       = 21.0,
-            byChannel       = new[]
+            totalSent = 1840,
+            delivered = 1792,
+            opened = 1124,
+            clicked = 387,
+            deliveryRate = 97.4,
+            openRate = 62.7,
+            clickRate = 21.0,
+            byChannel = new[]
             {
                 new { channel = "Push",  sent = 920, delivered = 901, opened = 634 },
                 new { channel = "Email", sent = 680, delivered = 672, opened = 401 },
@@ -273,13 +273,13 @@ public static class DemoDataEndpoints
         // ── Tenant admin ──────────────────────────────────────────────────────
         app.MapGet("/api/v1/tenant", () => Results.Ok(new
         {
-            tenantId     = "TENANT-DEMO-001",
-            name         = "HealthQ Copilot Demo",
-            plan         = "Enterprise",
-            region       = "East US",
-            dataResidency= "US",
-            features     = new[] { "ai-triage", "risk-stratification", "revenue-cycle", "population-health", "voice-ai", "scheduling" },
-            createdAt    = DateTime.UtcNow.AddDays(-180),
+            tenantId = "TENANT-DEMO-001",
+            name = "HealthQ Copilot Demo",
+            plan = "Enterprise",
+            region = "East US",
+            dataResidency = "US",
+            features = new[] { "ai-triage", "risk-stratification", "revenue-cycle", "population-health", "voice-ai", "scheduling" },
+            createdAt = DateTime.UtcNow.AddDays(-180),
         }))
         .WithTags("Demo")
         .WithSummary("Current tenant configuration");
@@ -287,12 +287,12 @@ public static class DemoDataEndpoints
         // ── Admin audit summary ───────────────────────────────────────────────
         app.MapGet("/api/v1/admin/audit/summary", () => Results.Ok(new
         {
-            totalEvents     = 4820,
-            last24Hours     = 247,
+            totalEvents = 4820,
+            last24Hours = 247,
             phiAccessEvents = 83,
-            breakGlassEvents= 2,
-            failedLogins    = 4,
-            topUsers        = new[]
+            breakGlassEvents = 2,
+            failedLogins = 4,
+            topUsers = new[]
             {
                 new { userId = "00000000-0001-0000-0000-000000000001", displayName = "Dr. E. Parker",   events = 94 },
                 new { userId = "00000000-0002-0000-0000-000000000002", displayName = "Dr. M. Chandra",  events = 71 },
