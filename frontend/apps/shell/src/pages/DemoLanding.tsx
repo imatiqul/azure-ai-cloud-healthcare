@@ -6,9 +6,13 @@ import CardContent from '@mui/material/CardContent';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
+import Divider from '@mui/material/Divider';
+import Chip from '@mui/material/Chip';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import AutoModeIcon from '@mui/icons-material/AutoMode';
 import Alert from '@mui/material/Alert';
+import { useGlobalStore } from '../store'; // Phase 58
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const DEMO_API = `${API_BASE}/api/v1/agents/demo`;
@@ -30,6 +34,7 @@ interface StepInfo {
 
 export default function DemoLanding() {
   const navigate = useNavigate();
+  const { startSelfDrivenDemo } = useGlobalStore(); // Phase 58
   const [clientName, setClientName] = useState('');
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
@@ -78,6 +83,17 @@ export default function DemoLanding() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Phase 58 — Self-Driven Demo: launch AutoDemoPlayer on the live platform
+  const handleSelfDriven = () => {
+    if (!clientName.trim() || !company.trim()) {
+      setError('Please enter your name and company.');
+      return;
+    }
+    setError('');
+    startSelfDrivenDemo(clientName.trim(), company.trim());
+    navigate('/');
   };
 
   return (
@@ -139,13 +155,39 @@ export default function DemoLanding() {
             onClick={handleStart}
             disabled={loading}
             startIcon={<PlayArrowIcon />}
-            sx={{ py: 1.5, fontSize: '1.1rem' }}
+            sx={{ py: 1.5, fontSize: '1.1rem', mb: 2 }}
           >
-            {loading ? 'Starting Demo...' : 'Start Interactive Demo'}
+            {loading ? 'Starting Demo...' : 'Start Guided Demo'}
           </Button>
 
+          <Divider sx={{ mb: 2 }}>
+            <Chip label="or" size="small" />
+          </Divider>
+
+          {/* Phase 58 — Self-Driven AI Demo */}
+          <Button
+            fullWidth
+            variant="outlined"
+            size="large"
+            onClick={handleSelfDriven}
+            disabled={loading}
+            startIcon={<AutoModeIcon />}
+            sx={{
+              py: 1.5,
+              fontSize: '1rem',
+              borderColor: 'primary.light',
+              color: 'primary.main',
+              '&:hover': { bgcolor: 'primary.50' },
+            }}
+          >
+            AI Self-Driven Demo
+          </Button>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
+            The AI automatically navigates all 8 workflows with live narration
+          </Typography>
+
           <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-            No sign-up required • 5-minute guided tour • Provide feedback at each step
+            No sign-up required · 5-minute guided tour · Provide feedback at each step
           </Typography>
         </CardContent>
       </Card>

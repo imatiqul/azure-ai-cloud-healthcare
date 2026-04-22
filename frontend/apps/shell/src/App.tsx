@@ -18,6 +18,8 @@ import { QuickActionsSpeedDial } from './components/QuickActionsSpeedDial'; // P
 import { AnnouncementBanner } from './components/AnnouncementBanner'; // Phase 36
 import { PatientContextBar } from './components/PatientContextBar';   // Phase 49
 import { OfflineIndicator } from './components/OfflineIndicator'; // Phase 37
+import { AutoDemoPlayer } from './components/AutoDemo/AutoDemoPlayer'; // Phase 58
+import { useGlobalStore } from './store'; // Phase 58
 import { OnboardingWizard } from './components/OnboardingWizard'; // Phase 38
 import { TabbedPageLayout } from './components/TabbedPageLayout'; // Phase 48
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage')); // Phase 38
@@ -151,7 +153,8 @@ class MfeErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState>
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
-  const isDemoRoute = location.pathname.startsWith('/demo');
+  const isDemoRoute    = location.pathname.startsWith('/demo');
+  const { isDemoActive } = useGlobalStore(); // Phase 58
   const { open: paletteOpen, openPalette, closePalette }         = useCommandPalette();
   const { open: shortcutsOpen, closeModal: closeShortcuts } = useKeyboardShortcutsModal();
   const gKeyRef = useRef(false); // Phase 56 — tracks first key of G+* sequences
@@ -451,6 +454,7 @@ export default function App() {
         <SessionExpiryGuard />
         <QuickActionsSpeedDial />
         <OnboardingWizard /> {/* Phase 38 — first-run onboarding */}
+        {isDemoActive && <AutoDemoPlayer />} {/* Phase 58 — AI self-driven demo */}
       </Box>
     </SidebarProvider>
   );

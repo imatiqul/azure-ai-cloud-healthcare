@@ -21,7 +21,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-export const CURRENT_VERSION = 'v57';
+export const CURRENT_VERSION = 'v58';
 const SEEN_KEY = 'hq:whats-new-seen';
 
 interface FeatureEntry {
@@ -37,6 +37,17 @@ interface Release {
 }
 
 export const RELEASES: Release[] = [
+  {
+    version: 'v58',
+    title:   'AI Self-Driven Live Demo — AutoDemoPlayer & Full Workflow Narration',
+    date:    'April 2026',
+    features: [
+      { title: 'AI-assisted self-driven demo player',                    description: 'A new AutoDemoPlayer component mounts globally in the shell when demo mode is active. It automatically navigates through all 8 platform workflows — Command Center, Voice AI, Clinical Triage, Smart Scheduling, Encounters, Revenue Cycle, Population Health, and Patient Engagement — with no presenter interaction required.' },
+      { title: 'Typewriter AI narration with scene-by-scene scripts',    description: 'Each of the 24 demo scenes has a fully authored AI narration that streams word-by-word in a floating narrator panel. Clinical language is used throughout — ICD-10 codes, HEDIS measures, SDOH domains, readmission risk scores — making every demo feel genuinely clinical and AI-powered.' },
+      { title: 'Floating DemoControlBar with countdown arc',             description: 'A fixed bottom-centre control bar gives presenters full control: pause/resume, back, next, and exit. The Next button has a live SVG countdown arc showing how many seconds remain before the demo auto-advances. Workflow progress is shown via coloured dot indicators for all 8 workflows.' },
+      { title: 'Self-Driven Demo launch from DemoLanding',              description: 'The demo entry page now offers two modes: Start Guided Demo (existing step-by-step flow) and AI Self-Driven Demo (new). The self-driven mode calls startSelfDrivenDemo in the global Zustand store and navigates straight to the live platform — no /demo/live page required.' },
+    ],
+  },
   {
     version: 'v57',
     title:   'Patient Summary Card, Richer Voice Sessions & Demo Action Hints',
