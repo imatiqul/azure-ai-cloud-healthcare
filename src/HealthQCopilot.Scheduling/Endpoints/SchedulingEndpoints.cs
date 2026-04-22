@@ -114,6 +114,30 @@ public static class SchedulingEndpoints
             return booking is null ? Results.NotFound() : Results.Ok(booking);
         });
 
+        // ── GET /bookings — list recent bookings (activity feed, dashboards) ─
+        group.MapGet("/bookings", async (
+            int? top,
+            SchedulingDbContext db,
+            CancellationToken ct) =>
+        {
+            var bookings = await db.Bookings
+                .OrderByDescending(b => b.AppointmentTime)
+                .Take(top ?? 20)
+                .Select(b => new
+                {
+                    b.Id,
+                    b.PatientId,
+                    b.PractitionerId,
+                    b.SlotId,
+                    b.AppointmentTime,
+                    b.Status,
+                    BookedAt = b.CreatedAt,
+                })
+                .ToListAsync(ct);
+            return Results.Ok(bookings);
+        }).WithSummary("List recent bookings")
+          .WithDescription("Returns the most recent bookings ordered by appointment time descending. Use ?top=N to limit results (default 20).");
+
         group.MapGet("/stats", async (
             SchedulingDbContext db,
             IDistributedCache cache,

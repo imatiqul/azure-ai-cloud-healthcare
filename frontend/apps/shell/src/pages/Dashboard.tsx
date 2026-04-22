@@ -29,6 +29,9 @@ import { DashboardQuickActions } from '../components/DashboardQuickActions'; // 
 import { ActivityFeedWidget } from '../components/ActivityFeedWidget'; // Phase 53
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+// Only attempt SignalR when the hub URL is explicitly configured.
+// Leaving VITE_SIGNALR_HUB_URL empty disables the feature gracefully (no 405 errors).
+const SIGNALR_HUB_URL = import.meta.env.VITE_SIGNALR_HUB_URL || '';
 
 interface DashboardStats {
   labelKey:  string;
@@ -210,7 +213,8 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const hub = createGlobalHub('', API_BASE);
+    if (!SIGNALR_HUB_URL) return; // skip when hub not configured — avoids 405 console errors
+    const hub = createGlobalHub('', SIGNALR_HUB_URL);
     let started = false;
 
     const startHub = async () => {

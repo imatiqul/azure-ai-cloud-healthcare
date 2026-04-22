@@ -82,7 +82,7 @@ async function buildFeed(): Promise<{ events: ActivityEvent[]; failedSources: st
     fetchSafe<{ pendingTriage?: number; awaitingReview?: number; completed?: number }>(
       '/api/v1/agents/stats', {}, failedSources, 'Triage'),
     fetchSafe<Array<{ id: string; patientId?: string; bookedAt?: string }>>(
-      '/api/v1/scheduling/appointments?top=5', [], failedSources, 'Scheduling'),
+      '/api/v1/scheduling/bookings?top=5', [], failedSources, 'Scheduling'),
     fetchSafe<Array<{ id: string; claimNumber: string; payerName: string; appealDeadline?: string; denialStatus?: string }>>(
       '/api/v1/revenue/denials?top=5', [], failedSources, 'Revenue'),
   ]);

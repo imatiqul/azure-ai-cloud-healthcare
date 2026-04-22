@@ -236,6 +236,7 @@ export function VoiceSessionController() {
         body: JSON.stringify({ patientId: '00000000-0000-0000-0000-000000000001' }),
         headers: { 'Content-Type': 'application/json' },
       });
+      if (!res.ok) throw new Error(`Voice service unavailable (${res.status})`);
       const data = await res.json() as { id: string };
       setSessionId(data.id);
       setStatus('live');
