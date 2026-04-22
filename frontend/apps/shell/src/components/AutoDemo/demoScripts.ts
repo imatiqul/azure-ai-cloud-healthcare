@@ -384,3 +384,77 @@ export function getRemainingTourSec(
 
   return remaining;
 }
+
+// ── Phase 70 — Audience Groups ───────────────────────────────────────────────
+//
+// Each group represents a buyer persona and maps to a curated subset of
+// DEMO_WORKFLOWS.  The DemoLanding page uses these groups as the primary
+// selector; individual workflow chips remain available for fine-tuning.
+
+export interface DemoAudienceGroup {
+  id:          string;
+  name:        string;
+  icon:        string;
+  color:       string;   // hex – used for border / bg tint
+  tagline:     string;   // one-liner shown on the card
+  description: string;   // tooltip / expanded description
+  workflowIds: string[]; // ordered subset of DemoWorkflow.id
+}
+
+export const DEMO_AUDIENCE_GROUPS: DemoAudienceGroup[] = [
+  {
+    id:          'patients',
+    name:        'Patients',
+    icon:        '🙋',
+    color:       '#0288d1',
+    tagline:     'Self-service care from registration to results',
+    description: 'Digital registration, AI-assisted appointment booking, personalised care reminders, and a secure patient portal — no paperwork required.',
+    workflowIds: ['scheduling', 'engagement'],
+  },
+  {
+    id:          'practitioners',
+    name:        'Practitioners',
+    icon:        '🩺',
+    color:       '#00796b',
+    tagline:     'AI copilot for clinical efficiency',
+    description: 'Hands-free voice documentation, AI-ranked triage queue, explainable clinical reasoning, and full encounter management with drug-interaction screening.',
+    workflowIds: ['voice', 'triage', 'encounters'],
+  },
+  {
+    id:          'clinics',
+    name:        'Clinic Operations',
+    icon:        '🏥',
+    color:       '#f57c00',
+    tagline:     'Revenue, scheduling, and daily operations',
+    description: 'Command-center KPIs, smart slot scheduling, AI-automated billing, prior authorisation, and denial recovery to maximise clinic revenue.',
+    workflowIds: ['dashboard', 'scheduling', 'revenue'],
+  },
+  {
+    id:          'leadership',
+    name:        'Clinical Leadership',
+    icon:        '📊',
+    color:       '#1565c0',
+    tagline:     'Population health & value-based care',
+    description: 'ML risk stratification across your patient panel, HEDIS quality measures, SDOH screening, and whole-population analytics for value-based contracts.',
+    workflowIds: ['dashboard', 'pophealth', 'encounters'],
+  },
+  {
+    id:          'full',
+    name:        'Full Platform Tour',
+    icon:        '✨',
+    color:       '#6a1b9a',
+    tagline:     'Every module — end-to-end clinical AI',
+    description: 'The complete HealthQ Copilot experience across all 8 clinical workflows — from voice intake to population health analytics.',
+    workflowIds: ['dashboard', 'voice', 'triage', 'scheduling', 'encounters', 'revenue', 'pophealth', 'engagement'],
+  },
+];
+
+/** Returns sorted workflow indices for a given audience group id. */
+export function getAudienceGroupIndices(groupId: string): number[] {
+  const group = DEMO_AUDIENCE_GROUPS.find(g => g.id === groupId);
+  if (!group) return DEMO_WORKFLOWS.map((_, i) => i);
+  return group.workflowIds
+    .map(wfId => DEMO_WORKFLOWS.findIndex(wf => wf.id === wfId))
+    .filter(i => i !== -1)
+    .sort((a, b) => a - b);
+}

@@ -16,7 +16,7 @@ import AutoModeIcon from '@mui/icons-material/AutoMode';
 import Alert from '@mui/material/Alert';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useGlobalStore } from '../store'; // Phase 58
-import { DEMO_WORKFLOWS, getTourDurationSec } from '../components/AutoDemo/demoScripts'; // Phase 64/68
+import { DEMO_WORKFLOWS, getTourDurationSec, DEMO_AUDIENCE_GROUPS, getAudienceGroupIndices } from '../components/AutoDemo/demoScripts'; // Phase 64/68/70
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const DEMO_API = `${API_BASE}/api/v1/agents/demo`;
@@ -43,7 +43,8 @@ interface StepInfo {
   feedbackTags: string[];
 }
 
-const LS_KEY = 'hq-demo-workflows';
+const LS_KEY       = 'hq-demo-workflows';
+const LS_GROUP_KEY = 'hq-demo-audience-group';
 
 export default function DemoLanding() {
   const navigate = useNavigate();
@@ -67,6 +68,9 @@ export default function DemoLanding() {
     return [0, 1, 2, 3, 4, 5, 6, 7];
   };
   const [selectedWorkflows, setSelectedWorkflows] = useState<number[]>(restoreWorkflows);
+  const [selectedGroup, setSelectedGroup]         = useState<string | null>(
+    () => localStorage.getItem(LS_GROUP_KEY) || null,
+  );
 
   // Phase 65 — URL-based pre-fill + optional auto-start
   useEffect(() => {
@@ -96,6 +100,9 @@ export default function DemoLanding() {
   }, []);
 
   const toggleWorkflow = (i: number) => {
+    // Manual toggle clears the audience group selection
+    setSelectedGroup(null);
+    localStorage.setItem(LS_GROUP_KEY, '');
     setSelectedWorkflows(prev => {
       const next = prev.includes(i)
         ? prev.length > 1 ? prev.filter(x => x !== i) : prev
@@ -103,6 +110,18 @@ export default function DemoLanding() {
       localStorage.setItem(LS_KEY, JSON.stringify(next));
       return next;
     });
+  };
+
+  const handleGroupSelect = (groupId: string) => {
+    const deselect = selectedGroup === groupId;
+    const newGroup  = deselect ? null : groupId;
+    setSelectedGroup(newGroup);
+    localStorage.setItem(LS_GROUP_KEY, newGroup ?? '');
+    if (!deselect) {
+      const indices = getAudienceGroupIndices(groupId);
+      setSelectedWorkflows(indices);
+      localStorage.setItem(LS_KEY, JSON.stringify(indices));
+    }
   };
 
   const handleStart = async () => {
@@ -249,23 +268,101 @@ export default function DemoLanding() {
             AI Self-Driven Demo
           </Button>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
-            The AI automatically navigates all 8 workflows with live narration
+            {selectedGroup
+              ? `${DEMO_AUDIENCE_GROUPS.find(g => g.id === selectedGroup)?.name ?? ''} tour — AI narrates each step automatically`
+              : 'The AI automatically navigates selected workflows with live narration'}
           </Typography>
 
-          {/* Phase 64 — Workflow selector */}
+          {/* Phase 70 — Audience Group Selector */}
           <Box sx={{ mt: 2, textAlign: 'left' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.8 }}>
+            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+              Who is this demo for?
+            </Typography>
+
+            {/* 2×2 grid for the four persona groups */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.8, mb: 0.8 }}>
+              {DEMO_AUDIENCE_GROUPS.filter(g => g.id !== 'full').map((group) => {
+                const active   = selectedGroup === group.id;
+                const indices  = getAudienceGroupIndices(group.id);
+                const wfCount  = indices.length;
+                const minDur   = Math.ceil(getTourDurationSec(indices) / 60);
+                return (
+                  <Box
+                    key={group.id}
+                    onClick={() => handleGroupSelect(group.id)}
+                    sx={{
+                      p: 1.2, borderRadius: 2, border: '1.5px solid',
+                      borderColor: active ? group.color : 'divider',
+                      bgcolor:     active ? `${group.color}18` : 'transparent',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                      '&:hover': { borderColor: group.color, bgcolor: `${group.color}0d` },
+                    }}
+                  >
+                    <Typography variant="body2" fontWeight={700}
+                      sx={{ color: active ? group.color : 'text.primary', lineHeight: 1.4 }}
+                    >
+                      {group.icon}&nbsp;{group.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3 }}>
+                      {group.tagline}
+                    </Typography>
+                    <Typography variant="caption" sx={{
+                      display: 'block', mt: 0.4, fontStyle: 'italic',
+                      color: active ? group.color : 'text.disabled',
+                    }}>
+                      {wfCount} workflow{wfCount !== 1 ? 's' : ''} · ~{minDur} min
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Box>
+
+            {/* Full Platform Tour — full-width row */}
+            {(() => {
+              const full   = DEMO_AUDIENCE_GROUPS.find(g => g.id === 'full')!;
+              const active = selectedGroup === 'full';
+              const dur    = Math.ceil(getTourDurationSec([0, 1, 2, 3, 4, 5, 6, 7]) / 60);
+              return (
+                <Box
+                  onClick={() => handleGroupSelect('full')}
+                  sx={{
+                    px: 1.5, py: 1, borderRadius: 2, border: '1.5px solid',
+                    borderColor: active ? full.color : 'divider',
+                    bgcolor:     active ? `${full.color}18` : 'transparent',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1.5,
+                    transition: 'all 0.15s',
+                    '&:hover': { borderColor: full.color, bgcolor: `${full.color}0d` },
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={700}
+                    sx={{ color: active ? full.color : 'text.primary', whiteSpace: 'nowrap' }}
+                  >
+                    {full.icon}&nbsp;{full.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+                    {full.tagline}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: active ? full.color : 'text.disabled', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
+                    8 workflows · ~{dur} min
+                  </Typography>
+                </Box>
+              );
+            })()}
+          </Box>
+
+          {/* Fine-tune individual workflows */}
+          <Box sx={{ mt: 1.5, textAlign: 'left' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.6 }}>
               <Typography variant="caption" fontWeight={700} color="text.secondary">
-                Customise workflows to include ({selectedWorkflows.length} of {DEMO_WORKFLOWS.length}):
+                {selectedGroup ? 'Fine-tune included workflows:' : 'Or choose individual workflows:'}
               </Typography>
-              {/* Phase 68 — Estimated duration */}
               <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-                ~{Math.ceil(getTourDurationSec(selectedWorkflows) / 60)} min
+                {selectedWorkflows.length} selected · ~{Math.ceil(getTourDurationSec(selectedWorkflows) / 60)} min
               </Typography>
             </Box>
             <Stack direction="row" flexWrap="wrap" gap={0.7}>
               {DEMO_WORKFLOWS.map((wf, i) => {
-                const selected = selectedWorkflows.includes(i);
+                const selected  = selectedWorkflows.includes(i);
                 const sceneList = wf.scenes.map(s => `• ${s.title}`).join('\n');
                 return (
                   <Tooltip
@@ -298,10 +395,12 @@ export default function DemoLanding() {
                 variant="caption"
                 sx={{ color: 'primary.main', cursor: 'pointer', mt: 0.5, display: 'inline-block' }}
                 onClick={() => {
-                const all = [0, 1, 2, 3, 4, 5, 6, 7];
-                setSelectedWorkflows(all);
-                localStorage.setItem(LS_KEY, JSON.stringify(all));
-              }}
+                  const all = [0, 1, 2, 3, 4, 5, 6, 7];
+                  setSelectedWorkflows(all);
+                  setSelectedGroup('full');
+                  localStorage.setItem(LS_KEY, JSON.stringify(all));
+                  localStorage.setItem(LS_GROUP_KEY, 'full');
+                }}
               >
                 Select all
               </Typography>
