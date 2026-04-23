@@ -65,6 +65,8 @@ function collectErrors(page: import('@playwright/test').Page) {
     /Failed to load resource: the server responded with a status of 40[135]/,
     // CORS preflight blocked when APIM returns 4xx
     /Access-Control-Allow-Origin|has been blocked by CORS/,
+    // Generic network error from browser when CORS or network fully blocks a request
+    /net::ERR_FAILED|net::ERR_ABORTED|Failed to fetch/,
   ];
   page.on('console', (msg) => {
     if (msg.type() !== 'error') return;
