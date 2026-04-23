@@ -55,12 +55,6 @@ export default defineConfig({
         zustand: { singleton: true },
         '@microsoft/signalr': { singleton: true },
       },
-      // NOTE: Do NOT set shareStrategy: 'loaded-first' here.
-      // With loaded-first, MF2 v1.14.1 calls ya(o)/initResolve BEFORE
-      // initializeSharing populates the share scope. When the React shim then
-      // calls loadShare("react") it finds an empty scope and the shell never
-      // mounts. The default (version-first) awaits all remote manifests but
-      // loadShare("react") correctly finds the local React in the populated scope.
     }),
     VitePWA({
       registerType: 'autoUpdate',

@@ -20,7 +20,6 @@ import { PatientContextBar } from './components/PatientContextBar';   // Phase 4
 import { OfflineIndicator } from './components/OfflineIndicator'; // Phase 37
 import { AutoDemoPlayer } from './components/AutoDemo/AutoDemoPlayer'; // Phase 58
 import { useGlobalStore } from './store'; // Phase 58
-import { emitBackendStatusChanged } from '@healthcare/mfe-events';
 import { OnboardingWizard } from './components/OnboardingWizard'; // Phase 38
 import { TabbedPageLayout } from './components/TabbedPageLayout'; // Phase 48
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage')); // Phase 38
@@ -86,8 +85,6 @@ const PractitionerManagerPage = lazy(() => import('./pages/PractitionerManager')
 const BusinessKpiDashboardPage = lazy(() => import('./pages/BusinessKpiDashboard')); // Phase 31
 const PlatformHealthPanelPage  = lazy(() => import('./pages/PlatformHealthPanel'));  // Phase 31
 
-const APP_API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-
 function Loading() {
   return (
     <Box sx={{ p: 3 }}>
@@ -99,41 +96,19 @@ function Loading() {
 interface ErrorBoundaryProps { children: ReactNode; name: string }
 interface ErrorBoundaryState { hasError: boolean; error?: Error }
 
-/** Returns true for Vite/webpack chunk-load failures that occur after a new deploy. */
-function isChunkLoadError(error: Error): boolean {
-  return (
-    error.name === 'ChunkLoadError' ||
-    error.message.includes('Failed to fetch dynamically imported module') ||
-    error.message.includes('Importing a module script failed') ||
-    error.message.includes('error loading dynamically imported module')
-  );
-}
-
 class MfeErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
-  private _reloadAttempted = false;
 
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Chunk-load failures happen when a new deploy invalidates old hashed asset filenames.
-    // The service worker may be serving a stale index.html that references chunks that no
-    // longer exist on the CDN.  A single automatic reload recovers the user transparently.
-    if (isChunkLoadError(error) && !this._reloadAttempted) {
-      this._reloadAttempted = true;
-      console.warn(`[${this.props.name}] Stale chunk detected after deploy — reloading…`);
-      // Small delay so React finishes the render cycle before we interrupt it.
-      setTimeout(() => window.location.reload(), 100);
-      return;
-    }
     console.error(`[${this.props.name}] MFE load error:`, error, info);
   }
 
   render() {
     if (this.state.hasError) {
-      const isChunk = isChunkLoadError(this.state.error ?? new Error());
       return (
         <Box
           sx={{
@@ -157,18 +132,16 @@ class MfeErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState>
               Unable to load {this.props.name}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {isChunk
-                ? 'A new version of HealthQ Copilot was deployed. Refreshing the page will restore this panel.'
-                : (this.state.error?.message || 'The micro-frontend could not be loaded. Check your network connection and try again.')}
+              {this.state.error?.message || 'The micro-frontend could not be loaded. Check your network connection and try again.'}
             </Typography>
           </Box>
           <Button
             variant="outlined"
             color="error"
             size="small"
-            onClick={() => isChunk ? window.location.reload() : this.setState({ hasError: false })}
+            onClick={() => this.setState({ hasError: false })}
           >
-            {isChunk ? 'Reload Page' : 'Try Again'}
+            Try Again
           </Button>
         </Box>
       );
@@ -181,49 +154,7 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const isDemoRoute    = location.pathname.startsWith('/demo');
-  const { isDemoActive, backendOnline, setBackendOnline } = useGlobalStore(); // Phase 58
-
-  // ── Startup backend probe ────────────────────────────────────────────────
-  // Run once at app startup so all child components know the backend status
-  // before they mount and attempt their own API calls.
-  // Safety: always resolves within 3 s so the app never stays on <Loading/>.
-  useEffect(() => {
-    let cancelled = false;
-
-    function resolveOffline() {
-      if (!cancelled) {
-        setBackendOnline(false);
-        emitBackendStatusChanged({ online: false });
-      }
-    }
-
-    // Fallback: if the probe hasn't settled within 3 s, default to offline
-    const fallback = setTimeout(resolveOffline, 3_000);
-
-    async function startupProbe() {
-      if (!APP_API_BASE) {
-        clearTimeout(fallback);
-        resolveOffline();
-        return;
-      }
-      try {
-        const res = await fetch(`${APP_API_BASE}/api/v1/agents/stats`, { signal: AbortSignal.timeout(3_000) });
-        // 404 → backend not deployed; 401/403 → APIM live and protecting route
-        const live = res.ok || res.status === 401 || res.status === 403;
-        clearTimeout(fallback);
-        if (!cancelled) {
-          setBackendOnline(live);
-          emitBackendStatusChanged({ online: live });
-        }
-      } catch {
-        clearTimeout(fallback);
-        resolveOffline();
-      }
-    }
-    void startupProbe();
-    return () => { cancelled = true; clearTimeout(fallback); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally run once on mount
+  const { isDemoActive } = useGlobalStore(); // Phase 58
   const { open: paletteOpen, openPalette, closePalette }         = useCommandPalette();
   const { open: shortcutsOpen, closeModal: closeShortcuts } = useKeyboardShortcutsModal();
   const gKeyRef = useRef(false); // Phase 56 — tracks first key of G+* sequences
@@ -304,7 +235,7 @@ export default function App() {
       >
         Skip to main content
       </Box>
-      <Box data-testid="shell-app" sx={{ display: 'flex', height: '100vh' }}>
+      <Box sx={{ display: 'flex', height: '100vh' }}>
         <Sidebar />
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <TopNav onOpenSearch={openPalette} />
