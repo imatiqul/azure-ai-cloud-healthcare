@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -47,14 +47,28 @@ export function EscalationQueue() {
   const [note, setNote]             = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const fetchQueue = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`${API_BASE}/api/v1/agents/escalations`, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // Backend not deployed — back off to 30 s to reduce APIM noise
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = setInterval(() => void fetchQueue(), 30_000);
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json() as EscalationItem[];
       setItems(data);
+      // Backend is live — restore 10 s cadence if it was backed off
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = setInterval(() => void fetchQueue(), 10_000);
+      }
     } catch {
       setItems(DEMO_ESCALATIONS);
       setError(null);
@@ -65,8 +79,10 @@ export function EscalationQueue() {
 
   useEffect(() => {
     void fetchQueue();
-    const interval = setInterval(() => void fetchQueue(), 10000);
-    return () => clearInterval(interval);
+    intervalRef.current = setInterval(() => void fetchQueue(), 10_000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [fetchQueue]);
 
   async function claim(id: string) {

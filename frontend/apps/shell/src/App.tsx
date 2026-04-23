@@ -96,19 +96,41 @@ function Loading() {
 interface ErrorBoundaryProps { children: ReactNode; name: string }
 interface ErrorBoundaryState { hasError: boolean; error?: Error }
 
+/** Returns true for Vite/webpack chunk-load failures that occur after a new deploy. */
+function isChunkLoadError(error: Error): boolean {
+  return (
+    error.name === 'ChunkLoadError' ||
+    error.message.includes('Failed to fetch dynamically imported module') ||
+    error.message.includes('Importing a module script failed') ||
+    error.message.includes('error loading dynamically imported module')
+  );
+}
+
 class MfeErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
+  private _reloadAttempted = false;
 
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    // Chunk-load failures happen when a new deploy invalidates old hashed asset filenames.
+    // The service worker may be serving a stale index.html that references chunks that no
+    // longer exist on the CDN.  A single automatic reload recovers the user transparently.
+    if (isChunkLoadError(error) && !this._reloadAttempted) {
+      this._reloadAttempted = true;
+      console.warn(`[${this.props.name}] Stale chunk detected after deploy — reloading…`);
+      // Small delay so React finishes the render cycle before we interrupt it.
+      setTimeout(() => window.location.reload(), 100);
+      return;
+    }
     console.error(`[${this.props.name}] MFE load error:`, error, info);
   }
 
   render() {
     if (this.state.hasError) {
+      const isChunk = isChunkLoadError(this.state.error ?? new Error());
       return (
         <Box
           sx={{
@@ -132,16 +154,18 @@ class MfeErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState>
               Unable to load {this.props.name}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {this.state.error?.message || 'The micro-frontend could not be loaded. Check your network connection and try again.'}
+              {isChunk
+                ? 'A new version of HealthQ Copilot was deployed. Refreshing the page will restore this panel.'
+                : (this.state.error?.message || 'The micro-frontend could not be loaded. Check your network connection and try again.')}
             </Typography>
           </Box>
           <Button
             variant="outlined"
             color="error"
             size="small"
-            onClick={() => this.setState({ hasError: false })}
+            onClick={() => isChunk ? window.location.reload() : this.setState({ hasError: false })}
           >
-            Try Again
+            {isChunk ? 'Reload Page' : 'Try Again'}
           </Button>
         </Box>
       );

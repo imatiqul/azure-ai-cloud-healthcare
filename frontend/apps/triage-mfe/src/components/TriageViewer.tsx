@@ -103,41 +103,62 @@ export function TriageViewer() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'All' | 'AwaitingHumanReview' | 'Completed' | 'Processing'>('All');
   const [levelFilter, setLevelFilter] = useState<'All' | 'P1_Immediate' | 'P2_Urgent' | 'P3_Standard'>('All');
-  const abortRef = useRef<AbortController | null>(null);
+  const abortRef       = useRef<AbortController | null>(null);
+  // Adaptive poll: 5 s when backend is live, 30 s when returning 404/errors to
+  // avoid flooding the APIM gateway (and browser console) when not yet deployed.
+  const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollDelayRef   = useRef<number>(5_000);
 
-  async function fetchWorkflows() {
+  function schedulePoll(delayMs: number) {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    pollDelayRef.current = delayMs;
+    intervalRef.current  = setInterval(doFetch, delayMs);
+  }
+
+  async function doFetch() {
     // Abort previous in-flight request
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     try {
       const res = await fetch(`${API_BASE}/api/v1/agents/triage`, { signal: controller.signal });
-      if (!res.ok) throw new Error(`Server error (${res.status})`);
+      if (!res.ok) {
+        // Backend not deployed (404) or gateway error — back off to 30 s
+        if (pollDelayRef.current !== 30_000) schedulePoll(30_000);
+        throw new Error(`Server error (${res.status})`);
+      }
       const data = await res.json();
       setWorkflows(data);
       setError(null);
+      // Backend is live — ensure we're polling at the fast 5-second cadence
+      if (pollDelayRef.current !== 5_000) schedulePoll(5_000);
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
         // Backend unavailable — show demo data so the UI remains useful
         setWorkflows(prev => prev.length > 0 ? prev : DEMO_WORKFLOWS);
         setError(null);
+        if (pollDelayRef.current !== 30_000) schedulePoll(30_000);
       }
     } finally {
       setLoading(false);
     }
   }
 
+  // Alias for event-driven refresh (e.g. after HITL approval)
+  const fetchWorkflows = doFetch;
+
   useEffect(() => {
-    fetchWorkflows();
+    void doFetch();
     const offEscalation = onEscalationRequired(() => setShowEscalation(true));
-    const offDecision = onAgentDecision(() => fetchWorkflows());
-    const interval = setInterval(fetchWorkflows, 5000);
+    const offDecision   = onAgentDecision(() => void doFetch());
+    intervalRef.current = setInterval(doFetch, 5_000);
     return () => {
       abortRef.current?.abort();
       offEscalation();
       offDecision();
-      clearInterval(interval);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function getTriageBadgeVariant(level: string) {
