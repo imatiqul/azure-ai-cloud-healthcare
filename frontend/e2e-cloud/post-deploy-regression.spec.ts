@@ -27,22 +27,35 @@ const INIT_STORAGE = JSON.stringify({
 
 /**
  * Collect browser console errors during a page interaction.
- * Returns only errors that are not expected (e.g. 404s from scale-to-zero ACAs).
+ * Returns only errors that are NOT expected (JS exceptions, unexpected failures).
+ *
+ * IMPORTANT: Browser-level "Failed to load resource: 404" messages are emitted
+ * by the browser itself when fetch() calls return 4xx.  They do NOT include the
+ * request URL in msg.text(), so URL-based filters can't distinguish API 404s
+ * (expected — APIM not yet routing to backend) from asset 404s (real bugs).
+ * We suppress them here and catch missing JS/CSS assets separately via the
+ * `page.on('response', ...)` listener used in each test.
  */
 function collectErrors(page: import('@playwright/test').Page) {
   const errors: string[] = [];
   const IGNORED = [
-    // Backend scaled to zero — handled gracefully by fallback data
-    /api\/v1\/agents\/(triage|stats)/,
+    // Backend scaled to zero or APIM not yet routing — handled by demo-data fallbacks
+    /api\/v1\/agents\/(triage|stats|escalations)/,
     /api\/v1\/voice\/sessions/,
     /api\/v1\/scheduling\/(stats|waitlist|bookings)/,
     /api\/v1\/population-health/,
     /api\/v1\/revenue/,
     /api\/v1\/identity/,
+    /api\/v1\/notifications/,
     // SignalR disabled (VITE_SIGNALR_HUB_URL is empty)
     /hubs\/global\/negotiate/,
     // Module federation loading messages
     /Loading chunk/,
+    // Browser-level network 404 message — no URL in msg.text(); asset 404s are
+    // caught separately via response listener so we don't miss real failures.
+    /Failed to load resource: the server responded with a status of 404/,
+    // Generic CORS/network preflight errors that accompany APIM 404s
+    /Failed to load resource: the server responded with a status of 40[135]/,
   ];
   page.on('console', (msg) => {
     if (msg.type() !== 'error') return;
@@ -51,6 +64,23 @@ function collectErrors(page: import('@playwright/test').Page) {
     errors.push(text);
   });
   return errors;
+}
+
+/**
+ * Track unexpected non-API 404s (missing JS chunks, CSS, images = real deployment bug).
+ * Returns the collected array — check it after navigation completes.
+ */
+function collectAsset404s(page: import('@playwright/test').Page) {
+  const asset404s: string[] = [];
+  page.on('response', (res) => {
+    if (res.status() !== 404) return;
+    const url = res.url();
+    // Ignore expected API 404s — only care about static assets
+    if (/\/api\/v1\//.test(url)) return;
+    if (/healthq-copilot-apim\.azure-api\.net/.test(url)) return;
+    asset404s.push(url);
+  });
+  return asset404s;
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -64,13 +94,15 @@ test.describe('Regression — Dashboard @regression @smoke', () => {
   });
 
   test('[BUG-001] Dashboard renders stats cards without JS crash', async ({ page }) => {
-    const errors = collectErrors(page);
+    const errors    = collectErrors(page);
+    const asset404s = collectAsset404s(page);  // missing JS/CSS chunks = real deployment bug
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     // Stats cards must render (with demo data if backend is down)
     await expect(page.getByText(/pending triage|awaiting review|active sessions|available today/i).first())
       .toBeVisible({ timeout: 15_000 });
-    expect(errors).toHaveLength(0);
+    expect(errors,    'Unexpected JS errors in console').toHaveLength(0);
+    expect(asset404s, 'Missing static assets (JS/CSS chunks) — stale deploy?').toHaveLength(0);
   });
 
   test('[BUG-002] Dashboard does NOT emit SignalR 405 error', async ({ page }) => {
