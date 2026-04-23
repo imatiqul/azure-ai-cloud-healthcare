@@ -10,7 +10,7 @@
  * Each test is named after the bug it guards against to make AI triage easy.
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 // Dismiss onboarding wizard and expand all sidebar groups
 const INIT_STORAGE = JSON.stringify({
@@ -40,13 +40,20 @@ function collectErrors(page: import('@playwright/test').Page) {
   const errors: string[] = [];
   const IGNORED = [
     // Backend scaled to zero or APIM not yet routing — handled by demo-data fallbacks
-    /api\/v1\/agents\/(triage|stats|escalations)/,
+    /api\/v1\/agents\/(triage|stats|escalations|health)/,
     /api\/v1\/voice\/sessions/,
-    /api\/v1\/scheduling\/(stats|waitlist|bookings)/,
+    /api\/v1\/scheduling\/(stats|waitlist|bookings|health)/,
     /api\/v1\/population-health/,
     /api\/v1\/revenue/,
     /api\/v1\/identity/,
     /api\/v1\/notifications/,
+    /api\/v1\/ocr/,
+    /api\/v1\/fhir/,
+    /api\/v1\/bff/,
+    // Startup probe endpoint (backendOnline gate in App.tsx)
+    /api\/v1\/agents\/stats/,
+    // APIM gateway — all routes return 404 until ACA backend is deployed
+    /healthq-copilot-apim\.azure-api\.net/,
     // SignalR disabled (VITE_SIGNALR_HUB_URL is empty)
     /hubs\/global\/negotiate/,
     // Module federation loading messages
@@ -56,6 +63,8 @@ function collectErrors(page: import('@playwright/test').Page) {
     /Failed to load resource: the server responded with a status of 404/,
     // Generic CORS/network preflight errors that accompany APIM 404s
     /Failed to load resource: the server responded with a status of 40[135]/,
+    // CORS preflight blocked when APIM returns 4xx
+    /Access-Control-Allow-Origin|has been blocked by CORS/,
   ];
   page.on('console', (msg) => {
     if (msg.type() !== 'error') return;

@@ -15,6 +15,7 @@ import Divider from '@mui/material/Divider';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { useGlobalStore } from '../store';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -71,7 +72,15 @@ export default function TenantAdminPanel() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const backendOnline = useGlobalStore(s => s.backendOnline);
+
   const fetchTenants = useCallback(async () => {
+    if (backendOnline === false) {
+      setTenants(DEMO_TENANTS);
+      setTotal(DEMO_TENANTS.length);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -91,7 +100,7 @@ export default function TenantAdminPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [backendOnline]);
 
   useEffect(() => {
     fetchTenants();

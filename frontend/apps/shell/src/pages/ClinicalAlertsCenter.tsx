@@ -19,6 +19,7 @@ import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import MoneyOffIcon from '@mui/icons-material/MoneyOff';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
+import { useGlobalStore } from '../store';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -111,7 +112,18 @@ export default function ClinicalAlertsCenter() {
   const [error, setError] = useState('');
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
+  const backendOnline = useGlobalStore(s => s.backendOnline);
+
   const fetchAll = useCallback(async () => {
+    if (backendOnline === false) {
+      setRisks(DEMO_RISKS);
+      setBreakGlass(DEMO_BREAK_GLASS);
+      setWaitlist(DEMO_WAITLIST);
+      setDenials(DEMO_DENIALS);
+      setLastRefreshed(new Date());
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -149,7 +161,7 @@ export default function ClinicalAlertsCenter() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [backendOnline]);
 
   useEffect(() => { void fetchAll(); }, [fetchAll]);
 

@@ -15,6 +15,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import { useGlobalStore } from '../store';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -176,7 +177,25 @@ export default function PlatformHealthPanel() {
   const [checking, setChecking] = useState(false);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
+  const backendOnline = useGlobalStore(s => s.backendOnline);
+
   const runChecks = useCallback(async () => {
+    if (backendOnline === false) {
+      // Backend is known offline — mark all services as down without probing
+      const offlineMap = new Map<string, ServiceHealth>();
+      for (const svc of SERVICES) {
+        offlineMap.set(svc.name, {
+          service: svc,
+          status: 'down',
+          httpStatus: null,
+          responseMs: null,
+          checkedAt: new Date(),
+        });
+      }
+      setHealthMap(offlineMap);
+      setLastChecked(new Date());
+      return;
+    }
     setChecking(true);
     // Reset all to 'checking'
     setHealthMap(prev => {
@@ -218,7 +237,7 @@ export default function PlatformHealthPanel() {
 
     setLastChecked(new Date());
     setChecking(false);
-  }, []);
+  }, [backendOnline]);
 
   useEffect(() => { void runChecks(); }, [runChecks]);
 

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 // Phase 51: Dismiss onboarding wizard and expand admin sidebar group before each test.
 // The wizard intercepts clicks; the admin group is collapsed by default (Phase 51).

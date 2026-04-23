@@ -30,7 +30,7 @@
  *     - Notification delivery analytics returns < 500
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 
 // ACA gateway may return 503 when scaled to zero — skip rather than fail.

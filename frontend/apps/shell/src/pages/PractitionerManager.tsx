@@ -13,6 +13,7 @@ import Grid from '@mui/material/Grid';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Stack from '@mui/material/Stack';
+import { useGlobalStore } from '../store';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -76,7 +77,14 @@ export default function PractitionerManager() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
+  const backendOnline = useGlobalStore(s => s.backendOnline);
+
   const fetchPractitioners = useCallback(async () => {
+    if (backendOnline === false) {
+      setPractitioners(DEMO_PRACTITIONERS);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -90,7 +98,7 @@ export default function PractitionerManager() {
     } finally {
       setLoading(false);
     }
-  }, [showAll]);
+  }, [showAll, backendOnline]);
 
   useEffect(() => { void fetchPractitioners(); }, [fetchPractitioners]);
 
