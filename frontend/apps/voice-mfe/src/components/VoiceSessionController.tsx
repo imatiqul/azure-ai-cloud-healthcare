@@ -23,6 +23,80 @@ import { AiThinkingPanel } from '@healthcare/design-system';
 
 type SessionStatus = 'idle' | 'connecting' | 'live' | 'ended';
 
+const PCM_WORKLET_PUBLIC_PATH = '/worklets/pcm-processor.js';
+const PCM_WORKLET_RELATIVE_MODULE_URL = new URL('../worklets/pcm-processor.js', import.meta.url).toString();
+
+export function getPcmWorkletModuleCandidates(origin?: string): string[] {
+  const candidates = [PCM_WORKLET_RELATIVE_MODULE_URL];
+  const resolvedOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : '');
+
+  if (resolvedOrigin) {
+    const normalizedOrigin = resolvedOrigin.endsWith('/')
+      ? resolvedOrigin.slice(0, -1)
+      : resolvedOrigin;
+    candidates.push(`${normalizedOrigin}${PCM_WORKLET_PUBLIC_PATH}`);
+  }
+
+  return Array.from(new Set(candidates));
+}
+
+async function loadPcmWorkletModule(audioContext: AudioContext): Promise<void> {
+  let lastError: unknown;
+
+  for (const moduleUrl of getPcmWorkletModuleCandidates()) {
+    try {
+      await audioContext.audioWorklet.addModule(moduleUrl);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error('Unable to load PCM worklet module.');
+}
+
+function getErrorName(error: unknown): string {
+  if (error && typeof error === 'object' && 'name' in error && typeof error.name === 'string') {
+    return error.name;
+  }
+  return '';
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+  return '';
+}
+
+export function getMicrophoneFallbackMessage(error: unknown): string {
+  const name = getErrorName(error).toLowerCase();
+  const message = getErrorMessage(error).toLowerCase();
+
+  if (name === 'notallowederror' || name === 'securityerror' || message.includes('permission') || message.includes('denied')) {
+    return 'Microphone permission is blocked. Allow microphone access in your browser and try again.';
+  }
+
+  if (name === 'notfounderror' || name === 'devicesnotfounderror' || message.includes('no input device') || message.includes('no microphone')) {
+    return 'No microphone device was detected. Connect a microphone and try again.';
+  }
+
+  if (name === 'notreadableerror' || name === 'trackstarterror' || message.includes('device is in use') || message.includes('could not start audio source')) {
+    return 'Microphone is busy in another application. Close other audio apps and try again.';
+  }
+
+  if (message.includes('worklet') && (message.includes('module') || message.includes('load') || message.includes('addmodule'))) {
+    return 'Audio processing could not start because the microphone module failed to load. Refresh the page and try again.';
+  }
+
+  if (message.includes('secure context') || message.includes('https')) {
+    return 'Microphone access requires a secure HTTPS connection.';
+  }
+
+  return 'Microphone is temporarily unavailable. Try again, or continue with text input.';
+}
+
 // ── PCM audio capture hook ──────────────────────────────────────────────────
 // Captures microphone audio as 16kHz 16-bit mono PCM, streaming chunks to the
 // voice service's audio-chunk endpoint for Azure Speech transcription.
@@ -54,6 +128,35 @@ function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: 
       }
     } catch { /* network errors are non-fatal */ }
   }, [sessionId, apiBase, onTranscript]);
+
+  const cleanupCaptureResources = useCallback((keepRecordedAudio: boolean) => {
+    const recorder = mediaRecorderRef.current;
+    mediaRecorderRef.current = null;
+    if (recorder) {
+      if (!keepRecordedAudio) {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+        audioBlobChunks.current = [];
+      }
+      try {
+        if (recorder.state !== 'inactive') recorder.stop();
+      } catch {
+        // Ignore recorder teardown failures during fallback cleanup.
+      }
+    }
+
+    workletNodeRef.current?.disconnect();
+    workletNodeRef.current = null;
+
+    const audioContext = audioContextRef.current;
+    audioContextRef.current = null;
+    if (audioContext) {
+      void audioContext.close();
+    }
+
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }, []);
 
   const startRecording = useCallback(async () => {
     setMicError(null);
@@ -92,7 +195,7 @@ function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: 
       // ── PCM AudioWorkletNode: 16kHz stream for Azure Speech ────────────
       const audioContext = new AudioContext({ sampleRate: 16000 });
       audioContextRef.current = audioContext;
-      await audioContext.audioWorklet.addModule('/worklets/pcm-processor.js');
+      await loadPcmWorkletModule(audioContext);
       const source = audioContext.createMediaStreamSource(stream);
       const workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
       workletNodeRef.current = workletNode;
@@ -104,21 +207,16 @@ function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: 
 
       setRecording(true);
     } catch (err) {
-      setMicError(err instanceof Error ? err.message : 'Microphone access denied');
+      cleanupCaptureResources(false);
+      setRecording(false);
+      setMicError(getMicrophoneFallbackMessage(err));
     }
-  }, [sendChunk]);
+  }, [cleanupCaptureResources, sendChunk]);
 
   const stopRecording = useCallback(() => {
-    mediaRecorderRef.current?.stop();
-    mediaRecorderRef.current = null;
-    workletNodeRef.current?.disconnect();
-    void audioContextRef.current?.close();
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    workletNodeRef.current = null;
-    audioContextRef.current = null;
-    streamRef.current = null;
+    cleanupCaptureResources(true);
     setRecording(false);
-  }, []);
+  }, [cleanupCaptureResources]);
 
   // Cleanup object URL on unmount
   useEffect(() => {
@@ -498,7 +596,7 @@ export function VoiceSessionController() {
               )}
               {micError && (
                 <Alert severity="warning" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>
-                  Microphone unavailable: {micError}. Use text input below.
+                  Microphone unavailable: {micError} You can continue with text input below.
                 </Alert>
               )}
 

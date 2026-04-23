@@ -214,6 +214,63 @@ test.describe('Regression — Voice MFE @regression', () => {
     await expect(liveBadge).not.toBeVisible();
     expect(errors).toHaveLength(0);
   });
+
+  test('[BUG-009] Voice page shows actionable microphone fallback and keeps text input usable', async ({ page }) => {
+    await page.addInitScript(() => {
+      const denyMicAccess = async () => {
+        throw new DOMException('Permission denied', 'NotAllowedError');
+      };
+
+      if (!navigator.mediaDevices) {
+        Object.defineProperty(navigator, 'mediaDevices', {
+          configurable: true,
+          value: { getUserMedia: denyMicAccess },
+        });
+        return;
+      }
+
+      navigator.mediaDevices.getUserMedia = denyMicAccess;
+    });
+
+    await page.route('**/api/v1/voice/sessions', (route) => {
+      const method = route.request().method();
+
+      if (method === 'POST') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ id: 'sess-mic-fallback-001' }),
+        });
+      }
+
+      if (method === 'GET') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([]),
+        });
+      }
+
+      return route.continue();
+    });
+
+    await page.goto('/voice');
+    await page.waitForLoadState('networkidle');
+
+    await page.getByRole('button', { name: 'Start Session' }).click();
+    const recordButton = page.getByRole('button', { name: 'Record Audio' });
+    await expect(recordButton).toBeVisible({ timeout: 10_000 });
+
+    await recordButton.click();
+
+    await expect(page.getByText(/Microphone unavailable:/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/permission (is blocked|denied)/i)).toBeVisible();
+
+    const transcriptInput = page.getByPlaceholder(/Patient reports chest pain, shortness of breath/i);
+    await expect(transcriptInput).toBeVisible();
+    await transcriptInput.fill('Patient reports dizziness and mild nausea.');
+    await expect(transcriptInput).toHaveValue('Patient reports dizziness and mild nausea.');
+  });
 });
 
 // ── CSP / Media ───────────────────────────────────────────────────────────────
