@@ -122,11 +122,14 @@ jobs:
           FAIL=0
           for KEY in "${!SMOKE_PATHS[@]}"; do
             SVC_PATH="${SMOKE_PATHS[$KEY]}"
+            # Use || STATUS=000 so a curl network/write error (e.g. exit 7, 23, 28)
+            # doesn't abort the script via bash set-e.  000 = unreachable.
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-              --max-time 15 --retry 2 --retry-delay 3 \
-              "${GATEWAY}${SVC_PATH}")
-            if [ "$STATUS" -ge 500 ]; then
-              echo "| $KEY | $STATUS | ❌ |" >> $GITHUB_STEP_SUMMARY
+              --max-time 10 --retry 1 --retry-delay 2 \
+              "${GATEWAY}${SVC_PATH}" 2>/dev/null) || STATUS="000"
+            # 000 = connection error; 5xx = server error → both indicate service is down
+            if [ "$STATUS" = "000" ] || [ "$STATUS" -ge 500 ]; then
+              echo "| $KEY | ${STATUS:-000} | ❌ |" >> $GITHUB_STEP_SUMMARY
               FAIL=1
             else
               echo "| $KEY | $STATUS | ✅ |" >> $GITHUB_STEP_SUMMARY
@@ -166,12 +169,12 @@ jobs:
           for APP in "${!SWA_URLS[@]}"; do
             URL="${SWA_URLS[$APP]}"
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-              --max-time 15 --retry 2 --retry-delay 3 \
-              "$URL")
+              --max-time 10 --retry 1 --retry-delay 2 \
+              "$URL" 2>/dev/null) || STATUS="000"
             if [ "$STATUS" = "200" ]; then
               echo "| $APP | $URL | $STATUS | ✅ |" >> $GITHUB_STEP_SUMMARY
             else
-              echo "| $APP | $URL | $STATUS | ❌ |" >> $GITHUB_STEP_SUMMARY
+              echo "| $APP | $URL | ${STATUS:-000} | ❌ |" >> $GITHUB_STEP_SUMMARY
               FAIL=1
             fi
           done
