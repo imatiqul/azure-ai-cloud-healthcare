@@ -70,6 +70,10 @@ function getErrorMessage(error: unknown): string {
   return '';
 }
 
+export function normalizeTranscriptForReview(text: string): string {
+  return text.trim().replace(/\s+/g, ' ');
+}
+
 export function getMicrophoneFallbackMessage(error: unknown): string {
   const name = getErrorName(error).toLowerCase();
   const message = getErrorMessage(error).toLowerCase();
@@ -330,6 +334,7 @@ export function VoiceSessionController() {
   const [sessionId, setSessionId]             = useState<string | null>(null);
   const [triage, setTriage]                   = useState<string | null>(null);
   const [transcriptText, setTranscriptText]   = useState('');
+  const [reviewedTranscriptSnapshot, setReviewedTranscriptSnapshot] = useState<string | null>(null);
   const [submitting, setSubmitting]           = useState(false);
   const [triageResult, setTriageResult]       = useState<TriageResult | null>(null);
   const [pubSubConnected, setPubSubConnected] = useState(false);
@@ -340,6 +345,10 @@ export function VoiceSessionController() {
   const [aiDone, setAiDone]               = useState(false);
 
   const clientRef = useRef<VoiceSessionClient | null>(null);
+
+  const normalizedTranscript = normalizeTranscriptForReview(transcriptText);
+  const transcriptReviewed = reviewedTranscriptSnapshot !== null
+    && reviewedTranscriptSnapshot === normalizedTranscript;
 
   // Append partial transcripts from audio-chunk responses
   const handlePartialTranscript = useCallback((text: string) => {
@@ -412,6 +421,7 @@ export function VoiceSessionController() {
     setTriageResult(null);
     setTriage(null);
     setTranscriptText('');
+    setReviewedTranscriptSnapshot(null);
     setAiThinkingText('');
     setAiStreaming(false);
     setAiDone(false);
@@ -444,7 +454,7 @@ export function VoiceSessionController() {
   }
 
   async function submitForTriage() {
-    if (!sessionId || !transcriptText.trim()) return;
+    if (!sessionId || !normalizedTranscript || !transcriptReviewed) return;
     setSubmitting(true);
     setTriageResult(null);
     setAiThinkingText('');
@@ -629,11 +639,43 @@ export function VoiceSessionController() {
                   </Box>
                 ))}
               </Stack>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Button
+                  onClick={() => setReviewedTranscriptSnapshot(normalizedTranscript)}
+                  disabled={!normalizedTranscript || submitting || aiStreaming || transcriptReviewed}
+                  size="sm"
+                >
+                  {transcriptReviewed ? 'Transcript Reviewed' : 'Mark Transcript Reviewed'}
+                </Button>
+                {transcriptReviewed ? (
+                  <Chip
+                    label="Ready for AI submission"
+                    size="small"
+                    color="success"
+                    sx={{ height: 20, fontSize: 11 }}
+                  />
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    Review and approve the transcript before sending it to AI.
+                  </Typography>
+                )}
+              </Stack>
+              {!!normalizedTranscript && reviewedTranscriptSnapshot !== null && !transcriptReviewed && (
+                <Alert severity="info" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>
+                  Transcript changed after approval. Review again before AI triage.
+                </Alert>
+              )}
               <Button
                 onClick={submitForTriage}
-                disabled={submitting || aiStreaming || !transcriptText.trim()}
+                disabled={submitting || aiStreaming || !normalizedTranscript || !transcriptReviewed}
               >
-                {submitting ? 'Contacting AI...' : aiStreaming ? 'AI Thinking...' : 'Submit for AI Triage'}
+                {submitting
+                  ? 'Contacting AI...'
+                  : aiStreaming
+                  ? 'AI Thinking...'
+                  : !transcriptReviewed
+                  ? 'Review transcript to submit'
+                  : 'Submit for AI Triage'}
               </Button>
             </Box>
           )}

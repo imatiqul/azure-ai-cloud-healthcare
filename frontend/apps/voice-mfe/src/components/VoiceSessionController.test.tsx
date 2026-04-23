@@ -4,6 +4,7 @@ import {
   VoiceSessionController,
   getMicrophoneFallbackMessage,
   getPcmWorkletModuleCandidates,
+  normalizeTranscriptForReview,
 } from './VoiceSessionController';
 
 vi.mock('@microsoft/signalr', () => ({
@@ -107,5 +108,19 @@ describe('getPcmWorkletModuleCandidates', () => {
     const candidates = getPcmWorkletModuleCandidates('https://voice.example.com/');
 
     expect(new Set(candidates).size).toBe(candidates.length);
+  });
+});
+
+describe('normalizeTranscriptForReview', () => {
+  it('trims leading and trailing whitespace', () => {
+    const normalized = normalizeTranscriptForReview('   Patient reports chest pain   ');
+
+    expect(normalized).toBe('Patient reports chest pain');
+  });
+
+  it('collapses internal whitespace for stable review snapshots', () => {
+    const normalized = normalizeTranscriptForReview('Patient   reports\n\nchest\t pain');
+
+    expect(normalized).toBe('Patient reports chest pain');
   });
 });
