@@ -167,6 +167,11 @@ jobs:
         if: always()
         run: node e2e-cloud/verify-platform-action-coverage.mjs test-results/results.json
 
+      - name: Verify platform journey coverage (100%)
+        id: platform-journey-coverage
+        if: always()
+        run: node e2e-cloud/verify-platform-journey-coverage.mjs test-results/results.json
+
       - name: Write E2E summary
         if: always()
         run: |
@@ -197,6 +202,15 @@ jobs:
             echo "❌ Platform action coverage gate failed (global and/or role-slice coverage below 100%)." >> $GITHUB_STEP_SUMMARY
           else
             echo "⏭️ Platform action coverage gate did not run." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.platform-journey-coverage.outcome }}" = "success" ]; then
+            echo "✅ Platform journey coverage gate passed (100% journey coverage)." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.platform-journey-coverage.outcome }}" = "failure" ]; then
+            echo "❌ Platform journey coverage gate failed (below 100% journey coverage)." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ Platform journey coverage gate did not run." >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Trigger: \`${{ github.event_name }}\` | Branch: \`${{ github.ref_name }}\` | SHA: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
@@ -231,6 +245,14 @@ jobs:
         with:
           name: platform-action-coverage-${{ github.run_number }}
           path: frontend/test-results/platform-action-coverage.json
+          retention-days: 14
+
+      - name: Upload platform journey coverage report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: platform-journey-coverage-${{ github.run_number }}
+          path: frontend/test-results/platform-journey-coverage.json
           retention-days: 14
 
       # Notify Slack on failure — configure SLACK_WEBHOOK_URL as a repo secret

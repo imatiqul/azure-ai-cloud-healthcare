@@ -1,0 +1,135 @@
+[
+  {
+    "id": "clinician-intake-to-scheduling",
+    "name": "Clinician journey from voice intake to scheduling",
+    "steps": [
+      { "kind": "open", "route": "/" },
+      { "kind": "sidebar-nav", "targetRoute": "/voice" },
+      { "kind": "tab-switch", "tabLabel": "Session History" },
+      { "kind": "sidebar-nav", "targetRoute": "/triage" },
+      { "kind": "tab-switch", "tabLabel": "Clinical Coding" },
+      { "kind": "sidebar-nav", "targetRoute": "/scheduling" },
+      { "kind": "tab-switch", "tabLabel": "Waitlist" }
+    ]
+  },
+  {
+    "id": "encounter-to-revenue-cycle",
+    "name": "Clinical encounter to revenue cycle handoff",
+    "steps": [
+      { "kind": "open", "route": "/" },
+      { "kind": "sidebar-nav", "targetRoute": "/encounters" },
+      { "kind": "tab-switch", "tabLabel": "FHIR & Labs" },
+      { "kind": "tab-switch", "tabLabel": "Drug Interactions" },
+      { "kind": "sidebar-nav", "targetRoute": "/revenue" },
+      { "kind": "tab-switch", "tabLabel": "Prior Auth" },
+      { "kind": "tab-switch", "tabLabel": "Denials" }
+    ]
+  },
+  {
+    "id": "population-to-engagement-campaign",
+    "name": "Population health to patient engagement campaign",
+    "steps": [
+      { "kind": "open", "route": "/" },
+      { "kind": "sidebar-nav", "targetRoute": "/population-health" },
+      { "kind": "tab-switch", "tabLabel": "Care Gaps" },
+      { "kind": "tab-switch", "tabLabel": "HEDIS Measures" },
+      { "kind": "sidebar-nav", "targetRoute": "/patient-portal" },
+      { "kind": "tab-switch", "tabLabel": "Notifications" },
+      { "kind": "tab-switch", "tabLabel": "Campaigns" }
+    ]
+  },
+  {
+    "id": "governance-to-audit",
+    "name": "AI governance review to audit and reporting",
+    "steps": [
+      { "kind": "open", "route": "/" },
+      { "kind": "sidebar-nav", "targetRoute": "/governance" },
+      { "kind": "tab-switch", "tabLabel": "Evaluate" },
+      { "kind": "tab-switch", "tabLabel": "ML Confidence" },
+      { "kind": "sidebar-nav", "targetRoute": "/admin/audit" },
+      { "kind": "sidebar-nav", "targetRoute": "/admin/reports" }
+    ]
+  },
+  {
+    "id": "admin-operations-roundtrip",
+    "name": "Admin operations roundtrip workflow",
+    "steps": [
+      { "kind": "open", "route": "/" },
+      { "kind": "sidebar-nav", "targetRoute": "/admin/users" },
+      { "kind": "sidebar-nav", "targetRoute": "/admin/practitioners" },
+      { "kind": "sidebar-nav", "targetRoute": "/admin/health" },
+      { "kind": "sidebar-nav", "targetRoute": "/admin/preferences" },
+      { "kind": "button-click", "buttonName": "Save Preferences", "expectText": "Preferences saved successfully." },
+      { "kind": "sidebar-nav", "targetRoute": "/admin" }
+    ]
+  },
+  {
+    "id": "business-alerts-roundtrip",
+    "name": "Business KPI to alert operations roundtrip",
+    "steps": [
+      { "kind": "open", "route": "/" },
+      { "kind": "sidebar-nav", "targetRoute": "/business" },
+      { "kind": "sidebar-nav", "targetRoute": "/alerts" },
+      { "kind": "sidebar-nav", "targetRoute": "/notifications" },
+      { "kind": "sidebar-nav", "targetRoute": "/" }
+    ]
+  },
+  {
+    "id": "demo-guided-launch",
+    "name": "Guided demo launch workflow",
+    "steps": [
+      { "kind": "open", "route": "/demo" },
+      {
+        "kind": "button-click",
+        "buttonName": "Start Guided Demo",
+        "prefill": {
+          "Your Name": "QA Automation",
+          "Company": "HealthQ QA"
+        },
+        "expectRoute": "/demo/live"
+      },
+      { "kind": "open", "route": "/demo" }
+    ]
+  },
+  {
+    "id": "demo-self-driven-launch",
+    "name": "Self-driven demo launch to platform",
+    "steps": [
+      { "kind": "open", "route": "/demo" },
+      {
+        "kind": "button-click",
+        "buttonName": "AI Self-Driven Demo",
+        "prefill": {
+          "Your Name": "QA Automation",
+          "Company": "HealthQ QA"
+        },
+        "expectRoute": "/"
+      },
+      { "kind": "sidebar-nav", "targetRoute": "/governance" }
+    ]
+  },
+  {
+    "id": "scheduling-to-patient-documents",
+    "name": "Scheduling to patient registration and documents",
+    "steps": [
+      { "kind": "open", "route": "/" },
+      { "kind": "sidebar-nav", "targetRoute": "/scheduling" },
+      { "kind": "tab-switch", "tabLabel": "Book Appointment" },
+      { "kind": "sidebar-nav", "targetRoute": "/patient-portal" },
+      { "kind": "tab-switch", "tabLabel": "Registration" },
+      { "kind": "tab-switch", "tabLabel": "Documents" }
+    ]
+  },
+  {
+    "id": "triage-to-encounters-correlation",
+    "name": "Triage to encounters context correlation",
+    "steps": [
+      { "kind": "open", "route": "/" },
+      { "kind": "sidebar-nav", "targetRoute": "/triage" },
+      { "kind": "tab-switch", "tabLabel": "AI Triage" },
+      { "kind": "sidebar-nav", "targetRoute": "/encounters" },
+      { "kind": "tab-switch", "tabLabel": "Clinical Records" },
+      { "kind": "tab-switch", "tabLabel": "Overview" }
+    ]
+  }
+]
