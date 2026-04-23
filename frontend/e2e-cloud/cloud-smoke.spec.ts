@@ -40,18 +40,19 @@ test.describe('Cloud — Shell SWA', () => {
   test('shell loads and renders dashboard @smoke', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveTitle(/HealthQ|Healthcare/i);
-    await expect(page.locator('body')).not.toBeEmpty();
+    // Wait for the shell chrome (sidebar) to confirm React has fully rendered
+    await expect(page.locator('aside, nav, [class*="sidebar"], [class*="Sidebar"]').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('shell renders navigation sidebar @smoke', async ({ page }) => {
     await page.goto('/');
     const nav = page.locator('aside, nav, [class*="sidebar"], [class*="Sidebar"]').first();
-    await expect(nav).toBeVisible({ timeout: 10000 });
+    await expect(nav).toBeVisible({ timeout: 15_000 });
   });
 
   test('shell renders header @smoke', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText(/Healthcare|HealthQ/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Healthcare|HealthQ/i).first()).toBeVisible({ timeout: 15_000 });
   });
 });
 
@@ -60,41 +61,42 @@ test.describe('Cloud — Shell SWA', () => {
 test.describe('Phase 58 — Demo Landing @smoke', () => {
   test('demo landing page loads at /demo @smoke', async ({ page }) => {
     await page.goto('/demo');
-    await expect(page.locator('body')).not.toBeEmpty();
+    // Demo route bypasses the probe gate — wait for the page heading to appear
+    await expect(page.getByRole('heading').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('demo landing shows AI Self-Driven Demo button @smoke', async ({ page }) => {
     await page.goto('/demo');
     await expect(
       page.getByRole('button', { name: /self.driven demo|self-driven/i }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
   });
 });
 
 test.describe('Cloud — MFE Navigation', () => {
   test('navigates to voice page @smoke', async ({ page }) => {
     await page.goto('/voice');
-    await expect(page.locator('body')).not.toBeEmpty();
+    await expect(page.locator('aside, nav, [class*="sidebar"], [class*="Sidebar"]').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('navigates to triage page @smoke', async ({ page }) => {
     await page.goto('/triage');
-    await expect(page.locator('body')).not.toBeEmpty();
+    await expect(page.locator('aside, nav, [class*="sidebar"], [class*="Sidebar"]').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('navigates to scheduling page @smoke', async ({ page }) => {
     await page.goto('/scheduling');
-    await expect(page.locator('body')).not.toBeEmpty();
+    await expect(page.locator('aside, nav, [class*="sidebar"], [class*="Sidebar"]').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('navigates to population health page @smoke', async ({ page }) => {
     await page.goto('/population-health');
-    await expect(page.locator('body')).not.toBeEmpty();
+    await expect(page.locator('aside, nav, [class*="sidebar"], [class*="Sidebar"]').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('navigates to revenue page @smoke', async ({ page }) => {
     await page.goto('/revenue');
-    await expect(page.locator('body')).not.toBeEmpty();
+    await expect(page.locator('aside, nav, [class*="sidebar"], [class*="Sidebar"]').first()).toBeVisible({ timeout: 15_000 });
   });
 });
 
