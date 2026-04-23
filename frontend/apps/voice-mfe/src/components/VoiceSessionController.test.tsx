@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import {
   VoiceSessionController,
+  getApprovedTranscriptForSubmission,
   getMicrophoneFallbackMessage,
   getPcmWorkletModuleCandidates,
   normalizeTranscriptForReview,
@@ -122,5 +123,22 @@ describe('normalizeTranscriptForReview', () => {
     const normalized = normalizeTranscriptForReview('Patient   reports\n\nchest\t pain');
 
     expect(normalized).toBe('Patient reports chest pain');
+  });
+});
+
+describe('getApprovedTranscriptForSubmission', () => {
+  it('prefers the reviewed transcript snapshot when present', () => {
+    const transcript = getApprovedTranscriptForSubmission(
+      'Patient reports chest pain and shortness of breath.',
+      'Patient reports chest pain and shortness of breath.   ',
+    );
+
+    expect(transcript).toBe('Patient reports chest pain and shortness of breath.');
+  });
+
+  it('falls back to normalized transcript text when no snapshot exists', () => {
+    const transcript = getApprovedTranscriptForSubmission(null, '  Patient   reports\nchest pain  ');
+
+    expect(transcript).toBe('Patient reports chest pain');
   });
 });

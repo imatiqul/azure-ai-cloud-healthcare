@@ -74,6 +74,14 @@ export function normalizeTranscriptForReview(text: string): string {
   return text.trim().replace(/\s+/g, ' ');
 }
 
+export function getApprovedTranscriptForSubmission(
+  reviewedTranscriptSnapshot: string | null,
+  transcriptText: string,
+): string {
+  if (reviewedTranscriptSnapshot !== null) return reviewedTranscriptSnapshot;
+  return normalizeTranscriptForReview(transcriptText);
+}
+
 export function getMicrophoneFallbackMessage(error: unknown): string {
   const name = getErrorName(error).toLowerCase();
   const message = getErrorMessage(error).toLowerCase();
@@ -335,6 +343,7 @@ export function VoiceSessionController() {
   const [triage, setTriage]                   = useState<string | null>(null);
   const [transcriptText, setTranscriptText]   = useState('');
   const [reviewedTranscriptSnapshot, setReviewedTranscriptSnapshot] = useState<string | null>(null);
+  const [submittedTranscriptText, setSubmittedTranscriptText] = useState('');
   const [submitting, setSubmitting]           = useState(false);
   const [triageResult, setTriageResult]       = useState<TriageResult | null>(null);
   const [pubSubConnected, setPubSubConnected] = useState(false);
@@ -422,6 +431,7 @@ export function VoiceSessionController() {
     setTriage(null);
     setTranscriptText('');
     setReviewedTranscriptSnapshot(null);
+    setSubmittedTranscriptText('');
     setAiThinkingText('');
     setAiStreaming(false);
     setAiDone(false);
@@ -455,7 +465,11 @@ export function VoiceSessionController() {
 
   async function submitForTriage() {
     if (!sessionId || !normalizedTranscript || !transcriptReviewed) return;
+    const approvedTranscript = getApprovedTranscriptForSubmission(reviewedTranscriptSnapshot, transcriptText);
+    if (!approvedTranscript) return;
+
     setSubmitting(true);
+    setSubmittedTranscriptText(approvedTranscript);
     setTriageResult(null);
     setAiThinkingText('');
     setAiStreaming(false);
@@ -465,14 +479,14 @@ export function VoiceSessionController() {
         signal: AbortSignal.timeout(10_000),
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcriptText }),
+        body: JSON.stringify({ transcriptText: approvedTranscript }),
       });
 
       const triageRes = await fetch(`${API_BASE}/api/v1/agents/triage`, {
         signal: AbortSignal.timeout(30_000),
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, transcriptText }),
+        body: JSON.stringify({ sessionId, transcriptText: approvedTranscript }),
       });
       const result = await triageRes.json() as { assignedLevel: string; agentReasoning: string };
 
@@ -619,6 +633,7 @@ export function VoiceSessionController() {
                 fullWidth
                 value={transcriptText}
                 onChange={(e) => setTranscriptText(e.target.value)}
+                disabled={submitting || aiStreaming}
                 placeholder="e.g. Patient reports chest pain, shortness of breath... (updates automatically from recorded audio)"
                 size="small"
                 sx={{ mb: 1 }}
@@ -628,10 +643,14 @@ export function VoiceSessionController() {
                   <Box
                     key={i}
                     component="span"
-                    onClick={() => setTranscriptText(t)}
+                    onClick={() => {
+                      if (submitting || aiStreaming) return;
+                      setTranscriptText(t);
+                    }}
                     sx={{
                       px: 1, py: 0.5, fontSize: 11, border: 1, borderRadius: 1,
-                      borderColor: 'divider', cursor: 'pointer',
+                      borderColor: 'divider', cursor: submitting || aiStreaming ? 'not-allowed' : 'pointer',
+                      opacity: submitting || aiStreaming ? 0.5 : 1,
                       '&:hover': { bgcolor: 'primary.50' },
                     }}
                   >
@@ -705,7 +724,7 @@ export function VoiceSessionController() {
             </Alert>
           )}
           {aiDone && triageResult && (
-            <SoapNotePanel note={generateSoapNote(transcriptText, triageResult)} />
+            <SoapNotePanel note={generateSoapNote(submittedTranscriptText || transcriptText, triageResult)} />
           )}
         </Stack>
       </CardContent>
