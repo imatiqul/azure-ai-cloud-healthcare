@@ -220,6 +220,9 @@ jobs:
     needs: [smoke-gate, full-e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: .
     # Always run so this job is never shown as "skipped"; triage mode is chosen at runtime.
     if: always()
     steps:
