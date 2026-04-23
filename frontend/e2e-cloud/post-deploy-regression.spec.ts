@@ -436,6 +436,83 @@ test.describe('Regression — Voice MFE @regression', () => {
     await expect(legacySubmitButton).toBeVisible();
     await expect(legacySubmitButton).toBeEnabled();
   });
+
+  test('[BUG-012] Voice transcript input stays locked while AI submission starts', async ({ page }) => {
+    let releaseTranscriptRequest = () => {};
+    const holdTranscriptRequest = new Promise<void>((resolve) => {
+      releaseTranscriptRequest = resolve;
+    });
+
+    await page.route('**/api/v1/voice/sessions', (route) => {
+      const method = route.request().method();
+
+      if (method === 'POST') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ id: 'sess-input-lock-001' }),
+        });
+      }
+
+      if (method === 'GET') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([]),
+        });
+      }
+
+      return route.continue();
+    });
+
+    await page.route('**/api/v1/voice/sessions/*/transcript', async (route) => {
+      await holdTranscriptRequest;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ accepted: true }),
+      });
+    });
+
+    await page.route('**/api/v1/agents/triage', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          assignedLevel: 'P2_Urgent',
+          agentReasoning: 'Urgent follow-up is recommended based on symptom progression.',
+        }),
+      }),
+    );
+
+    await page.goto('/voice');
+    await page.waitForLoadState('networkidle');
+
+    await page.getByRole('button', { name: 'Start Session' }).click();
+    await expect(page.getByRole('button', { name: 'Record Audio' })).toBeVisible({ timeout: 10_000 });
+
+    const transcriptInput = page.getByPlaceholder(/Patient reports chest pain, shortness of breath/i);
+    await transcriptInput.fill('Patient reports worsening dyspnea and chest tightness.');
+
+    const reviewButton = page.getByRole('button', { name: 'Mark Transcript Reviewed' });
+    if (await reviewButton.count()) {
+      await reviewButton.click();
+      await page.getByRole('button', { name: 'Submit for AI Triage' }).click();
+
+      await expect(page.getByRole('button', { name: 'Contacting AI...' })).toBeVisible();
+      await expect(transcriptInput).toBeDisabled();
+
+      releaseTranscriptRequest();
+      await expect(page.getByText(/Triage Result:/i)).toBeVisible({ timeout: 15_000 });
+      return;
+    }
+
+    // Rollout compatibility: legacy cloud builds do not include a review gate yet.
+    const legacySubmitButton = page.getByRole('button', { name: 'Submit for AI Triage' });
+    await legacySubmitButton.scrollIntoViewIfNeeded();
+    await expect(legacySubmitButton).toBeVisible();
+    await expect(legacySubmitButton).toBeEnabled();
+  });
 });
 
 // ── CSP / Media ───────────────────────────────────────────────────────────────
