@@ -55,6 +55,11 @@ export default defineConfig({
         zustand: { singleton: true },
         '@microsoft/signalr': { singleton: true },
       },
+      // "loaded-first" prevents MF2 from eagerly fetching all 7 remote entries
+      // during initializeSharing / loadShare("react"). With "version-first" (the
+      // default), loadShare blocks on Promise.all([fetch(voice), fetch(triage), …])
+      // before React can mount, leaving #root empty if any remote is slow.
+      shareStrategy: 'loaded-first',
     }),
     VitePWA({
       registerType: 'autoUpdate',
