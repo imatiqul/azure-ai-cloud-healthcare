@@ -2,12 +2,14 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import NotificationCenter from './NotificationCenter';
+import { useGlobalStore } from '../store';
 
 // NotificationCenter uses only MUI — no design-system mock needed
 
 beforeEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();
+  useGlobalStore.setState({ backendOnline: true });
   // Default: all API calls fail gracefully
   global.fetch = vi.fn().mockResolvedValue({ ok: false });
 });

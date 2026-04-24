@@ -1,6 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PractitionerManager from './PractitionerManager';
+import { useGlobalStore } from '../store';
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -32,6 +33,7 @@ const PRACTITIONERS = [
 
 beforeEach(() => {
   mockFetch.mockReset();
+  useGlobalStore.setState({ backendOnline: true });
   mockFetch.mockResolvedValue({
     ok: true,
     json: () => Promise.resolve(PRACTITIONERS),

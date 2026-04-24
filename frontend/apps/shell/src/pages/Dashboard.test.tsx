@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import Dashboard from './Dashboard';
+import { useGlobalStore } from '../store';
 
 // SignalR resolves /hubs/global which is unavailable in jsdom — stub it out
 vi.mock('@healthcare/signalr-client', () => ({
@@ -43,6 +44,7 @@ const mockStats = {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  useGlobalStore.setState({ backendOnline: true });
   global.fetch = vi.fn((url: string) => {
     if (url.includes('agents/stats'))          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockStats.agents) });
     if (url.includes('scheduling/stats'))       return Promise.resolve({ ok: true, json: () => Promise.resolve(mockStats.scheduling) });

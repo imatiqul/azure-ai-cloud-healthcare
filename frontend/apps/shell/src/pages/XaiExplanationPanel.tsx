@@ -60,7 +60,7 @@ interface ExplanationResult {
 }
 
 export default function XaiExplanationPanel() {
-  const [decisionId, setDecisionId] = useState(DEMO_DECISION_ID);
+  const [decisionId, setDecisionId] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ExplanationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,13 +75,12 @@ export default function XaiExplanationPanel() {
         `${API_BASE}/api/v1/agents/decisions/${encodeURIComponent(decisionId.trim())}/explanation`,
         { signal: AbortSignal.timeout(10_000) },
       );
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      if (!res.ok) { setError(`${res.status} ${res.statusText}`); return; }
       const data = await res.json();
       setResult(data);
     } catch {
       // Backend offline — show demo XAI explanation so the feature is always demonstrable
       setResult({ ...DEMO_XAI_RESULT, agentDecisionId: decisionId.trim() || DEMO_DECISION_ID });
-      setError(null);
     } finally {
       setLoading(false);
     }

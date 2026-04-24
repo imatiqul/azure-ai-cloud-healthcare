@@ -86,8 +86,7 @@ export default function TenantAdminPanel() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/tenants?page=1&pageSize=50`, { signal: AbortSignal.timeout(10_000) });
       if (!res.ok) {
-        setTenants(DEMO_TENANTS);
-        setTotal(DEMO_TENANTS.length);
+        setError(`Failed to load tenants — HTTP ${res.status}`);
         setLoading(false);
         return;
       }

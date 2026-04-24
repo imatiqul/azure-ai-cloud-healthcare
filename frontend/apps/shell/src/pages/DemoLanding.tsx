@@ -149,7 +149,7 @@ export default function DemoLanding() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientName, company, email: email || null }),
       });
-      if (!res.ok) throw new Error('Failed to start demo');
+      if (!res.ok) { setError('Could not start the demo. Please try again.'); setLoading(false); return; }
       const data: DemoStartResponse = await res.json();
       // Store demo state and navigate to main app in demo mode
       sessionStorage.setItem('demo', JSON.stringify({

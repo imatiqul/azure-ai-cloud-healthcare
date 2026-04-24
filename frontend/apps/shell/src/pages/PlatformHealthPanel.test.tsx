@@ -2,12 +2,14 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PlatformHealthPanel from './PlatformHealthPanel';
+import { useGlobalStore } from '../store';
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 beforeEach(() => {
   mockFetch.mockReset();
+  useGlobalStore.setState({ backendOnline: true });
   // By default, all services respond with 200
   mockFetch.mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve([]) });
   vi.spyOn(performance, 'now').mockReturnValue(100);

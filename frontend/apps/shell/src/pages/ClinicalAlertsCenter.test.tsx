@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import ClinicalAlertsCenter from './ClinicalAlertsCenter';
+import { useGlobalStore } from '../store';
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -49,6 +50,7 @@ function mockAllApis() {
 
 beforeEach(() => {
   mockFetch.mockReset();
+  useGlobalStore.setState({ backendOnline: true });
   mockAllApis();
 });
 

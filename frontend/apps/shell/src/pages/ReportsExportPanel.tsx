@@ -151,7 +151,7 @@ function ReportRow({ report }: { report: ReportDef }) {
       const qs = new URLSearchParams({ format: state.format, ...state.params }).toString();
       const url = `${API_BASE}${report.endpoint}?${qs}`;
       const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) { setState(s => ({ ...s, error: `HTTP ${res.status}`, downloading: false })); return; }
       const blob = await res.blob();
       const ext = state.format === 'ndjson' ? 'ndjson' : 'csv';
       const filename = `${report.id}-${new Date().toISOString().split('T')[0]}.${ext}`;

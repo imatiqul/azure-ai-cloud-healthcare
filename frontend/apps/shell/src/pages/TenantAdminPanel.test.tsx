@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import TenantAdminPanel from './TenantAdminPanel';
+import { useGlobalStore } from '../store';
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -34,6 +35,7 @@ const TENANTS_RESPONSE = {
 
 beforeEach(() => {
   mockFetch.mockReset();
+  useGlobalStore.setState({ backendOnline: true });
   mockFetch.mockResolvedValue({
     ok: true,
     json: () => Promise.resolve(TENANTS_RESPONSE),

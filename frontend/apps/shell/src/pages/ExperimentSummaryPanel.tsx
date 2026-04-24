@@ -49,7 +49,7 @@ function pct(rate: number) {
 }
 
 export default function ExperimentSummaryPanel() {
-  const [experimentId, setExperimentId] = useState(DEMO_EXPERIMENT_ID);
+  const [experimentId, setExperimentId] = useState('');
   const [summary, setSummary] = useState<ExperimentSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,13 +66,12 @@ export default function ExperimentSummaryPanel() {
         `${API_BASE}/api/v1/agents/experiments/${encodeURIComponent(experimentId.trim())}/summary`,
         { signal: AbortSignal.timeout(10_000) },
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
       const data: ExperimentSummary = await res.json();
       setSummary(data);
     } catch {
       // Backend offline — show realistic demo result so scientists can explore the UI
       setSummary({ ...DEMO_EXPERIMENT_SUMMARY, experimentId: experimentId.trim() || DEMO_EXPERIMENT_ID });
-      setError(null);
     } finally {
       setLoading(false);
     }

@@ -88,7 +88,7 @@ export default function ModelGovernanceDashboard() {
     setError(null);
     try {
       const res = await fetch(`${API_BASE}/api/v1/agents/governance/history`, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
       const data: ModelRegistryEntry[] = await res.json();
       setEntries(data);
     } catch {

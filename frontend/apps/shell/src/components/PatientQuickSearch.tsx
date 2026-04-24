@@ -107,7 +107,7 @@ export function PatientQuickSearch() {
     setSearchError(null);
     try {
       const res = await fetch(`${API_BASE}/api/v1/population-health/risks?top=20`, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) { setRisks(DEMO_RISKS.filter(r => !search || r.patientId.toLowerCase().includes(search.toLowerCase()))); return; }
+      if (!res.ok) { setRisks([]); return; }
       const data: PatientRisk[] = await res.json();
       if (search) {
         const q = search.toLowerCase();

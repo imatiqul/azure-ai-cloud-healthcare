@@ -33,7 +33,7 @@ interface GuideHistory {
 }
 
 export default function GuideHistoryPanel() {
-  const [sessionId, setSessionId] = useState(DEMO_GUIDE_SESSION_ID);
+  const [sessionId, setSessionId] = useState('');
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<GuideHistory | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,13 +48,12 @@ export default function GuideHistoryPanel() {
         `${API_BASE}/api/v1/agents/guide/history/${encodeURIComponent(sessionId.trim())}`,
         { signal: AbortSignal.timeout(10_000) },
       );
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      if (!res.ok) { setError(`${res.status} ${res.statusText}`); return; }
       const data = await res.json();
       setHistory(data);
     } catch {
       // Backend offline — show demo conversation so the feature is fully explorable
       setHistory({ ...DEMO_GUIDE_HISTORY, sessionId: sessionId.trim() || DEMO_GUIDE_SESSION_ID });
-      setError(null);
     } finally {
       setLoading(false);
     }

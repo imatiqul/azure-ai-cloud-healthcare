@@ -150,6 +150,9 @@ export default function ClinicalAlertsCenter() {
         setDenials(await denRes.value.json() as DenialEntry[]);
       else setDenials(DEMO_DENIALS);
 
+      const allFailed = [riskRes, bgRes, wlRes, denRes].every(r => r.status === 'rejected');
+      if (allFailed) setError('Failed to load clinical alerts');
+
       setLastRefreshed(new Date());
     } catch {
       // Complete network failure — seed all sections with demo data

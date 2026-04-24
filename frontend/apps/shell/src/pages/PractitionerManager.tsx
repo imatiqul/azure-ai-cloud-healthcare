@@ -90,7 +90,7 @@ export default function PractitionerManager() {
     try {
       const url = `${API_BASE}/api/v1/scheduling/practitioners/?activeOnly=${showAll ? 'false' : 'true'}`;
       const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) { setPractitioners(DEMO_PRACTITIONERS); setLoading(false); return; }
+      if (!res.ok) { setError(`HTTP ${res.status}`); setLoading(false); return; }
       const data = (await res.json()) as PractitionerSummary[];
       setPractitioners(data);
     } catch {

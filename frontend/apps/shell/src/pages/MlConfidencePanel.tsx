@@ -88,7 +88,7 @@ function confidenceBadgeVariant(level: string): 'success' | 'warning' | 'destruc
 }
 
 export default function MlConfidencePanel() {
-  const [probability, setProbability] = useState('0.72');
+  const [probability, setProbability] = useState('');
   const [features, setFeatures] = useState<string[]>(Array(7).fill(''));
   const [showFeatures, setShowFeatures] = useState(false);
   const [result, setResult] = useState<MlConfidenceResponse | null>(null);
@@ -114,13 +114,12 @@ export default function MlConfidencePanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ probability: probNum, featureValues }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
       const data = (await res.json()) as MlConfidenceResponse;
       setResult(data);
     } catch {
       // Backend offline — show demo ML confidence result so the feature is always demonstrable
       setResult(DEMO_ML_RESULT);
-      setError(null);
     } finally {
       setLoading(false);
     }

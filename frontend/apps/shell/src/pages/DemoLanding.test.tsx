@@ -6,6 +6,7 @@ import DemoLanding from './DemoLanding';
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
 beforeEach(() => {
@@ -18,7 +19,7 @@ describe('DemoLanding', () => {
   it('renders the demo landing page', () => {
     render(<DemoLanding />);
     expect(screen.getByText('HealthQ Copilot')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Interactive Demo/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Start Guided Demo/ })).toBeInTheDocument();
   });
 
   it('shows name and company fields', () => {
@@ -31,7 +32,7 @@ describe('DemoLanding', () => {
   it('shows error when name or company is empty', async () => {
     const user = userEvent.setup({ delay: null });
     render(<DemoLanding />);
-    await user.click(screen.getByRole('button', { name: /Start Interactive Demo/ }));
+    await user.click(screen.getByRole('button', { name: /Start Guided Demo/ }));
     expect(screen.getByText(/Please enter your name and company/)).toBeInTheDocument();
   });
 
@@ -53,7 +54,7 @@ describe('DemoLanding', () => {
     render(<DemoLanding />);
     await user.type(screen.getByLabelText(/Your Name/), 'John Doe');
     await user.type(screen.getByLabelText(/Company/), 'Acme Health');
-    await user.click(screen.getByRole('button', { name: /Start Interactive Demo/ }));
+    await user.click(screen.getByRole('button', { name: /Start Guided Demo/ }));
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/demo/live');
@@ -70,7 +71,7 @@ describe('DemoLanding', () => {
     render(<DemoLanding />);
     await user.type(screen.getByLabelText(/Your Name/), 'Jane');
     await user.type(screen.getByLabelText(/Company/), 'HealthCorp');
-    await user.click(screen.getByRole('button', { name: /Start Interactive Demo/ }));
+    await user.click(screen.getByRole('button', { name: /Start Guided Demo/ }));
 
     await waitFor(() => {
       expect(screen.getByText(/Could not start the demo/)).toBeInTheDocument();
@@ -84,7 +85,7 @@ describe('DemoLanding', () => {
     render(<DemoLanding />);
     await user.type(screen.getByLabelText(/Your Name/), 'Test');
     await user.type(screen.getByLabelText(/Company/), 'Corp');
-    await user.click(screen.getByRole('button', { name: /Start Interactive Demo/ }));
+    await user.click(screen.getByRole('button', { name: /Start Guided Demo/ }));
 
     expect(screen.getByText('Starting Demo...')).toBeInTheDocument();
   });

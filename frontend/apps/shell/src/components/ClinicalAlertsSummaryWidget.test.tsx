@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { ClinicalAlertsSummaryWidget } from './ClinicalAlertsSummaryWidget';
+import { useGlobalStore } from '../store';
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -12,6 +13,7 @@ function makeOkResponse(data: unknown) {
 
 beforeEach(() => {
   mockFetch.mockReset();
+  useGlobalStore.setState({ backendOnline: true });
   // 4 API calls: risks, break-glass, waitlist, denials
   mockFetch
     .mockResolvedValueOnce(makeOkResponse([{ patientId: 'PAT-001' }, { patientId: 'PAT-002' }]))

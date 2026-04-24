@@ -2,6 +2,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ActivityFeedWidget } from './ActivityFeedWidget';
+import { useGlobalStore } from '../store';
 
 const RISKS = [
   { patientId: 'aaaaaaaa-0000-0000-0000-000000000001', riskLevel: 'Critical', assessedAt: new Date(Date.now() - 60_000).toISOString() },
@@ -32,7 +33,7 @@ function mockFetch() {
   }));
 }
 
-beforeEach(() => mockFetch());
+beforeEach(() => { mockFetch(); useGlobalStore.setState({ backendOnline: true }); });
 afterEach(() => vi.restoreAllMocks());
 
 function renderWidget() {
