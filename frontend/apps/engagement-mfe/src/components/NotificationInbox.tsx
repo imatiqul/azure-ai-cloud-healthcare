@@ -47,11 +47,12 @@ export function NotificationInbox({ patientId }: Props) {
         return res.json() as Promise<NotificationMessage[]>;
       })
       .then(setMessages)
-      .catch(() => setMessages(DEMO_MESSAGES))
+      .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false));
   }, [patientId]);
 
   if (loading) return <Typography color="text.secondary">Loading notifications…</Typography>;
+  if (error) return <Typography color="error">{error}</Typography>;
 
   if (messages.length === 0) {
     return (

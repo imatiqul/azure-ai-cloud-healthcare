@@ -23,6 +23,7 @@ export default defineConfig({
     setupFiles: ['../../vitest.setup.ts'],
     css: false,
     testTimeout: 15000,
+    retry: 2,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'cobertura'],

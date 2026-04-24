@@ -54,20 +54,23 @@ interface Props {
 export function PriorAuthStatus({ patientId }: Props) {
   const [auths, setAuths] = useState<PriorAuth[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     fetch(`${API_BASE}/api/v1/revenue/prior-auths?patientId=${encodeURIComponent(patientId)}`, { signal: AbortSignal.timeout(10_000) })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<PriorAuth[]>;
       })
       .then(setAuths)
-      .catch(() => setAuths(DEMO_PRIOR_AUTHS))
+      .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false));
   }, [patientId]);
 
   if (loading) return <Typography color="text.secondary">Loading prior authorizations…</Typography>;
+  if (error) return <Typography color="error">{error}</Typography>;
 
   if (auths.length === 0) {
     return (

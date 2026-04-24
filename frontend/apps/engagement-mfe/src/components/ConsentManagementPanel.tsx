@@ -175,8 +175,8 @@ export function ConsentManagementPanel() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ConsentRecord[] = await res.json();
       setConsents(data);
-    } catch {
-      setConsents(DEMO_CONSENTS);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }

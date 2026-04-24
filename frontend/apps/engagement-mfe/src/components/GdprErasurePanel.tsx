@@ -48,16 +48,8 @@ export function GdprErasurePanel() {
       setResult(data);
       setPatientUserId('');
       setReason('');
-    } catch {
-      // Backend offline — return a demo erasure confirmation so the workflow completes
-      setResult({
-        message: 'Erasure request queued locally — PHI deletion will be processed when the backend is available.',
-        patientUserId: patientUserId.trim(),
-        revokedConsents: 2,
-      });
-      setPatientUserId('');
-      setReason('');
-      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setSubmitting(false);
       setConfirmOpen(false);

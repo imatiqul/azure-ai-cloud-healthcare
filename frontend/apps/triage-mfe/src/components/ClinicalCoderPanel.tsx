@@ -63,8 +63,8 @@ export function ClinicalCoderPanel() {
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const data = await res.json();
       setResult(data);
-    } catch {
-      setResult({ ...DEMO_CODER_RESULT, workflowId: workflowId.trim(), payer });
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }

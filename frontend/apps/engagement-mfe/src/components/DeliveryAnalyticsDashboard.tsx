@@ -134,10 +134,9 @@ export function DeliveryAnalyticsDashboard() {
           setCampaigns(c);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (!cancelled) {
-          setAnalytics(DEMO_ANALYTICS);
-          setCampaigns(DEMO_CAMPAIGN_LIST);
+          setError((err as Error).message);
         }
       })
       .finally(() => {
@@ -159,6 +158,8 @@ export function DeliveryAnalyticsDashboard() {
       </Card>
     );
   }
+
+  if (error) return <Typography color="error">{error}</Typography>;
 
   return (
     <Stack spacing={2}>

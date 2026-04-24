@@ -42,13 +42,17 @@ export function PatientProfilePanel() {
         headers: { Accept: 'application/json' },
       });
       if (!res.ok) {
-        setProfile(DEMO_PROFILE);
+        if (res.status === 404) {
+          setError('Please complete registration to access your profile.');
+        } else {
+          setError(`HTTP ${res.status}`);
+        }
         return;
       }
       const data: PatientProfile = await res.json();
       setProfile(data);
-    } catch {
-      setProfile(DEMO_PROFILE);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }

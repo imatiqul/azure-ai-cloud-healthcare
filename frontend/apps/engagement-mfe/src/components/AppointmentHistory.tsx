@@ -50,11 +50,12 @@ export function AppointmentHistory({ patientId }: Props) {
         return res.json() as Promise<Appointment[]>;
       })
       .then(setAppointments)
-      .catch(() => setAppointments(DEMO_APPOINTMENTS))
+      .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false));
   }, [patientId]);
 
   if (loading) return <Typography color="text.secondary">Loading appointments…</Typography>;
+  if (error) return <Typography color="error">{error}</Typography>;
 
   if (appointments.length === 0) {
     return (
