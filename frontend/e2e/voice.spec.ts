@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 const mockSession = { sessionId: 'test-session-123', status: 'live' };
 const mockSessionList = [
@@ -17,13 +17,31 @@ const mockTranscriptResult = {
   },
 };
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('hq:onboarded-v38', 'done');
+  });
+});
+
+function getStartSessionButton(page: Page) {
+  return page.locator('button').filter({ hasText: /^Start Session$/ }).first();
+}
+
+function getEndSessionButton(page: Page) {
+  return page.locator('button').filter({ hasText: /^End Session$/ }).first();
+}
+
+function getRecordAudioButton(page: Page) {
+  return page.locator('button').filter({ hasText: /^Record Audio$/ }).first();
+}
+
 test.describe('Voice Sessions MFE — Render', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/voice');
   });
 
   test('renders voice session controller', async ({ page }) => {
-    const startBtn = page.getByRole('button', { name: /start session/i });
+    const startBtn = getStartSessionButton(page);
     const mfeLoaded = await startBtn.isVisible({ timeout: 5000 }).catch(() => false);
     if (!mfeLoaded) {
       test.skip(true, 'Voice MFE remote not available — skipping render assertion');
@@ -44,7 +62,7 @@ test.describe('Voice Sessions MFE — Session Lifecycle', () => {
     );
     await page.goto('/voice');
 
-    const startBtn = page.getByRole('button', { name: /start session/i });
+    const startBtn = getStartSessionButton(page);
     const mfeLoaded = await startBtn.isVisible({ timeout: 5000 }).catch(() => false);
     if (!mfeLoaded) {
       test.skip(true, 'Voice MFE remote not available — skipping session start test');
@@ -64,14 +82,14 @@ test.describe('Voice Sessions MFE — Session Lifecycle', () => {
     );
     await page.goto('/voice');
 
-    const startBtn = page.getByRole('button', { name: /start session/i });
+    const startBtn = getStartSessionButton(page);
     const mfeLoaded = await startBtn.isVisible({ timeout: 5000 }).catch(() => false);
     if (!mfeLoaded) {
       test.skip(true, 'Voice MFE remote not available — skipping end session test');
       return;
     }
     await startBtn.click();
-    await expect(page.getByRole('button', { name: /end session/i })).toBeVisible();
+    await expect(getEndSessionButton(page)).toBeVisible();
   });
 
   test('ends session and shows completed status', async ({ page }) => {
@@ -98,14 +116,14 @@ test.describe('Voice Sessions MFE — Session Lifecycle', () => {
     );
     await page.goto('/voice');
 
-    const startBtn = page.getByRole('button', { name: /start session/i });
+    const startBtn = getStartSessionButton(page);
     const mfeLoaded = await startBtn.isVisible({ timeout: 5000 }).catch(() => false);
     if (!mfeLoaded) {
       test.skip(true, 'Voice MFE remote not available — skipping end session status test');
       return;
     }
     await startBtn.click();
-    const endBtn = page.getByRole('button', { name: /end session/i });
+    const endBtn = getEndSessionButton(page);
     await expect(endBtn).toBeVisible({ timeout: 5000 });
     await endBtn.click();
     await expect(page.getByText(/ended|completed|session ended/i)).toBeVisible({ timeout: 5000 });
@@ -126,7 +144,7 @@ test.describe('Voice Sessions MFE — Transcript & SOAP Note', () => {
     );
     await page.goto('/voice');
 
-    const startBtn = page.getByRole('button', { name: /start session/i });
+    const startBtn = getStartSessionButton(page);
     const mfeLoaded = await startBtn.isVisible({ timeout: 5000 }).catch(() => false);
     if (!mfeLoaded) {
       test.skip(true, 'Voice MFE remote not available — skipping transcript test');
@@ -162,7 +180,7 @@ test.describe('Voice Sessions MFE — Transcript & SOAP Note', () => {
     );
     await page.goto('/voice');
 
-    const startBtn = page.getByRole('button', { name: /start session/i });
+    const startBtn = getStartSessionButton(page);
     const mfeLoaded = await startBtn.isVisible({ timeout: 5000 }).catch(() => false);
     if (!mfeLoaded) {
       test.skip(true, 'Voice MFE remote not available — skipping SOAP note test');
@@ -238,7 +256,7 @@ test.describe('Voice Sessions MFE — Recording States', () => {
     );
     await page.goto('/voice');
 
-    const startBtn = page.getByRole('button', { name: /start session/i });
+    const startBtn = getStartSessionButton(page);
     const mfeLoaded = await startBtn.isVisible({ timeout: 5000 }).catch(() => false);
     if (!mfeLoaded) {
       test.skip(true, 'Voice MFE remote not available — skipping recording indicator test');
@@ -255,6 +273,93 @@ test.describe('Voice Sessions MFE — Recording States', () => {
       return;
     }
     await expect(recordingIndicator.first()).toBeVisible();
+  });
+
+  test('offline demo mode previews the selected script without writing it into the transcript textarea', async ({ page }) => {
+    await page.route('**/api/v1/voice/sessions', (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ statusCode: 404, message: 'Not Found' }),
+        });
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.goto('/voice');
+    await page.waitForLoadState('networkidle');
+
+    const startBtn = getStartSessionButton(page);
+    const mfeLoaded = await startBtn.isVisible({ timeout: 15000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Voice MFE remote not available — skipping offline demo preview test');
+      return;
+    }
+
+    await startBtn.click();
+    await expect(getRecordAudioButton(page)).toBeVisible({ timeout: 10_000 });
+
+    const transcriptArea = page.getByPlaceholder(/Patient reports chest pain, shortness of breath/i);
+    await expect(transcriptArea).toHaveValue('');
+
+    await page.getByText('Demo 1', { exact: true }).click();
+
+    await expect(page.getByText('Selected demo script')).toBeVisible();
+    await expect(page.getByText(/severe chest pain radiating to the left arm/i)).toBeVisible();
+    await expect(transcriptArea).toHaveValue('');
+  });
+
+  test('offline demo mode disables recording when browser speech recognition is unavailable', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'SpeechRecognition', {
+        configurable: true,
+        value: undefined,
+      });
+
+      Object.defineProperty(window, 'webkitSpeechRecognition', {
+        configurable: true,
+        value: undefined,
+      });
+    });
+
+    await page.route('**/api/v1/voice/sessions', (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ statusCode: 404, message: 'Not Found' }),
+        });
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.goto('/voice');
+    await page.waitForLoadState('networkidle');
+
+    const startBtn = getStartSessionButton(page);
+    const mfeLoaded = await startBtn.isVisible({ timeout: 15000 }).catch(() => false);
+    if (!mfeLoaded) {
+      test.skip(true, 'Voice MFE remote not available — skipping offline demo speech-recognition fallback test');
+      return;
+    }
+
+    await startBtn.click();
+
+    const recordButton = getRecordAudioButton(page);
+    await expect(recordButton).toBeDisabled({ timeout: 10_000 });
+    await expect(page.getByText(/Offline demo recording needs browser speech recognition support/i)).toBeVisible();
+    await expect(page.getByText(/type the transcript manually/i)).toBeVisible();
   });
 });
 

@@ -1,0 +1,10 @@
+{
+  "latestErrorEvent": {
+    "code": "TYPE-001",
+    "message": "Failed to generate type declaration. Execute the below cmd to reproduce and fix the error. #TYPE-001\nargs: {\"cmd\":\"npx tsc --project C:\\\\ATIQ\\\\sources\\\\repos\\\\healthcare-ai\\\\frontend\\\\apps\\\\engagement-mfe\\\\node_modules\\\\.federation\\\\tsconfig.112f445971e9016f1ece12f7ef1c5a2e.json\"}\nView the docs to see how to solve: https://module-federation.io/guide/troubleshooting/type#type-001",
+    "args": {
+      "cmd": "npx tsc --project C:\\ATIQ\\sources\\repos\\healthcare-ai\\frontend\\apps\\engagement-mfe\\node_modules\\.federation\\tsconfig.112f445971e9016f1ece12f7ef1c5a2e.json"
+    },
+    "timestamp": 1777004643680
+  }
+}

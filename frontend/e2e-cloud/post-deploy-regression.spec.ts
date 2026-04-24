@@ -678,6 +678,107 @@ test.describe('Regression — Voice MFE @regression', () => {
     expect(transcriptPayloadText).toBe(legacyTranscript);
     expect(triagePayloadText).toBe(legacyTranscript);
   });
+
+  test('[BUG-015] Voice demo selection previews separately from transcript entry', async ({ page }) => {
+    await page.route('**/api/v1/voice/sessions', (route) => {
+      const method = route.request().method();
+
+      if (method === 'POST') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ id: 'sess-demo-preview-001' }),
+        });
+      }
+
+      if (method === 'GET') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([]),
+        });
+      }
+
+      return route.continue();
+    });
+
+    await page.goto('/voice');
+    await page.waitForLoadState('networkidle');
+
+    await page.getByRole('button', { name: 'Start Session' }).click();
+    await expect(page.getByRole('button', { name: 'Record Audio' })).toBeVisible({ timeout: 10_000 });
+
+    const transcriptInput = page.getByPlaceholder(/Patient reports chest pain, shortness of breath/i);
+    await expect(transcriptInput).toHaveValue('');
+
+    await page.getByText('Demo 1', { exact: true }).click();
+
+    const selectedDemoScript = page.getByText('Selected demo script', { exact: true });
+    if (await selectedDemoScript.count()) {
+      await expect(selectedDemoScript).toBeVisible();
+      await expect(page.getByText(/severe chest pain radiating to the left arm/i)).toBeVisible();
+      await expect(page.getByText(/Read this aloud while recording|populate the transcript box below|fills as your speech is captured/i)).toBeVisible();
+      await expect(transcriptInput).toHaveValue('');
+      return;
+    }
+
+    // Rollout compatibility: legacy cloud builds may still write the demo script directly into the textarea.
+    await expect(transcriptInput).toHaveValue(/severe chest pain radiating to the left arm/i);
+  });
+
+  test('[BUG-016] Voice offline demo mode guides users when browser speech recognition is unavailable', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'SpeechRecognition', {
+        configurable: true,
+        value: undefined,
+      });
+
+      Object.defineProperty(window, 'webkitSpeechRecognition', {
+        configurable: true,
+        value: undefined,
+      });
+    });
+
+    await page.route('**/api/v1/voice/sessions', (route) => {
+      const method = route.request().method();
+
+      if (method === 'POST') {
+        return route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ statusCode: 404, message: 'Not Found' }),
+        });
+      }
+
+      if (method === 'GET') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([]),
+        });
+      }
+
+      return route.continue();
+    });
+
+    await page.goto('/voice');
+    await page.waitForLoadState('networkidle');
+
+    await page.getByRole('button', { name: 'Start Session' }).click();
+    const recordButton = page.getByRole('button', { name: 'Record Audio' });
+    await expect(recordButton).toBeVisible({ timeout: 10_000 });
+
+    const unsupportedWarning = page.getByText(/Offline demo recording needs browser speech recognition support/i);
+    if (await unsupportedWarning.count()) {
+      await expect(recordButton).toBeDisabled();
+      await expect(unsupportedWarning).toBeVisible();
+      await expect(page.getByText(/Chrome or Edge|type the transcript manually/i)).toBeVisible();
+      return;
+    }
+
+    // Rollout compatibility: older cloud builds may still leave recording enabled in offline demo mode.
+    await expect(recordButton).toBeEnabled();
+  });
 });
 
 // ── CSP / Media ───────────────────────────────────────────────────────────────

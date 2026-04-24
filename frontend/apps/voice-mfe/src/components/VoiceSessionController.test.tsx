@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   VoiceSessionController,
@@ -85,6 +85,179 @@ describe('VoiceSessionController', () => {
 
     expect(screen.getByText(/Transcript changed after approval/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Review transcript to submit/i })).toBeDisabled();
+  });
+
+  it('shows a selected demo script below the demo options without copying it into the transcript textarea', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockRejectedValue(new Error('offline'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<VoiceSessionController />);
+
+    await user.click(screen.getByRole('button', { name: 'Start Session' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record Audio' })).toBeInTheDocument();
+    });
+
+    const transcriptInput = screen.getByPlaceholderText(/Patient reports chest pain, shortness of breath/i);
+    expect(transcriptInput).toHaveValue('');
+
+    await user.click(screen.getByText('Demo 1'));
+
+    expect(screen.getByText('Selected demo script')).toBeInTheDocument();
+    expect(screen.getByText(/Read this aloud while recording/i)).toBeInTheDocument();
+    expect(screen.getByText(/severe chest pain radiating to the left arm/i)).toBeInTheDocument();
+    expect(transcriptInput).toHaveValue('');
+  });
+
+  it('shows a manual-entry warning and disables recording when offline demo speech recognition is unavailable', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockRejectedValue(new Error('offline'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    Object.defineProperty(window, 'SpeechRecognition', {
+      configurable: true,
+      value: undefined,
+    });
+
+    Object.defineProperty(window, 'webkitSpeechRecognition', {
+      configurable: true,
+      value: undefined,
+    });
+
+    render(<VoiceSessionController />);
+
+    await user.click(screen.getByRole('button', { name: 'Start Session' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record Audio' })).toBeDisabled();
+    });
+
+    expect(screen.getByText(/Offline demo recording needs browser speech recognition support/i)).toBeInTheDocument();
+    expect(screen.getByText(/type the transcript manually/i)).toBeInTheDocument();
+  });
+
+  it('fills the transcript textarea from live speech while recording in demo sessions', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockRejectedValue(new Error('offline'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [{ stop: vi.fn() }],
+        }),
+      },
+    });
+
+    class MockMediaRecorder {
+      static isTypeSupported = vi.fn().mockReturnValue(true);
+      state: 'inactive' | 'recording' = 'inactive';
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+
+      constructor(_stream: MediaStream, _options?: MediaRecorderOptions) {}
+
+      start() {
+        this.state = 'recording';
+      }
+
+      stop() {
+        this.state = 'inactive';
+        this.onstop?.();
+      }
+    }
+
+    const mockSource = { connect: vi.fn() };
+    const mockAudioContext = {
+      audioWorklet: { addModule: vi.fn().mockResolvedValue(undefined) },
+      createMediaStreamSource: vi.fn().mockReturnValue(mockSource),
+      destination: {},
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    const mockWorkletNode = {
+      port: { onmessage: null },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+
+    const MockAudioContext = function MockAudioContext() {
+      return mockAudioContext;
+    };
+
+    const MockAudioWorkletNode = function MockAudioWorkletNode() {
+      return mockWorkletNode;
+    };
+
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn().mockReturnValue('blob:demo-recording'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
+
+    vi.stubGlobal('MediaRecorder', MockMediaRecorder as unknown as typeof MediaRecorder);
+    vi.stubGlobal('AudioContext', MockAudioContext as unknown as typeof AudioContext);
+    vi.stubGlobal('AudioWorkletNode', MockAudioWorkletNode as unknown as typeof AudioWorkletNode);
+
+    class MockSpeechRecognition {
+      static latest: MockSpeechRecognition | null = null;
+      continuous = false;
+      interimResults = false;
+      lang = 'en-US';
+      onresult: ((event: { resultIndex: number; results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null = null;
+      onerror: ((event: { error?: string }) => void) | null = null;
+      onend: (() => void) | null = null;
+      start = vi.fn();
+      stop = vi.fn();
+
+      constructor() {
+        MockSpeechRecognition.latest = this;
+      }
+    }
+
+    Object.defineProperty(window, 'SpeechRecognition', {
+      configurable: true,
+      value: MockSpeechRecognition,
+    });
+
+    render(<VoiceSessionController />);
+
+    await user.click(screen.getByRole('button', { name: 'Start Session' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record Audio' })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('Demo 1'));
+    const transcriptInput = screen.getByPlaceholderText(/Patient reports chest pain, shortness of breath/i);
+    expect(transcriptInput).toHaveValue('');
+
+    await user.click(screen.getByRole('button', { name: 'Record Audio' }));
+
+    await waitFor(() => {
+      expect(MockSpeechRecognition.latest?.start).toHaveBeenCalled();
+    });
+
+    act(() => {
+      MockSpeechRecognition.latest?.onresult?.({
+        resultIndex: 0,
+        results: [
+          {
+            0: { transcript: 'Patient reports severe chest pain and shortness of breath' },
+            isFinal: false,
+          },
+        ],
+      });
+    });
+
+    await waitFor(() => {
+      expect(transcriptInput).toHaveValue('Patient reports severe chest pain and shortness of breath');
+    });
   });
 
   it('submits the approved reviewed transcript snapshot', async () => {

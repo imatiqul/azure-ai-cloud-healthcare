@@ -97,6 +97,7 @@ pnpm test:e2e
 
 ## Additional Documentation
 
+- [Training Course Hub](docs/training/README.md)
 - [Stakeholder Documentation Hub](docs/stakeholders/README.md)
 - [Diagrams Index](docs/diagrams/README.md)
 - [Helm Notes](infra/helm/README.md)

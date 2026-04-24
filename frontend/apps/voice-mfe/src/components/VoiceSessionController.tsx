@@ -70,6 +70,50 @@ function getErrorMessage(error: unknown): string {
   return '';
 }
 
+interface SpeechRecognitionAlternativeLike {
+  transcript: string;
+}
+
+interface SpeechRecognitionResultLike {
+  readonly isFinal: boolean;
+  readonly length: number;
+  [index: number]: SpeechRecognitionAlternativeLike;
+}
+
+interface SpeechRecognitionEventLike {
+  readonly resultIndex: number;
+  readonly results: ArrayLike<SpeechRecognitionResultLike>;
+}
+
+interface BrowserSpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+
+interface BrowserSpeechRecognitionConstructor {
+  new (): BrowserSpeechRecognition;
+}
+
+type SpeechRecognitionWindow = Window & typeof globalThis & {
+  SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+};
+
+const DEMO_SPEECH_RECOGNITION_UNAVAILABLE_MESSAGE = 'Offline demo recording needs browser speech recognition support. Use Chrome or Edge for live demo transcription, or type the transcript manually.';
+
+function getSpeechRecognitionConstructor(): BrowserSpeechRecognitionConstructor | null {
+  if (typeof window === 'undefined') return null;
+
+  const speechWindow = window as SpeechRecognitionWindow;
+  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
+}
+
 export function normalizeTranscriptForReview(text: string): string {
   return text.trim().replace(/\s+/g, ' ');
 }
@@ -113,11 +157,22 @@ export function getMicrophoneFallbackMessage(error: unknown): string {
 // Captures microphone audio as 16kHz 16-bit mono PCM, streaming chunks to the
 // voice service's audio-chunk endpoint for Azure Speech transcription.
 // Also captures a full-quality WebM blob in parallel for local replay.
-function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: (text: string) => void) {
+function useMicCapture(
+  sessionId: string | null,
+  apiBase: string,
+  callbacks: {
+    onTranscriptAppend: (text: string) => void;
+    onTranscriptReplace?: (text: string) => void;
+  },
+) {
+  const { onTranscriptAppend, onTranscriptReplace } = callbacks;
+  const isDemoSession = sessionId?.startsWith('demo-voice-') ?? false;
   const audioContextRef  = useRef<AudioContext | null>(null);
   const workletNodeRef   = useRef<AudioWorkletNode | null>(null);
   const streamRef        = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const recognizedTranscriptRef = useRef('');
   const audioBlobChunks  = useRef<Blob[]>([]);
   const isMountedRef     = useRef(true);
   const [recording,  setRecording]  = useState(false);
@@ -136,12 +191,26 @@ function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: 
       });
       if (res.ok) {
         const data = await res.json() as { partialTranscript?: string };
-        if (data.partialTranscript) onTranscript(data.partialTranscript);
+        if (data.partialTranscript) onTranscriptAppend(data.partialTranscript);
       }
     } catch { /* network errors are non-fatal */ }
-  }, [sessionId, apiBase, onTranscript]);
+  }, [sessionId, apiBase, onTranscriptAppend]);
 
   const cleanupCaptureResources = useCallback((keepRecordedAudio: boolean) => {
+    const speechRecognition = speechRecognitionRef.current;
+    speechRecognitionRef.current = null;
+    recognizedTranscriptRef.current = '';
+    if (speechRecognition) {
+      speechRecognition.onresult = null;
+      speechRecognition.onerror = null;
+      speechRecognition.onend = null;
+      try {
+        speechRecognition.stop();
+      } catch {
+        // Ignore speech-recognition teardown failures.
+      }
+    }
+
     const recorder = mediaRecorderRef.current;
     mediaRecorderRef.current = null;
     if (recorder) {
@@ -172,6 +241,13 @@ function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: 
 
   const startRecording = useCallback(async () => {
     setMicError(null);
+
+    if (isDemoSession && !getSpeechRecognitionConstructor()) {
+      setRecording(false);
+      setMicError(DEMO_SPEECH_RECOGNITION_UNAVAILABLE_MESSAGE);
+      return;
+    }
+
     // Revoke the previous object URL to avoid memory leaks
     if (prevAudioUrl.current) {
       URL.revokeObjectURL(prevAudioUrl.current);
@@ -204,18 +280,65 @@ function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: 
       };
       mr.start(250); // collect chunks every 250ms
 
+      if (sessionId?.startsWith('demo-voice-')) {
+        const SpeechRecognitionCtor = getSpeechRecognitionConstructor();
+        if (SpeechRecognitionCtor && onTranscriptReplace) {
+          const recognition = new SpeechRecognitionCtor();
+          speechRecognitionRef.current = recognition;
+          recognizedTranscriptRef.current = '';
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = 'en-US';
+          recognition.onresult = (event) => {
+            let finalizedTranscript = recognizedTranscriptRef.current;
+            let interimTranscript = '';
+
+            for (let index = event.resultIndex; index < event.results.length; index += 1) {
+              const result = event.results[index];
+              const transcript = result[0]?.transcript?.trim();
+              if (!transcript) continue;
+
+              if (result.isFinal) {
+                finalizedTranscript = [finalizedTranscript, transcript].filter(Boolean).join(' ').trim();
+              } else {
+                interimTranscript = [interimTranscript, transcript].filter(Boolean).join(' ').trim();
+              }
+            }
+
+            recognizedTranscriptRef.current = finalizedTranscript;
+            onTranscriptReplace([finalizedTranscript, interimTranscript].filter(Boolean).join(' ').trim());
+          };
+          recognition.start();
+        }
+      }
+
       // ── PCM AudioWorkletNode: 16kHz stream for Azure Speech ────────────
-      const audioContext = new AudioContext({ sampleRate: 16000 });
-      audioContextRef.current = audioContext;
-      await loadPcmWorkletModule(audioContext);
-      const source = audioContext.createMediaStreamSource(stream);
-      const workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
-      workletNodeRef.current = workletNode;
-      workletNode.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-        void sendChunk(e.data);
-      };
-      source.connect(workletNode);
-      workletNode.connect(audioContext.destination);
+      try {
+        const audioContext = new AudioContext({ sampleRate: 16000 });
+        audioContextRef.current = audioContext;
+        await loadPcmWorkletModule(audioContext);
+        const source = audioContext.createMediaStreamSource(stream);
+        const workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
+        workletNodeRef.current = workletNode;
+        workletNode.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
+          void sendChunk(e.data);
+        };
+        source.connect(workletNode);
+        workletNode.connect(audioContext.destination);
+      } catch (error) {
+        workletNodeRef.current?.disconnect();
+        workletNodeRef.current = null;
+
+        const audioContext = audioContextRef.current;
+        audioContextRef.current = null;
+        if (audioContext) {
+          void audioContext.close();
+        }
+
+        if (!speechRecognitionRef.current) {
+          throw error;
+        }
+      }
 
       setRecording(true);
     } catch (err) {
@@ -223,7 +346,7 @@ function useMicCapture(sessionId: string | null, apiBase: string, onTranscript: 
       setRecording(false);
       setMicError(getMicrophoneFallbackMessage(err));
     }
-  }, [cleanupCaptureResources, sendChunk]);
+  }, [cleanupCaptureResources, isDemoSession, sendChunk]);
 
   const stopRecording = useCallback(() => {
     cleanupCaptureResources(true);
@@ -342,6 +465,7 @@ export function VoiceSessionController() {
   const [sessionId, setSessionId]             = useState<string | null>(null);
   const [triage, setTriage]                   = useState<string | null>(null);
   const [transcriptText, setTranscriptText]   = useState('');
+  const [selectedDemoTranscript, setSelectedDemoTranscript] = useState<string | null>(null);
   const [reviewedTranscriptSnapshot, setReviewedTranscriptSnapshot] = useState<string | null>(null);
   const [submittedTranscriptText, setSubmittedTranscriptText] = useState('');
   const [submitting, setSubmitting]           = useState(false);
@@ -354,6 +478,8 @@ export function VoiceSessionController() {
   const [aiDone, setAiDone]               = useState(false);
 
   const clientRef = useRef<VoiceSessionClient | null>(null);
+  const isDemoSession = sessionId?.startsWith('demo-voice-') ?? false;
+  const demoSpeechRecognitionUnavailable = isDemoSession && !getSpeechRecognitionConstructor();
 
   const normalizedTranscript = normalizeTranscriptForReview(transcriptText);
   const transcriptReviewed = reviewedTranscriptSnapshot !== null
@@ -364,8 +490,15 @@ export function VoiceSessionController() {
     setTranscriptText(prev => prev ? `${prev} ${text}` : text);
   }, []);
 
+  const handleRecognizedTranscript = useCallback((text: string) => {
+    setTranscriptText(text);
+  }, []);
+
   const { recording, micError, audioUrl, startRecording, stopRecording } =
-    useMicCapture(sessionId, API_BASE, handlePartialTranscript);
+    useMicCapture(sessionId, API_BASE, {
+      onTranscriptAppend: handlePartialTranscript,
+      onTranscriptReplace: handleRecognizedTranscript,
+    });
 
   // -- Azure Web PubSub lifecycle ---------------------------------------------
   const connectPubSub = useCallback(async (sid: string) => {
@@ -430,6 +563,7 @@ export function VoiceSessionController() {
     setTriageResult(null);
     setTriage(null);
     setTranscriptText('');
+    setSelectedDemoTranscript(null);
     setReviewedTranscriptSnapshot(null);
     setSubmittedTranscriptText('');
     setAiThinkingText('');
@@ -585,7 +719,7 @@ export function VoiceSessionController() {
               {/* Microphone recording controls */}
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
                 {!recording ? (
-                  <Button onClick={() => void startRecording()} size="sm">
+                  <Button onClick={() => void startRecording()} size="sm" disabled={demoSpeechRecognitionUnavailable}>
                     <MicIcon sx={{ mr: 0.5, fontSize: 16 }} />
                     Record Audio
                   </Button>
@@ -604,6 +738,12 @@ export function VoiceSessionController() {
                   />
                 )}
               </Stack>
+
+              {demoSpeechRecognitionUnavailable && (
+                <Alert severity="info" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>
+                  {DEMO_SPEECH_RECOGNITION_UNAVAILABLE_MESSAGE}
+                </Alert>
+              )}
 
               {/* Audio replay player — shown after recording stops */}
               {audioUrl && !recording && (
@@ -625,7 +765,45 @@ export function VoiceSessionController() {
               )}
 
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Or type the patient transcript manually:
+                Select a demo script to read aloud, or type the patient transcript manually:
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 1 }}>
+                {DEMO_TRANSCRIPTS.map((t, i) => (
+                  <Box
+                    key={i}
+                    component="span"
+                    onClick={() => {
+                      if (recording || submitting || aiStreaming) return;
+                      setSelectedDemoTranscript(t);
+                    }}
+                    sx={{
+                      px: 1, py: 0.5, fontSize: 11, border: 1, borderRadius: 1,
+                      borderColor: selectedDemoTranscript === t ? 'primary.main' : 'divider',
+                      bgcolor: selectedDemoTranscript === t ? 'primary.50' : 'transparent',
+                      cursor: recording || submitting || aiStreaming ? 'not-allowed' : 'pointer',
+                      opacity: recording || submitting || aiStreaming ? 0.5 : 1,
+                      '&:hover': { bgcolor: recording || submitting || aiStreaming ? 'transparent' : 'primary.50' },
+                    }}
+                  >
+                    Demo {i + 1}
+                  </Box>
+                ))}
+              </Stack>
+              {selectedDemoTranscript && (
+                <Alert severity="info" sx={{ mb: 1.5 }}>
+                  <Typography variant="caption" fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>
+                    Selected demo script
+                  </Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: 0.75 }}>
+                    {selectedDemoTranscript}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Read this aloud while recording. Live speech-to-text will populate the transcript box below.
+                  </Typography>
+                </Alert>
+              )}
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Transcript from recorded audio appears below. You can also type or edit it manually:
               </Typography>
               <TextField
                 multiline
@@ -638,26 +816,6 @@ export function VoiceSessionController() {
                 size="small"
                 sx={{ mb: 1 }}
               />
-              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 1 }}>
-                {DEMO_TRANSCRIPTS.map((t, i) => (
-                  <Box
-                    key={i}
-                    component="span"
-                    onClick={() => {
-                      if (submitting || aiStreaming) return;
-                      setTranscriptText(t);
-                    }}
-                    sx={{
-                      px: 1, py: 0.5, fontSize: 11, border: 1, borderRadius: 1,
-                      borderColor: 'divider', cursor: submitting || aiStreaming ? 'not-allowed' : 'pointer',
-                      opacity: submitting || aiStreaming ? 0.5 : 1,
-                      '&:hover': { bgcolor: 'primary.50' },
-                    }}
-                  >
-                    Demo {i + 1}
-                  </Box>
-                ))}
-              </Stack>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                 <Button
                   onClick={() => setReviewedTranscriptSnapshot(normalizedTranscript)}
