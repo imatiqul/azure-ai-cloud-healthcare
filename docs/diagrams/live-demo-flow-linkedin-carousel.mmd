@@ -1,0 +1,11 @@
+flowchart TB
+  T[Slide 1\nLive Demo Flow]:::title
+  T --> S1[1. Voice Capture\nClinician starts a live session]
+  S1 --> S2[2. AI Triage\nSemantic Kernel evaluates transcript]
+  S2 --> S3{3. Safe Decision?}
+  S3 -->|Yes| S4[4. Auto Route\nUpdate records, notify, schedule]
+  S3 -->|No| S5[4. Human Review\nClinician approves or overrides]
+  S5 --> S4
+  S4 --> S6[Outcome\nFaster, safer care coordination]
+
+  classDef title fill:#1f3a5f,stroke:#1f3a5f,color:#ffffff,font-weight:bold;

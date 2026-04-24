@@ -1,0 +1,10 @@
+flowchart TB
+  T[Slide 3\nReliability / Trust Signal]:::title
+  T --> R1[Pull Request Quality Gates\nBuild, tests, security, coverage]
+  R1 --> R2[Signed Cloud Deployments\nControlled release to Azure]
+  R2 --> R3[Smoke Validation\nFast post-deploy checks]
+  R3 --> R4[Full Cloud E2E\nReal workflow verification]
+  R4 --> R5[Coverage + Health Monitoring\nJourney checks and daily health]
+  R5 --> R6[Outcome\nRelease confidence with rollback safety]
+
+  classDef title fill:#1f3a5f,stroke:#1f3a5f,color:#ffffff,font-weight:bold;

@@ -1,0 +1,21 @@
+flowchart LR
+  CC[Clinical Conversation] --> LV[Live Voice Capture]
+  LV --> AI[AI Triage Engine\nSemantic Kernel]
+  AI --> RC{Risk + Confidence Check}
+
+  RC -->|Routine case| NX[Auto-route Next Step]
+  RC -->|Complex or high-risk case| HR[Human Review]
+  HR --> AP[Clinician Approval]
+  AP --> NX
+
+  NX --> RU[Records Updated]
+  NX --> FS[Follow-up Scheduled]
+  NX --> PN[Patient Notification]
+
+  RU --> OUT[Operational Time Saved\nFaster, safer care coordination]
+  FS --> OUT
+  PN --> OUT
+
+  STK[Powered by\nReact micro frontends + .NET 9 microservices + Dapr]:::stack
+
+  classDef stack fill:#fffaf0,stroke:#b7791f,color:#744210;

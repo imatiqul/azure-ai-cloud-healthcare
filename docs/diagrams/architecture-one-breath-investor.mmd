@@ -1,0 +1,14 @@
+flowchart TB
+  UX[Clinician + Operations Experience\nReact micro frontends] --> AI[AI Triage + Decisioning\nSemantic Kernel]
+  AI --> GOV[Human Review + Governance]
+  AI --> SVC[Cloud-native Service Layer\n.NET 9 microservices + Dapr]
+  SVC --> DATA[Clinical + Workflow Data\nPostgreSQL + Redis + Qdrant + FHIR]
+  SVC --> CLOUD[Azure Delivery Layer\nContainer Apps + Static Web Apps]
+
+  GOV --> TRUST[Trustworthy Decisions]
+  DATA --> SPEED[Faster Workflow Execution]
+  CLOUD --> SCALE[Enterprise-ready Scale]
+
+  TRUST --> OUT[Business Outcome\nReliable healthcare AI platform]
+  SPEED --> OUT
+  SCALE --> OUT

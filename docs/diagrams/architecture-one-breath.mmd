@@ -1,0 +1,60 @@
+flowchart TB
+  subgraph UX[Experience Layer]
+    SH[Shell Host\nReact 19 + Vite 6]
+    MFEs[7 Remote MFEs\nVoice, Triage, Scheduling, PopHealth, Revenue, Encounters, Engagement\nModule Federation]
+    PKG[Shared Packages\nmfe-events, graphql-client, web-pubsub-client]
+    SH --> MFEs
+    MFEs --> PKG
+  end
+
+  subgraph EDGE[Edge + Composition]
+    GW[API Gateway\nYARP / .NET 9]
+    BFF[GraphQL BFF\n.NET 9]
+  end
+
+  subgraph SVC[Domain Microservices (.NET 9)]
+    ID[Identity]
+    VO[Voice]
+    AG[Agents\nSemantic Kernel]
+    FH[FHIR]
+    OC[OCR]
+    SC[Scheduling]
+    NT[Notifications]
+    PH[Population Health]
+    RV[Revenue Cycle]
+  end
+
+  subgraph DATA[State + Data]
+    PG[PostgreSQL\nper-service databases]
+    RD[Redis]
+    QD[Qdrant]
+    HF[HAPI FHIR]
+  end
+
+  subgraph RUNTIME[Runtime + Delivery]
+    ASP[Aspire AppHost\nlocal orchestration]
+    DAPR[Dapr\nevent-driven integration]
+    CICD[GitHub Actions\nPR Validation + Microservice CI/CD + Frontend CI/CD + Cloud E2E]
+    CLOUD[Azure Container Apps + Static Web Apps]
+    BASELINE[AKS + Helm + ArgoCD/Argo Rollouts baseline]
+  end
+
+  SH --> GW
+  SH --> BFF
+  GW --> SVC
+  BFF --> SVC
+  SVC --> DATA
+  ASP --> SVC
+  DAPR --> SVC
+  CICD --> CLOUD
+  CICD --> BASELINE
+
+  classDef ux fill:#edf2ff,stroke:#4c51bf,color:#2a4365;
+  classDef svc fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d;
+  classDef data fill:#f0fff4,stroke:#2f855a,color:#22543d;
+  classDef run fill:#fffaf0,stroke:#b7791f,color:#744210;
+
+  class SH,MFEs,PKG ux;
+  class GW,BFF,ID,VO,AG,FH,OC,SC,NT,PH,RV svc;
+  class PG,RD,QD,HF data;
+  class ASP,DAPR,CICD,CLOUD,BASELINE run;

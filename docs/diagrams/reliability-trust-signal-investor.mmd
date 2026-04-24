@@ -1,0 +1,12 @@
+flowchart LR
+  CHG[Product Change] --> QG[Automated Quality Gates\nBuild, security, tests]
+  QG --> DEP[Controlled Cloud Deployment\nSigned artifacts + rollout safety]
+  DEP --> SMK[Smoke Validation\nFast post-deploy checks]
+  SMK --> E2E[Full End-to-End Validation]
+  E2E --> COV[Coverage + Journey Verification]
+  COV --> MON[Ongoing Health Monitoring\nDaily and post-deploy checks]
+  MON --> CONF[Release Confidence\nTrust signal for teams and stakeholders]
+
+  SMK -->|Failure| RB[Fast Rollback]
+  E2E -->|Failure| RB
+  COV -->|Failure| RB

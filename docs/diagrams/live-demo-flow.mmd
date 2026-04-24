@@ -1,0 +1,30 @@
+flowchart LR
+  U[Clinician / User] --> SH[Shell MFE\nReact 19 + Vite + Module Federation]
+  SH --> VM[Voice MFE\nStart Session + Live Transcript]
+  VM --> VAPI[Voice Service\n.NET 9]
+  VAPI --> EVT1[Dapr Event\nTranscriptProduced]
+
+  EVT1 --> AG[AI Agent Service\nSemantic Kernel Orchestration]
+  AG --> DEC{Confidence + Triage Level}
+
+  DEC -->|High confidence| TCOMP[TriageCompleted Event]
+  DEC -->|Low confidence or High risk| ESC[EscalationRequired Event]
+
+  ESC --> TM[Triage MFE\nHuman-in-the-loop Review]
+  TM --> APPR[Clinician Approve / Override]
+  APPR --> TCOMP
+
+  TCOMP --> FHIR[FHIR Service]
+  TCOMP --> NOTIF[Notification Service]
+  TCOMP --> SCH[Scheduling Service]
+
+  AG --> RT[Real-time Updates\nWeb PubSub / SignalR]
+  RT --> SH
+
+  classDef edge fill:#e8f4ff,stroke:#2b6cb0,stroke-width:1px,color:#1a365d;
+  classDef ai fill:#fff4e6,stroke:#c05621,stroke-width:1px,color:#7b341e;
+  classDef trust fill:#e6fffa,stroke:#2c7a7b,stroke-width:1px,color:#234e52;
+
+  class SH,VM,VAPI,FHIR,NOTIF,SCH,TM edge;
+  class AG,DEC ai;
+  class ESC,APPR,RT trust;

@@ -1,0 +1,47 @@
+flowchart LR
+  PR[Pull Request] --> PV[PR Validation Workflow]
+
+  subgraph PRGATES[Shift-left Quality Gates]
+    SEC[Secret Scan\nGitleaks]
+    BLD[Build + Format Check\n.NET 9]
+    UT[Unit Tests + Coverage\nThreshold >= 80%]
+    FQ[Frontend Lint + Type-check + Tests + Build]
+    TV[Security Scan\nTrivy]
+  end
+
+  PV --> SEC --> BLD --> UT --> FQ --> TV
+  TV --> PASS1{All gates pass?}
+  PASS1 -->|No| STOP1[Block Merge]
+  PASS1 -->|Yes| MAIN[Merge to main]
+
+  MAIN --> MCI[Microservice CI/CD\nBuild + SBOM/Provenance + Cosign + Deploy ACA]
+  MAIN --> FCI[Frontend MFE CI/CD\nBuild + Deploy Static Web Apps]
+
+  MCI --> CE2E[Cloud E2E Pipeline]
+  FCI --> CE2E
+
+  subgraph CLOUDGATES[Post-deploy Trust Gates]
+    SMK[Smoke Gate\nFast @smoke checks]
+    FULL[Full Cloud E2E]
+    COV[Platform Coverage Verifiers\nFeature 100% + Action 100% + Journey 100%]
+  end
+
+  CE2E --> SMK --> PASS2{Smoke pass?}
+  PASS2 -->|No| ALERT[Fail Fast + Investigate]
+  PASS2 -->|Yes| FULL --> COV --> PASS3{Coverage gates pass?}
+  PASS3 -->|No| HOLD[Release Hold]
+  PASS3 -->|Yes| REL[Release Confidence Achieved]
+
+  REL --> HEALTH[Deployment Health Workflow\nDaily + Post-deploy checks]
+  ALERT --> RB[Rollback Workflow]
+  HOLD --> RB
+
+  classDef gate fill:#e6fffa,stroke:#2c7a7b,color:#234e52;
+  classDef fail fill:#fff5f5,stroke:#c53030,color:#742a2a;
+  classDef ok fill:#f0fff4,stroke:#2f855a,color:#22543d;
+  classDef flow fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d;
+
+  class PR,PV,MAIN,MCI,FCI,CE2E,HEALTH,RB flow;
+  class SEC,BLD,UT,FQ,TV,SMK,FULL,COV,PASS1,PASS2,PASS3 gate;
+  class STOP1,ALERT,HOLD fail;
+  class REL ok;
