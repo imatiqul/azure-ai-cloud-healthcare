@@ -12,6 +12,7 @@ import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
 import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
+import Collapse from '@mui/material/Collapse';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -30,6 +31,7 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
 import ReplayIcon from '@mui/icons-material/Replay';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import HistoryIcon from '@mui/icons-material/History';
 import { Card, CardContent, CardHeader, CardTitle } from '@healthcare/design-system';
 import { selectShellTab, setActiveWorkflow } from '@healthcare/mfe-events';
 import { useWorkflowOpsStream } from '../hooks/useWorkflowOpsStream';
@@ -154,6 +156,14 @@ type ActionStep = 'encounter' | 'revenue' | 'notification' | 'scheduling';
 interface ApproveDialogState {
   workflowId: string;
   patientName?: string;
+}
+
+interface AuditLogEntry {
+  id: string;
+  actor: string;
+  action: string;
+  note?: string;
+  timestamp: string;
 }
 
 function ApproveDialog({
@@ -383,6 +393,9 @@ export default function WorkflowOperationsWorkbench() {
   const [actionInFlight, setActionInFlight] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState('');
   const [approveDialog, setApproveDialog] = useState<ApproveDialogState | null>(null);
+  const [auditLogWorkflowId, setAuditLogWorkflowId] = useState<string | null>(null);
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+  const [auditLogLoading, setAuditLogLoading] = useState(false);
 
   // ── Real-time workflow updates via Web PubSub ────────────────────────────
   const { lastUpdate, connectionState, clearLiveCache } = useWorkflowOpsStream('supervisor', !usingDemo);
@@ -546,6 +559,37 @@ export default function WorkflowOperationsWorkbench() {
       `/api/v1/agents/workflows/${workflowId}/requeue-scheduling`,
     );
   }, [executeAction]);
+
+  const toggleAuditLog = useCallback(async (workflowId: string) => {
+    if (auditLogWorkflowId === workflowId) {
+      setAuditLogWorkflowId(null);
+      setAuditLog([]);
+      return;
+    }
+    setAuditLogWorkflowId(workflowId);
+    setAuditLog([]);
+    if (usingDemo) return;
+    setAuditLogLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/agents/workflows/${workflowId}/audit-log`, {
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as unknown[];
+        setAuditLog(data.map((e) => {
+          const entry = e as Record<string, unknown>;
+          return {
+            id: String(entry.id ?? ''),
+            actor: String(entry.actor ?? 'unknown'),
+            action: String(entry.action ?? ''),
+            note: typeof entry.note === 'string' ? entry.note : undefined,
+            timestamp: String(entry.timestamp ?? ''),
+          };
+        }));
+      }
+    } catch { /* silently ignore */ }
+    finally { setAuditLogLoading(false); }
+  }, [auditLogWorkflowId, usingDemo]);
 
   const openWorkflow = useCallback((workflow: WorkflowRecord, destination: 'triage' | 'scheduling') => {
     setActiveWorkflow(workflow.id);
@@ -840,8 +884,61 @@ export default function WorkflowOperationsWorkbench() {
                           {actionInFlight.has(`${workflow.id}:requeue`) ? 'Requeueing…' : 'Requeue Scheduling'}
                         </Button>
                       )}
+
+                      <Divider />
+                      <Button
+                        variant="text"
+                        size="small"
+                        fullWidth
+                        startIcon={<HistoryIcon />}
+                        onClick={() => void toggleAuditLog(workflow.id)}
+                      >
+                        {auditLogWorkflowId === workflow.id ? 'Hide Audit Log' : 'Audit Log'}
+                      </Button>
                     </Stack>
                   </Stack>
+
+                  {/* Collapsible audit trail */}
+                  <Collapse in={auditLogWorkflowId === workflow.id} unmountOnExit>
+                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        Operator Audit Log
+                      </Typography>
+                      {auditLogLoading && <LinearProgress sx={{ mt: 1 }} />}
+                      {usingDemo && !auditLogLoading && (
+                        <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1 }}>
+                          Audit log unavailable in demo mode.
+                        </Typography>
+                      )}
+                      {!usingDemo && !auditLogLoading && auditLog.length === 0 && (
+                        <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1 }}>
+                          No operator actions recorded yet.
+                        </Typography>
+                      )}
+                      {!auditLogLoading && auditLog.length > 0 && (
+                        <Stack spacing={0.5} sx={{ mt: 1 }}>
+                          {auditLog.map((entry) => (
+                            <Box key={entry.id} sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                              <Typography variant="caption" color="text.disabled" sx={{ minWidth: 130, flexShrink: 0 }}>
+                                {new Date(entry.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                              </Typography>
+                              <Typography variant="caption" fontWeight={600} sx={{ flexShrink: 0 }}>
+                                {entry.actor}
+                              </Typography>
+                              <Typography variant="caption" sx={{ flexShrink: 0 }}>
+                                {entry.action}
+                              </Typography>
+                              {entry.note && (
+                                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                  — {entry.note}
+                                </Typography>
+                              )}
+                            </Box>
+                          ))}
+                        </Stack>
+                      )}
+                    </Box>
+                  </Collapse>
                 </Paper>
               ))}
             </Stack>

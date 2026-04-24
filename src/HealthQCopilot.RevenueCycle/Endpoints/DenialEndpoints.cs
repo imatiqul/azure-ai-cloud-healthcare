@@ -197,31 +197,27 @@ public static class DenialEndpoints
             var all = await db.ClaimDenials.ToListAsync(ct);
 
             var total = all.Count;
-            var totalDenied = all.Sum(d => d.DeniedAmount);
+            var totalOpen = all.Count(d => d.Status == DenialStatus.Open);
+            var totalUnderAppeal = all.Count(d => d.Status == DenialStatus.UnderAppeal);
+            var totalResolved = all.Count(d => d.Status == DenialStatus.Resolved);
             var overturned = all.Count(d => d.Resolution == DenialResolution.Overturned);
-            var overturnedAmt = all.Where(d => d.Resolution == DenialResolution.Overturned).Sum(d => d.DeniedAmount);
-            var writtenOff = all.Count(d => d.Resolution == DenialResolution.WriteOff);
-            var open = all.Count(d => d.Status == DenialStatus.Open);
-            var nearDeadline = all.Count(d => d.Status == DenialStatus.Open && (d.AppealDeadline - DateTime.UtcNow).TotalDays <= 30);
-            var overturnRate = total > 0 ? Math.Round((double)overturned / total * 100, 1) : 0;
+            var nearDeadlineCount = all.Count(d => d.Status == DenialStatus.Open && (d.AppealDeadline - DateTime.UtcNow).TotalDays <= 30);
+            var overturnRate = total > 0 ? Math.Round((double)overturned / total, 4) : 0d;
 
+            // byCategory: dictionary of category name → count (matches frontend Record<string, number>)
             var byCategory = all
                 .GroupBy(d => d.Category.ToString())
-                .Select(g => new { Category = g.Key, Count = g.Count(), Amount = g.Sum(d => d.DeniedAmount) })
-                .OrderByDescending(g => g.Amount)
-                .ToList();
+                .ToDictionary(g => g.Key, g => g.Count());
 
             return Results.Ok(new
             {
-                TotalDenials = total,
-                TotalDeniedAmount = totalDenied,
-                OpenDenials = open,
-                NearDeadline = nearDeadline, // appeal due ≤30 days
-                OverturnedCount = overturned,
-                OverturnedAmount = overturnedAmt,
-                WrittenOffCount = writtenOff,
-                OverturnRatePct = overturnRate,
-                ByCategory = byCategory,
+                totalOpen,
+                totalUnderAppeal,
+                totalResolved,
+                overturned,
+                overturnRate,   // decimal 0-1; frontend multiplies ×100 for display
+                nearDeadlineCount,
+                byCategory,
             });
         })
         .WithSummary("Denial analytics summary")

@@ -156,6 +156,20 @@ public static class WorkflowOperationalEndpoints
             return Results.Ok(new { url });
         });
 
+        // ── Operator audit log ─────────────────────────────────────────────────
+        group.MapGet("/{id:guid}/audit-log", async (
+            Guid id,
+            AgentDbContext db,
+            CancellationToken ct) =>
+        {
+            var entries = await db.WorkflowAuditLogs
+                .Where(e => e.WorkflowId == id)
+                .OrderByDescending(e => e.Timestamp)
+                .Select(e => new { e.Id, e.Actor, e.Action, e.Note, e.Timestamp })
+                .ToListAsync(ct);
+            return Results.Ok(entries);
+        });
+
         group.MapPost("/{id:guid}/approve", async (
             Guid id,
             WorkflowApproveRequest? request,
@@ -167,12 +181,14 @@ public static class WorkflowOperationalEndpoints
             var workflow = await db.TriageWorkflows.FindAsync([id], ct);
             if (workflow is null) return Results.NotFound();
 
-            workflow.ApproveEscalation(request?.ApprovedBy ?? "supervisor", request?.ApprovalNote);
+            var actor = request?.ApprovedBy ?? "supervisor";
+            workflow.ApproveEscalation(actor, request?.ApprovalNote);
 
             var escalation = await db.EscalationQueue.FirstOrDefaultAsync(item => item.WorkflowId == id, ct);
             if (escalation is not null && escalation.Status != EscalationStatus.Resolved)
                 escalation.Resolve(request?.ApprovalNote ?? "Approved via workbench.");
 
+            db.WorkflowAuditLogs.Add(WorkflowOperatorAuditLog.Create(id, actor, "Approved", request?.ApprovalNote));
             await db.SaveChangesAsync(ct);
 
             // Fire-and-forget scheduling dispatch now that escalation is cleared
@@ -196,6 +212,7 @@ public static class WorkflowOperationalEndpoints
             try { escalation.Claim(request.ClaimedBy); }
             catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
 
+            db.WorkflowAuditLogs.Add(WorkflowOperatorAuditLog.Create(id, request.ClaimedBy, "EscalationClaimed"));
             await db.SaveChangesAsync(ct);
 
             var workflow = await db.TriageWorkflows.AsNoTracking().FirstOrDefaultAsync(item => item.Id == id, ct);
@@ -217,6 +234,7 @@ public static class WorkflowOperationalEndpoints
             try { escalation.Release(); }
             catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
 
+            db.WorkflowAuditLogs.Add(WorkflowOperatorAuditLog.Create(id, "supervisor", "EscalationReleased"));
             await db.SaveChangesAsync(ct);
 
             var workflow = await db.TriageWorkflows.AsNoTracking().FirstOrDefaultAsync(item => item.Id == id, ct);
@@ -273,6 +291,9 @@ public static class WorkflowOperationalEndpoints
                     break;
             }
 
+            db.WorkflowAuditLogs.Add(WorkflowOperatorAuditLog.Create(id, "supervisor", action!));
+            await db.SaveChangesAsync(ct);
+
             var escalation = await db.EscalationQueue.AsNoTracking().FirstOrDefaultAsync(item => item.WorkflowId == id, ct);
             var summary = ToWorkflowSummary(workflow, escalation);
             _ = Task.Run(() => pubSub.SendWorkflowUpdateAsync(new { type = "WorkflowUpdated", action, workflow = summary }, CancellationToken.None), CancellationToken.None);
@@ -290,6 +311,7 @@ public static class WorkflowOperationalEndpoints
             if (workflow is null) return Results.NotFound();
 
             workflow.RequeueScheduling();
+            db.WorkflowAuditLogs.Add(WorkflowOperatorAuditLog.Create(id, "supervisor", "RequeueScheduling"));
             await db.SaveChangesAsync(ct);
 
             _ = Task.Run(() => dispatcher.RetrySchedulingAsync(workflow, CancellationToken.None), CancellationToken.None);

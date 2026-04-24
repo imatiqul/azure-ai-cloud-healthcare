@@ -111,9 +111,9 @@ export function DenialManager() {
     setAppealError(null);
     try {
       const res = await fetch(`${API_BASE}/api/v1/revenue/denials/${appealTarget.id}/appeal`, {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes: appealNotes }),
+        body: JSON.stringify({ appealNotes }),
         signal: AbortSignal.timeout(10_000),
       });
       if (res.ok) {

@@ -124,7 +124,7 @@ describe('DenialManager', () => {
     });
   });
 
-  it('submits appeal POST with notes and closes dialog', { timeout: 15000 }, async () => {
+  it('submits appeal PUT with notes and closes dialog', { timeout: 15000 }, async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce({ ok: true, json: async () => mockDenials } as Response)
       .mockResolvedValueOnce({ ok: true, json: async () => mockAnalytics } as Response)
@@ -145,7 +145,7 @@ describe('DenialManager', () => {
 
     await waitFor(() => {
       const appealCalls = fetchMock.mock.calls.filter(([url, opts]) =>
-        String(url).includes('/appeal') && (opts as RequestInit)?.method === 'POST'
+        String(url).includes('/appeal') && (opts as RequestInit)?.method === 'PUT'
       );
       expect(appealCalls.length).toBe(1);
     }, { timeout: 5000 });

@@ -23,6 +23,8 @@ public class AgentDbContext : OutboxDbContext
     // Phase 6 — Agentic AI Maturity
     public DbSet<ReasoningAuditEntry> ReasoningAuditEntries => Set<ReasoningAuditEntry>();
     public DbSet<PromptExperimentOutcome> PromptExperimentOutcomes => Set<PromptExperimentOutcome>();
+    // Operator action audit trail
+    public DbSet<WorkflowOperatorAuditLog> WorkflowAuditLogs => Set<WorkflowOperatorAuditLog>();
 
     public AgentDbContext(DbContextOptions<AgentDbContext> options) : base(options) { }
 
@@ -204,6 +206,19 @@ public class AgentDbContext : OutboxDbContext
             b.Property(e => e.ChallengerOutput).HasMaxLength(512);
             b.HasIndex(e => e.ExperimentId);
             b.HasIndex(e => e.RecordedAt);
+        });
+
+        // ── Operator action audit trail ────────────────────────────────────────
+
+        modelBuilder.Entity<WorkflowOperatorAuditLog>(b =>
+        {
+            b.ToTable("workflow_audit_logs");
+            b.HasKey(e => e.Id);
+            b.Property(e => e.Actor).HasMaxLength(256).IsRequired();
+            b.Property(e => e.Action).HasMaxLength(128).IsRequired();
+            b.Property(e => e.Note).HasMaxLength(2048);
+            b.HasIndex(e => e.WorkflowId);
+            b.HasIndex(e => e.Timestamp);
         });
     }
 }
