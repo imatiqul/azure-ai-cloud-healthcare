@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { selectShellTab } from '@healthcare/mfe-events';
 import { TabbedPageLayout } from './TabbedPageLayout';
 
 const defaultTabs = [
@@ -100,5 +101,16 @@ describe('TabbedPageLayout', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Tab Three' }));
     expect(screen.getByText('Content Three')).toBeInTheDocument();
     expect(sessionStorage.length).toBe(0);
+  });
+
+  it('switches tabs when a shell tab-selection request is emitted', () => {
+    renderLayout({ storageKey: 'hq:test-tabs' });
+
+    act(() => {
+      selectShellTab('hq:test-tabs', 2);
+    });
+
+    expect(screen.getByText('Content Three')).toBeInTheDocument();
+    expect(sessionStorage.getItem('hq:test-tabs')).toBe('2');
   });
 });

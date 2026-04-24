@@ -8,7 +8,16 @@ import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
-import { emitSlotReserved } from '@healthcare/mfe-events';
+import {
+  emitSlotReserved,
+  getActiveWorkflowHandoff,
+  getLatestWorkflowHandoff,
+  getWorkflowHandoff,
+  onTriageApproved,
+  setActiveWorkflow,
+  selectShellTab,
+  upsertWorkflowHandoff,
+} from '@healthcare/mfe-events';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -38,10 +47,27 @@ export function SlotCalendar() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [reserveError, setReserveError] = useState<string | null>(null);
+  const [workflowContext, setWorkflowContext] = useState(() => getActiveWorkflowHandoff() ?? getLatestWorkflowHandoff());
 
   useEffect(() => {
     fetchSlots();
   }, [selectedDate]);
+
+  useEffect(() => {
+    setWorkflowContext(getActiveWorkflowHandoff() ?? getLatestWorkflowHandoff());
+
+    const off = onTriageApproved(({ detail }) => {
+      setActiveWorkflow(detail.workflowId);
+      setWorkflowContext(
+        getWorkflowHandoff(detail.workflowId)
+        ?? getWorkflowHandoff(detail.sessionId)
+        ?? getActiveWorkflowHandoff()
+        ?? getLatestWorkflowHandoff(),
+      );
+    });
+
+    return off;
+  }, []);
 
   async function fetchSlots() {
     setFetchError(null);
@@ -59,20 +85,46 @@ export function SlotCalendar() {
 
   async function reserveSlot(slotId: string) {
     setReserveError(null);
+    const selectedSlot = slots.find((slot) => slot.id === slotId);
+    const activeContext = getActiveWorkflowHandoff();
+    const currentContext = activeContext
+      ?? (workflowContext?.workflowId
+        ? getWorkflowHandoff(workflowContext.workflowId)
+        : workflowContext?.sessionId
+        ? getWorkflowHandoff(workflowContext.sessionId)
+        : getLatestWorkflowHandoff());
+    const patientId = currentContext?.patientId;
+    const practitionerId = selectedSlot?.practitionerId ?? currentContext?.practitionerId;
+
+    if (currentContext) {
+      const updated = upsertWorkflowHandoff({
+        ...currentContext,
+        practitionerId,
+        slotId,
+        status: 'Scheduling',
+        updatedAt: new Date().toISOString(),
+      });
+      setActiveWorkflow(updated.workflowId);
+      setWorkflowContext(updated);
+    }
+
     // Demo slots resolve locally — no backend needed
     if (slotId.startsWith('demo-slot-')) {
-      emitSlotReserved({ slotId });
+      emitSlotReserved({ slotId, patientId, practitionerId });
+      selectShellTab('hq:tab-scheduling', 1);
       setSlots(prev => prev.map(s => s.id === slotId ? { ...s, status: 'Reserved' } : s));
       return;
     }
     try {
       const res = await fetch(`${API_BASE}/api/v1/scheduling/slots/${slotId}/reserve`, { method: 'POST', signal: AbortSignal.timeout(10_000) });
       if (!res.ok) throw new Error(`Reservation failed (${res.status})`);
-      emitSlotReserved({ slotId });
+      emitSlotReserved({ slotId, patientId, practitionerId });
+      selectShellTab('hq:tab-scheduling', 1);
       fetchSlots();
     } catch {
       // Backend offline — treat as demo reserve success
-      emitSlotReserved({ slotId });
+      emitSlotReserved({ slotId, patientId, practitionerId });
+      selectShellTab('hq:tab-scheduling', 1);
       setSlots(prev => prev.map(s => s.id === slotId ? { ...s, status: 'Reserved' } : s));
     }
   }
@@ -94,18 +146,37 @@ export function SlotCalendar() {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {workflowContext?.patientId && (
+          <Alert severity="info" sx={{ mb: 1.5 }}>
+            Scheduling appointment for {workflowContext.patientName ?? workflowContext.patientId}.
+          </Alert>
+        )}
         {fetchError && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setFetchError(null)}>{fetchError}</Alert>}
         {reserveError && <Alert severity="warning" sx={{ mb: 1 }} onClose={() => setReserveError(null)}>{reserveError}</Alert>}
         {!fetchError && slots.length === 0 ? (
-          <Typography color="text.disabled" textAlign="center" sx={{ py: 4 }}>
-            No available slots for this date
-          </Typography>
+          <Stack spacing={1} alignItems="center" sx={{ py: 4 }}>
+            <Typography color="text.disabled" textAlign="center">
+              No available slots for this date
+            </Typography>
+            <Button size="sm" variant="outline" onClick={() => selectShellTab('hq:tab-scheduling', 2)}>
+              Open Waitlist
+            </Button>
+          </Stack>
         ) : (
           <Grid container spacing={1}>
             {slots.map((slot) => (
               <Grid item xs={6} key={slot.id}>
                 <Box
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Reserve slot ${slot.id}`}
                   onClick={() => reserveSlot(slot.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      void reserveSlot(slot.id);
+                    }
+                  }}
                   sx={{
                     p: 1.5,
                     border: slot.aiRecommended ? '2px solid' : 1,

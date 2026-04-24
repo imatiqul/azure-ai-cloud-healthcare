@@ -18,7 +18,17 @@ import {
   type AiThinkingMessage,
   type AgentResponseMessage,
 } from '@healthcare/web-pubsub-client';
-import { emitAgentDecision, emitEscalationRequired } from '@healthcare/mfe-events';
+import {
+  emitAgentDecision,
+  emitEscalationRequired,
+  emitNavigationRequested,
+  emitTranscriptCompleted,
+  getWorkflowHandoff,
+  onPatientSelected,
+  setActiveWorkflow,
+  selectShellTab,
+  upsertWorkflowHandoff,
+} from '@healthcare/mfe-events';
 import { AiThinkingPanel } from '@healthcare/design-system';
 
 type SessionStatus = 'idle' | 'connecting' | 'live' | 'ended';
@@ -376,6 +386,21 @@ const DEMO_TRANSCRIPTS = [
   "Patient with known Type 2 diabetes reports blood sugar of 320 mg/dL, excessive thirst, and frequent urination.",
 ];
 
+const DEFAULT_WORKFLOW_PATIENT_ID = 'PAT-00142';
+const FALLBACK_BACKEND_PATIENT_ID = '00000000-0000-0000-0000-000000000001';
+
+function getWorkflowHandoffStatus(level: string) {
+  return level === 'P1_Immediate' || level === 'P2_Urgent'
+    ? 'AwaitingHumanReview'
+    : 'Completed';
+}
+
+function getBackendPatientId(patientId: string): string {
+  const trimmed = patientId.trim();
+  if (!trimmed) return FALLBACK_BACKEND_PATIENT_ID;
+  return trimmed;
+}
+
 interface TriageResult {
   id: string;
   assignedLevel: string;
@@ -463,6 +488,7 @@ function SoapNotePanel({ note }: { note: SoapNote }) {
 export function VoiceSessionController() {
   const [status, setStatus]                   = useState<SessionStatus>('idle');
   const [sessionId, setSessionId]             = useState<string | null>(null);
+  const [patientId, setPatientId]             = useState(DEFAULT_WORKFLOW_PATIENT_ID);
   const [triage, setTriage]                   = useState<string | null>(null);
   const [transcriptText, setTranscriptText]   = useState('');
   const [selectedDemoTranscript, setSelectedDemoTranscript] = useState<string | null>(null);
@@ -485,6 +511,37 @@ export function VoiceSessionController() {
   const transcriptReviewed = reviewedTranscriptSnapshot !== null
     && reviewedTranscriptSnapshot === normalizedTranscript;
 
+  const persistWorkflowHandoff = useCallback((next: {
+    sessionId: string;
+    status: 'Processing' | 'AwaitingHumanReview' | 'Completed';
+    workflowId?: string;
+    transcriptText?: string;
+    triageLevel?: string;
+    reasoning?: string;
+  }) => {
+    const existing = getWorkflowHandoff(next.workflowId ?? next.sessionId) ?? getWorkflowHandoff(next.sessionId);
+    const timestamp = new Date().toISOString();
+
+    const saved = upsertWorkflowHandoff({
+      workflowId: next.workflowId ?? existing?.workflowId ?? next.sessionId,
+      sessionId: next.sessionId,
+      patientId: existing?.patientId ?? patientId,
+      patientName: existing?.patientName,
+      transcriptText: next.transcriptText ?? existing?.transcriptText,
+      triageLevel: next.triageLevel ?? existing?.triageLevel,
+      reasoning: next.reasoning ?? existing?.reasoning,
+      confidenceScore: existing?.confidenceScore,
+      status: next.status,
+      approvedBy: existing?.approvedBy,
+      practitionerId: existing?.practitionerId,
+      slotId: existing?.slotId,
+      createdAt: existing?.createdAt ?? timestamp,
+      updatedAt: timestamp,
+    });
+    setActiveWorkflow(saved.workflowId);
+    return saved;
+  }, [patientId]);
+
   // Append partial transcripts from audio-chunk responses
   const handlePartialTranscript = useCallback((text: string) => {
     setTranscriptText(prev => prev ? `${prev} ${text}` : text);
@@ -499,6 +556,16 @@ export function VoiceSessionController() {
       onTranscriptAppend: handlePartialTranscript,
       onTranscriptReplace: handleRecognizedTranscript,
     });
+
+  useEffect(() => {
+    const off = onPatientSelected(({ detail }) => {
+      if (detail.patientId?.trim()) {
+        setPatientId(detail.patientId.trim());
+      }
+    });
+
+    return off;
+  }, []);
 
   // -- Azure Web PubSub lifecycle ---------------------------------------------
   const connectPubSub = useCallback(async (sid: string) => {
@@ -518,13 +585,33 @@ export function VoiceSessionController() {
           case 'AgentResponse': {
             const m = msg as AgentResponseMessage;
             const level = m.triageLevel ?? 'Unknown';
+            const workflowStatus = getWorkflowHandoffStatus(level);
             setTriage(level);
             setTriageResult({ id: sid, assignedLevel: level, agentReasoning: m.text });
+            persistWorkflowHandoff({
+              sessionId: sid,
+              status: workflowStatus,
+              triageLevel: level,
+              reasoning: m.text,
+            });
             emitAgentDecision({ sessionId: sid, triageLevel: level, reasoning: m.text });
+            selectShellTab('hq:tab-triage', 0);
+            emitNavigationRequested({
+              path: '/triage',
+              reason: workflowStatus === 'AwaitingHumanReview'
+                ? 'AI triage flagged this case for human review.'
+                : 'AI triage is complete and ready for scheduling.',
+            });
             break;
           }
           case 'EscalationRequired':
+            persistWorkflowHandoff({ sessionId: sid, status: 'AwaitingHumanReview' });
             emitEscalationRequired({ sessionId: sid });
+            selectShellTab('hq:tab-triage', 0);
+            emitNavigationRequested({
+              path: '/triage',
+              reason: 'Human review is required before scheduling can continue.',
+            });
             break;
           case 'TranscriptReceived':
             setTranscriptText((prev) => prev ? `${prev} ${msg.text}` : msg.text);
@@ -573,7 +660,7 @@ export function VoiceSessionController() {
       const res = await fetch(`${API_BASE}/api/v1/voice/sessions`, {
         signal: AbortSignal.timeout(10_000),
         method: 'POST',
-        body: JSON.stringify({ patientId: '00000000-0000-0000-0000-000000000001' }),
+        body: JSON.stringify({ patientId: getBackendPatientId(patientId) }),
         headers: { 'Content-Type': 'application/json' },
       });
       if (!res.ok) throw new Error(`Voice service unavailable (${res.status})`);
@@ -592,9 +679,14 @@ export function VoiceSessionController() {
   async function endSession() {
     if (!sessionId) return;
     stopRecording();
-    await fetch(`${API_BASE}/api/v1/voice/sessions/${sessionId}/end`, { signal: AbortSignal.timeout(10_000), method: 'POST' });
-    setStatus('ended');
-    await disconnectPubSub();
+    try {
+      await fetch(`${API_BASE}/api/v1/voice/sessions/${sessionId}/end`, { signal: AbortSignal.timeout(10_000), method: 'POST' });
+    } catch {
+      // Demo/offline sessions still need to end locally.
+    } finally {
+      setStatus('ended');
+      await disconnectPubSub();
+    }
   }
 
   async function submitForTriage() {
@@ -608,6 +700,13 @@ export function VoiceSessionController() {
     setAiThinkingText('');
     setAiStreaming(false);
     setAiDone(false);
+    emitTranscriptCompleted({ sessionId, transcriptText: approvedTranscript });
+    persistWorkflowHandoff({
+      sessionId,
+      workflowId: sessionId,
+      transcriptText: approvedTranscript,
+      status: 'Processing',
+    });
     try {
       await fetch(`${API_BASE}/api/v1/voice/sessions/${sessionId}/transcript`, {
         signal: AbortSignal.timeout(10_000),
@@ -655,7 +754,23 @@ export function VoiceSessionController() {
 
       setTriage(level);
       setTriageResult({ id: sessionId, assignedLevel: level, agentReasoning: reasoning });
+      const workflowStatus = getWorkflowHandoffStatus(level);
+      persistWorkflowHandoff({
+        sessionId,
+        workflowId: sessionId,
+        transcriptText: approvedTranscript,
+        triageLevel: level,
+        reasoning,
+        status: workflowStatus,
+      });
       emitAgentDecision({ sessionId, triageLevel: level, reasoning });
+      selectShellTab('hq:tab-triage', 0);
+      emitNavigationRequested({
+        path: '/triage',
+        reason: workflowStatus === 'AwaitingHumanReview'
+          ? 'AI triage is ready for human review.'
+          : 'AI triage is complete and ready for scheduling.',
+      });
     } catch {
       // Backend offline — simulate a demo triage result so the flow completes
       const level = 'P2_Urgent';
@@ -673,7 +788,22 @@ export function VoiceSessionController() {
       });
       setTriage(level);
       setTriageResult({ id: sessionId ?? 'demo', assignedLevel: level, agentReasoning: reasoning });
-      emitAgentDecision({ sessionId: sessionId ?? 'demo', triageLevel: level, reasoning });
+      const resolvedSessionId = sessionId ?? 'demo';
+      const workflowStatus = getWorkflowHandoffStatus(level);
+      persistWorkflowHandoff({
+        sessionId: resolvedSessionId,
+        workflowId: resolvedSessionId,
+        transcriptText: approvedTranscript,
+        triageLevel: level,
+        reasoning,
+        status: workflowStatus,
+      });
+      emitAgentDecision({ sessionId: resolvedSessionId, triageLevel: level, reasoning });
+      selectShellTab('hq:tab-triage', 0);
+      emitNavigationRequested({
+        path: '/triage',
+        reason: 'Demo triage is ready for human review.',
+      });
     } finally {
       setSubmitting(false);
     }

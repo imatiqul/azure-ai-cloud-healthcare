@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Typography from '@mui/material/Typography';
+import { onTabSelectionRequested } from '@healthcare/mfe-events';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,22 @@ export function TabbedPageLayout({ tabs, title, storageKey }: TabbedPageLayoutPr
       return 0;
     }
   });
+
+  useEffect(() => {
+    if (!storageKey) return undefined;
+
+    return onTabSelectionRequested(({ detail }) => {
+      if (detail.storageKey !== storageKey) return;
+      if (!Number.isInteger(detail.tabIndex) || detail.tabIndex < 0 || detail.tabIndex >= tabs.length) return;
+
+      setActiveTab(detail.tabIndex);
+      try {
+        sessionStorage.setItem(storageKey, String(detail.tabIndex));
+      } catch {
+        // Ignore session-storage failures during programmatic tab activation.
+      }
+    });
+  }, [storageKey, tabs.length]);
 
   const handleChange = (_: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);

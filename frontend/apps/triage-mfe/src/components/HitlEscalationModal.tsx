@@ -9,12 +9,22 @@ import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
 import { Button, AiThinkingPanel, useStreamText } from '@healthcare/design-system';
-import { emitTriageApproved } from '@healthcare/mfe-events';
+import {
+  emitNavigationRequested,
+  emitTriageApproved,
+  getWorkflowHandoff,
+  setActiveWorkflow,
+  selectShellTab,
+  upsertWorkflowHandoff,
+} from '@healthcare/mfe-events';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 interface HitlEscalationModalProps {
   workflowId: string;
+  sessionId?: string;
+  patientId?: string;
+  patientName?: string;
   triageLevel?: string;
   agentReasoning?: string;
   onApprove: () => void;
@@ -23,6 +33,9 @@ interface HitlEscalationModalProps {
 
 export function HitlEscalationModal({
   workflowId,
+  sessionId,
+  patientId,
+  patientName,
   triageLevel,
   agentReasoning,
   onApprove,
@@ -37,6 +50,47 @@ export function HitlEscalationModal({
   const { displayed: streamedReasoning, streaming: reasoningStreaming, done: reasoningDone } =
     useStreamText(agentReasoning ?? '');
 
+  function finalizeApproval() {
+    const resolvedSessionId = sessionId ?? workflowId;
+    const existing = getWorkflowHandoff(workflowId) ?? getWorkflowHandoff(resolvedSessionId);
+    const timestamp = new Date().toISOString();
+    const resolvedPatientId = patientId ?? existing?.patientId;
+    const resolvedTriageLevel = triageLevel ?? existing?.triageLevel ?? 'Unknown';
+    const resolvedWorkflowId = existing?.workflowId ?? workflowId;
+
+    upsertWorkflowHandoff({
+      workflowId: resolvedWorkflowId,
+      sessionId: resolvedSessionId,
+      patientId: resolvedPatientId,
+      patientName: patientName ?? existing?.patientName,
+      transcriptText: existing?.transcriptText,
+      triageLevel: resolvedTriageLevel,
+      reasoning: agentReasoning ?? existing?.reasoning,
+      confidenceScore: existing?.confidenceScore,
+      status: 'Completed',
+      approvedBy: 'current-user',
+      practitionerId: existing?.practitionerId,
+      slotId: existing?.slotId,
+      createdAt: existing?.createdAt ?? timestamp,
+      updatedAt: timestamp,
+    });
+    setActiveWorkflow(resolvedWorkflowId);
+
+    emitTriageApproved({
+      workflowId: resolvedWorkflowId,
+      sessionId: resolvedSessionId,
+      patientId: resolvedPatientId,
+      triageLevel: resolvedTriageLevel,
+      approvedBy: 'current-user',
+    });
+    selectShellTab('hq:tab-scheduling', 0);
+    emitNavigationRequested({
+      path: '/scheduling',
+      reason: 'Triage approved. Continue to appointment scheduling.',
+    });
+    onApprove();
+  }
+
   async function handleApprove() {
     if (!clinicianNote.trim()) {
       setError('A clinical justification note is required before approving.');
@@ -45,7 +99,10 @@ export function HitlEscalationModal({
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/agents/triage/${workflowId}/approve`, {
+      const resolvedWorkflowId = getWorkflowHandoff(workflowId)?.workflowId
+        ?? getWorkflowHandoff(sessionId ?? workflowId)?.workflowId
+        ?? workflowId;
+      const res = await fetch(`${API_BASE}/api/v1/agents/triage/${resolvedWorkflowId}/approve`, {
         signal: AbortSignal.timeout(10_000),
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,12 +120,10 @@ export function HitlEscalationModal({
         }),
       });
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      emitTriageApproved({ workflowId, sessionId: workflowId, triageLevel: triageLevel ?? 'Unknown', approvedBy: 'current-user' });
-      onApprove();
+      finalizeApproval();
     } catch {
       // Backend offline — complete the HITL approval locally so the workflow is never blocked
-      emitTriageApproved({ workflowId, sessionId: workflowId, triageLevel: triageLevel ?? 'Unknown', approvedBy: 'current-user' });
-      onApprove();
+      finalizeApproval();
     } finally {
       setSubmitting(false);
     }

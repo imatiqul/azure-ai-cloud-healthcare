@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { setActiveWorkflow, upsertWorkflowHandoff } from '@healthcare/mfe-events';
 import { WaitlistPanel } from './WaitlistPanel';
 
 const mockWaitlistEntries = [
@@ -35,33 +36,25 @@ const mockWaitlistEntries = [
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  sessionStorage.clear();
 });
 
 describe('WaitlistPanel', () => {
   it('renders the Add to Waitlist card header', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => [],
-    } as Response);
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(() => new Promise(() => {}));
     render(<WaitlistPanel />);
     expect(screen.getAllByText('Add to Waitlist').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the enqueue form fields', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => [],
-    } as Response);
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(() => new Promise(() => {}));
     render(<WaitlistPanel />);
     expect(screen.getByPlaceholderText('e.g. PAT-001')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('e.g. PRAC-001')).toBeInTheDocument();
   });
 
   it('renders Add to Waitlist and Check Conflict buttons', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => [],
-    } as Response);
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(() => new Promise(() => {}));
     render(<WaitlistPanel />);
     expect(screen.getByRole('button', { name: /add to waitlist/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /check conflict/i })).toBeInTheDocument();
@@ -208,5 +201,27 @@ describe('WaitlistPanel', () => {
     await waitFor(() => {
       expect(screen.getByText(/Enter Patient ID and Practitioner ID before checking conflicts/i)).toBeInTheDocument();
     });
+  });
+
+  it('prefills waitlist fields from the active workflow context', async () => {
+    upsertWorkflowHandoff({
+      workflowId: 'wf-wait-1',
+      sessionId: 'sess-wait-1',
+      patientId: 'PAT-818',
+      patientName: 'Amina Noor',
+      practitionerId: 'DR-818',
+      triageLevel: 'P2_Urgent',
+      status: 'Scheduling',
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    });
+    setActiveWorkflow('wf-wait-1');
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(() => new Promise(() => {}));
+
+    render(<WaitlistPanel />);
+
+    expect(screen.getByDisplayValue('PAT-818')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('DR-818')).toBeInTheDocument();
+    expect(screen.getByText(/Continuing scheduling fallback for Amina Noor/i)).toBeInTheDocument();
   });
 });

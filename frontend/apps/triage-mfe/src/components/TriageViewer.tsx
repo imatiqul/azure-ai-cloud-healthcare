@@ -7,7 +7,21 @@ import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
 import Skeleton from '@mui/material/Skeleton';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button, useStreamText } from '@healthcare/design-system';
-import { onEscalationRequired, onAgentDecision, onBackendStatusChanged } from '@healthcare/mfe-events';
+import {
+  emitNavigationRequested,
+  getActiveWorkflowHandoff,
+  getWorkflowHandoff,
+  loadWorkflowHandoffs,
+  onAgentDecision,
+  onBackendStatusChanged,
+  onEscalationRequired,
+  onTranscriptCompleted,
+  onTriageApproved,
+  setActiveWorkflow,
+  selectShellTab,
+  type WorkflowHandoffRecord,
+  upsertWorkflowHandoff,
+} from '@healthcare/mfe-events';
 import { HitlEscalationModal } from './HitlEscalationModal';
 
 /**
@@ -87,6 +101,7 @@ const DEMO_WORKFLOWS: TriageWorkflow[] = [
 interface TriageWorkflow {
   id: string;
   sessionId: string;
+  patientId?: string;
   patientName?: string;
   status: string;
   triageLevel: string;
@@ -173,6 +188,7 @@ function normalizeWorkflow(raw: unknown, index: number): TriageWorkflow | null {
   return {
     id,
     sessionId,
+    patientId: pickStringField(record, ['patientId', 'PatientId']),
     patientName: pickStringField(record, ['patientName', 'PatientName']),
     status,
     triageLevel,
@@ -187,6 +203,55 @@ function normalizeWorkflowList(data: unknown): TriageWorkflow[] {
   return data
     .map((raw, index) => normalizeWorkflow(raw, index))
     .filter((workflow): workflow is TriageWorkflow => workflow !== null);
+}
+
+function workflowStatusFromLevel(level?: string): 'AwaitingHumanReview' | 'Completed' {
+  return level === 'P1_Immediate' || level === 'P2_Urgent'
+    ? 'AwaitingHumanReview'
+    : 'Completed';
+}
+
+function workflowFromHandoff(record: WorkflowHandoffRecord): TriageWorkflow {
+  return {
+    id: record.workflowId,
+    sessionId: record.sessionId,
+    patientId: record.patientId,
+    patientName: record.patientName,
+    status: record.status,
+    triageLevel: record.triageLevel ?? 'Pending',
+    confidenceScore: record.confidenceScore,
+    agentReasoning: record.reasoning,
+    createdAt: record.createdAt,
+  };
+}
+
+function persistedStatus(status: string): 'Processing' | 'AwaitingHumanReview' | 'Completed' {
+  if (status === 'AwaitingHumanReview') return 'AwaitingHumanReview';
+  if (status === 'Completed') return 'Completed';
+  return 'Processing';
+}
+
+function mergeWorkflowLists(...collections: TriageWorkflow[][]): TriageWorkflow[] {
+  const merged: TriageWorkflow[] = [];
+
+  for (const collection of collections) {
+    for (const workflow of collection) {
+      const existingIndex = merged.findIndex((candidate) =>
+        candidate.id === workflow.id
+        || candidate.sessionId === workflow.sessionId
+        || candidate.id === workflow.sessionId
+        || candidate.sessionId === workflow.id,
+      );
+
+      if (existingIndex >= 0) {
+        merged[existingIndex] = { ...merged[existingIndex], ...workflow };
+      } else {
+        merged.push(workflow);
+      }
+    }
+  }
+
+  return merged.sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
 }
 
 export function TriageViewer() {
@@ -206,6 +271,46 @@ export function TriageViewer() {
   const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollDelayRef   = useRef<number>(5_000);
 
+  function persistWorkflow(
+    identifier: string,
+    patch: {
+      workflowId?: string;
+      sessionId?: string;
+      patientId?: string;
+      patientName?: string;
+      transcriptText?: string;
+      triageLevel?: string;
+      reasoning?: string;
+      status: 'Processing' | 'AwaitingHumanReview' | 'Completed';
+      approvedBy?: string;
+    },
+  ) {
+    const existing = getWorkflowHandoff(patch.workflowId ?? identifier) ?? getWorkflowHandoff(patch.sessionId ?? identifier);
+    const timestamp = new Date().toISOString();
+
+    return upsertWorkflowHandoff({
+      workflowId: patch.workflowId ?? existing?.workflowId ?? patch.sessionId ?? identifier,
+      sessionId: patch.sessionId ?? existing?.sessionId ?? identifier,
+      patientId: patch.patientId ?? existing?.patientId,
+      patientName: patch.patientName ?? existing?.patientName,
+      transcriptText: patch.transcriptText ?? existing?.transcriptText,
+      triageLevel: patch.triageLevel ?? existing?.triageLevel,
+      reasoning: patch.reasoning ?? existing?.reasoning,
+      confidenceScore: existing?.confidenceScore,
+      status: patch.status,
+      approvedBy: patch.approvedBy ?? existing?.approvedBy,
+      practitionerId: existing?.practitionerId,
+      slotId: existing?.slotId,
+      createdAt: existing?.createdAt ?? timestamp,
+      updatedAt: timestamp,
+    });
+  }
+
+  function integrateWorkflow(record: WorkflowHandoffRecord) {
+    setActiveWorkflow(record.workflowId);
+    setWorkflows((prev) => mergeWorkflowLists(prev, [workflowFromHandoff(record)]));
+  }
+
   function schedulePoll(delayMs: number) {
     if (intervalRef.current) clearInterval(intervalRef.current);
     pollDelayRef.current = delayMs;
@@ -213,10 +318,13 @@ export function TriageViewer() {
   }
 
   async function doFetch() {
+    const localWorkflows = loadWorkflowHandoffs().map(workflowFromHandoff);
+
     // If the global health check already confirmed the backend is down, skip the
     // fetch entirely and show demo data — avoids 404s in the browser console.
     if (backendOnline === false) {
-      setWorkflows(prev => prev.length > 0 ? prev : DEMO_WORKFLOWS);
+      const fallback = mergeWorkflowLists(DEMO_WORKFLOWS, localWorkflows);
+      setWorkflows(prev => prev.length > 0 ? mergeWorkflowLists(prev, localWorkflows) : fallback);
       setLoading(false);
       return;
     }
@@ -233,10 +341,22 @@ export function TriageViewer() {
       }
       const data = await res.json();
       const normalized = normalizeWorkflowList(data);
+      const persistedFromBackend = normalized.map((workflow) => workflowFromHandoff(
+        persistWorkflow(workflow.sessionId, {
+          workflowId: workflow.id,
+          sessionId: workflow.sessionId,
+          patientId: workflow.patientId,
+          patientName: workflow.patientName,
+          triageLevel: workflow.triageLevel,
+          reasoning: workflow.agentReasoning,
+          status: persistedStatus(workflow.status),
+        }),
+      ));
+      const merged = mergeWorkflowLists(normalized, localWorkflows, persistedFromBackend);
       if (Array.isArray(data) && data.length === 0) {
-        setWorkflows([]);
+        setWorkflows(localWorkflows);
       } else {
-        setWorkflows(normalized.length > 0 ? normalized : DEMO_WORKFLOWS);
+        setWorkflows(merged.length > 0 ? merged : mergeWorkflowLists(DEMO_WORKFLOWS, localWorkflows));
       }
       setError(null);
       // Backend is live — ensure we're polling at the fast 5-second cadence
@@ -244,7 +364,8 @@ export function TriageViewer() {
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
         // Backend unavailable — show demo data so the UI remains useful
-        setWorkflows(prev => prev.length > 0 ? prev : DEMO_WORKFLOWS);
+        const fallback = mergeWorkflowLists(DEMO_WORKFLOWS, localWorkflows);
+        setWorkflows(prev => prev.length > 0 ? mergeWorkflowLists(prev, localWorkflows) : fallback);
         setError(null);
         if (pollDelayRef.current !== 30_000) schedulePoll(30_000);
       }
@@ -262,29 +383,78 @@ export function TriageViewer() {
 
   useEffect(() => {
     void doFetch();
+    const offTranscript = onTranscriptCompleted(({ detail }) => {
+      const record = persistWorkflow(detail.sessionId, {
+        workflowId: detail.sessionId,
+        sessionId: detail.sessionId,
+        transcriptText: detail.transcriptText,
+        triageLevel: detail.triageLevel,
+        status: 'Processing',
+      });
+      integrateWorkflow(record);
+    });
     const offEscalation = onEscalationRequired(({ detail }) => {
       const incomingId = detail.workflowId ?? detail.sessionId;
+      const record = persistWorkflow(incomingId, {
+        workflowId: incomingId,
+        sessionId: detail.sessionId,
+        reasoning: detail.reason,
+        status: 'AwaitingHumanReview',
+      });
+      integrateWorkflow(record);
+      const matchedWorkflow = workflowsRef.current.find((workflow) =>
+        workflow.id === incomingId
+        || workflow.sessionId === detail.sessionId
+        || workflow.sessionId === incomingId,
+      );
       const fallbackWorkflowId = workflowsRef.current.find(wf => wf.status === 'AwaitingHumanReview')?.id
         ?? workflowsRef.current[0]?.id
         ?? null;
-      setSelectedWorkflow(incomingId ?? fallbackWorkflowId);
+      const resolvedSelection = matchedWorkflow?.id ?? record.workflowId ?? incomingId ?? fallbackWorkflowId;
+      setActiveWorkflow(resolvedSelection);
+      setSelectedWorkflow(resolvedSelection);
       setShowEscalation(true);
     });
-    const offDecision   = onAgentDecision(() => void doFetch());
+    const offDecision = onAgentDecision(({ detail }) => {
+      const record = persistWorkflow(detail.sessionId, {
+        workflowId: detail.sessionId,
+        sessionId: detail.sessionId,
+        triageLevel: detail.triageLevel,
+        reasoning: detail.reasoning,
+        status: workflowStatusFromLevel(detail.triageLevel),
+      });
+      integrateWorkflow(record);
+    });
+    const offApproved = onTriageApproved(({ detail }) => {
+      const record = persistWorkflow(detail.workflowId ?? detail.sessionId, {
+        workflowId: detail.workflowId,
+        sessionId: detail.sessionId,
+        patientId: detail.patientId,
+        triageLevel: detail.triageLevel,
+        status: 'Completed',
+        approvedBy: detail.approvedBy,
+      });
+      integrateWorkflow(record);
+      setShowEscalation(false);
+    });
     // When shell announces the backend went offline, immediately switch to demo
     // data without waiting for the next poll cycle.
     const offStatus = onBackendStatusChanged(({ detail }) => {
       setBackendOnlineLocal(detail.online);
       if (!detail.online) {
-        setWorkflows(prev => prev.length > 0 ? prev : DEMO_WORKFLOWS);
+        const localWorkflows = loadWorkflowHandoffs().map(workflowFromHandoff);
+        const fallback = mergeWorkflowLists(DEMO_WORKFLOWS, localWorkflows);
+        setWorkflows(prev => prev.length > 0 ? mergeWorkflowLists(prev, localWorkflows) : fallback);
         setLoading(false);
       }
     });
     intervalRef.current = setInterval(doFetch, 5_000);
     return () => {
       abortRef.current?.abort();
+      offTranscript();
       offEscalation();
       offDecision();
+      offApproved();
       offStatus();
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -400,13 +570,16 @@ export function TriageViewer() {
             boxShadow: wf.triageLevel === 'P1_Immediate' && wf.status === 'AwaitingHumanReview' ? '0 0 0 1px rgba(211,47,47,0.25)' : undefined,
             '&:hover': { boxShadow: 3 },
           }}
-                onClick={() => setSelectedWorkflow(wf.id)}>
+                onClick={() => {
+                  setActiveWorkflow(wf.id);
+                  setSelectedWorkflow(wf.id);
+                }}>
             <CardHeader>
               <CardTitle>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Box>
                     <Typography variant="subtitle2" fontWeight={700}>
-                      {wf.patientName ?? `Session ${wf.sessionId.substring(0, 8)}...`}
+                      {wf.patientName ?? wf.patientId ?? `Session ${wf.sessionId.substring(0, 8)}...`}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       {new Date(wf.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {Math.round((Date.now() - new Date(wf.createdAt).getTime()) / 60000)}m ago
@@ -446,10 +619,29 @@ export function TriageViewer() {
               {wf.status === 'AwaitingHumanReview' && (
                 <Button size="sm" sx={{ mt: 1 }} onClick={(e: React.MouseEvent) => {
                   e.stopPropagation();
+                  setActiveWorkflow(wf.id);
                   setShowEscalation(true);
                   setSelectedWorkflow(wf.id);
                 }}>
                   Review & Approve
+                </Button>
+              )}
+              {wf.status === 'Completed' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  sx={{ mt: 1 }}
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    setActiveWorkflow(wf.id);
+                    selectShellTab('hq:tab-scheduling', 0);
+                    emitNavigationRequested({
+                      path: '/scheduling',
+                      reason: `Continue scheduling for ${wf.patientId ?? wf.sessionId}.`,
+                    });
+                  }}
+                >
+                  Continue to Scheduling
                 </Button>
               )}
             </CardContent>
@@ -458,7 +650,10 @@ export function TriageViewer() {
       </Stack>
       {showEscalation && selectedWorkflow && (
         <HitlEscalationModal
-          workflowId={selectedWorkflowData?.id ?? selectedWorkflow}
+          workflowId={selectedWorkflowData?.id ?? getActiveWorkflowHandoff()?.workflowId ?? selectedWorkflow}
+          sessionId={selectedWorkflowData?.sessionId ?? getActiveWorkflowHandoff()?.sessionId}
+          patientId={selectedWorkflowData?.patientId ?? getActiveWorkflowHandoff()?.patientId}
+          patientName={selectedWorkflowData?.patientName ?? getActiveWorkflowHandoff()?.patientName}
           triageLevel={selectedWorkflowData?.triageLevel}
           agentReasoning={selectedWorkflowData?.agentReasoning}
           onApprove={() => { setShowEscalation(false); fetchWorkflows(); }}

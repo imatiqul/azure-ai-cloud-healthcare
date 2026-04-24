@@ -11,6 +11,7 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@healthcare/design-system';
 import Alert from '@mui/material/Alert';
+import { getActiveWorkflowHandoff } from '@healthcare/mfe-events';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -51,6 +52,7 @@ const PRIORITY_COLORS: Record<number, 'error' | 'warning' | 'default' | 'primary
 };
 
 export function WaitlistPanel() {
+  const activeWorkflow = getActiveWorkflowHandoff();
   const [entries, setEntries] = useState<WaitlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -58,8 +60,8 @@ export function WaitlistPanel() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [enqueueSuccess, setEnqueueSuccess] = useState(false);
 
-  const [patientId, setPatientId] = useState('');
-  const [practitionerId, setPractitionerId] = useState('');
+  const [patientId, setPatientId] = useState(activeWorkflow?.patientId ?? '');
+  const [practitionerId, setPractitionerId] = useState(activeWorkflow?.practitionerId ?? '');
   const [priority, setPriority] = useState<number>(3);
   const [preferredFrom, setPreferredFrom] = useState('');
   const [preferredTo, setPreferredTo] = useState('');
@@ -186,6 +188,11 @@ export function WaitlistPanel() {
           <CardTitle>Add to Waitlist</CardTitle>
         </CardHeader>
         <CardContent>
+          {activeWorkflow?.patientId && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Continuing scheduling fallback for {activeWorkflow.patientName ?? activeWorkflow.patientId}.
+            </Alert>
+          )}
           <form onSubmit={handleEnqueue}>
             <Stack spacing={2}>
               <Input

@@ -71,10 +71,39 @@ export interface NavigationRequestedDetail {
   openInNewTab?: boolean;
 }
 
+export interface TabSelectionRequestedDetail {
+  /** Session-storage key used by the shell tab layout */
+  storageKey: string;
+  /** Zero-based tab index to activate */
+  tabIndex: number;
+}
+
 export interface BackendStatusChangedDetail {
   /** true = APIM/backend is reachable, false = down/not deployed, null = checking */
   online: boolean;
 }
+
+export type WorkflowHandoffStatus = 'Processing' | 'AwaitingHumanReview' | 'Completed' | 'Scheduling' | 'Booked';
+
+export interface WorkflowHandoffRecord {
+  workflowId: string;
+  sessionId: string;
+  patientId?: string;
+  patientName?: string;
+  transcriptText?: string;
+  triageLevel?: string;
+  reasoning?: string;
+  confidenceScore?: number;
+  status: WorkflowHandoffStatus;
+  createdAt: string;
+  updatedAt: string;
+  approvedBy?: string;
+  practitionerId?: string;
+  slotId?: string;
+}
+
+export const WORKFLOW_HANDOFFS_STORAGE_KEY = 'hq:workflow-handoffs';
+export const ACTIVE_WORKFLOW_ID_STORAGE_KEY = 'hq:active-workflow-id';
 
 // ── Event name constants ─────────────────────────────────────────────────────
 
@@ -87,6 +116,7 @@ export const MFE_EVENTS = {
   BOOKING_CREATED:         'mfe:booking:created',
   TRIAGE_APPROVED:         'mfe:triage:approved',
   NAVIGATION_REQUESTED:    'mfe:navigation:requested',
+  TAB_SELECTION_REQUESTED: 'mfe:tab:selection',
   BACKEND_STATUS_CHANGED:  'mfe:backend:status',
 } as const;
 
@@ -161,6 +191,12 @@ export const emitNavigationRequested = (detail: NavigationRequestedDetail) =>
 export const onNavigationRequested = (handler: MfeEventHandler<NavigationRequestedDetail>) =>
   onMfeEvent<NavigationRequestedDetail>(MFE_EVENTS.NAVIGATION_REQUESTED, handler);
 
+export const emitTabSelectionRequested = (detail: TabSelectionRequestedDetail) =>
+  emitMfeEvent<TabSelectionRequestedDetail>(MFE_EVENTS.TAB_SELECTION_REQUESTED, detail);
+
+export const onTabSelectionRequested = (handler: MfeEventHandler<TabSelectionRequestedDetail>) =>
+  onMfeEvent<TabSelectionRequestedDetail>(MFE_EVENTS.TAB_SELECTION_REQUESTED, handler);
+
 export const emitBackendStatusChanged = (detail: BackendStatusChangedDetail) =>
   window.dispatchEvent(new CustomEvent<BackendStatusChangedDetail>(MFE_EVENTS.BACKEND_STATUS_CHANGED, { detail, bubbles: false }));
 
@@ -169,3 +205,164 @@ export const onBackendStatusChanged = (handler: MfeEventHandler<BackendStatusCha
   window.addEventListener(MFE_EVENTS.BACKEND_STATUS_CHANGED, listener);
   return () => window.removeEventListener(MFE_EVENTS.BACKEND_STATUS_CHANGED, listener);
 };
+
+function canUseSessionStorage(): boolean {
+  return typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined';
+}
+
+function saveActiveWorkflowId(identifier: string | null): void {
+  if (!canUseSessionStorage()) return;
+
+  try {
+    if (!identifier) {
+      window.sessionStorage.removeItem(ACTIVE_WORKFLOW_ID_STORAGE_KEY);
+    } else {
+      window.sessionStorage.setItem(ACTIVE_WORKFLOW_ID_STORAGE_KEY, identifier);
+    }
+  } catch {
+    // Ignore storage failures for the active workflow pointer.
+  }
+}
+
+function isWorkflowHandoffRecord(value: unknown): value is WorkflowHandoffRecord {
+  if (!value || typeof value !== 'object') return false;
+
+  const record = value as Record<string, unknown>;
+  return typeof record.workflowId === 'string'
+    && typeof record.sessionId === 'string'
+    && typeof record.status === 'string'
+    && typeof record.createdAt === 'string'
+    && typeof record.updatedAt === 'string';
+}
+
+function saveWorkflowHandoffs(records: WorkflowHandoffRecord[]): WorkflowHandoffRecord[] {
+  const normalized = [...records]
+    .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
+    .slice(0, 25);
+
+  if (!canUseSessionStorage()) return normalized;
+
+  try {
+    window.sessionStorage.setItem(WORKFLOW_HANDOFFS_STORAGE_KEY, JSON.stringify(normalized));
+  } catch {
+    // Ignore quota or serialization failures and keep the in-memory result.
+  }
+
+  return normalized;
+}
+
+export function loadWorkflowHandoffs(): WorkflowHandoffRecord[] {
+  if (!canUseSessionStorage()) return [];
+
+  try {
+    const raw = window.sessionStorage.getItem(WORKFLOW_HANDOFFS_STORAGE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter(isWorkflowHandoffRecord)
+      .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+  } catch {
+    return [];
+  }
+}
+
+export function getWorkflowHandoff(identifier: string): WorkflowHandoffRecord | null {
+  if (!identifier.trim()) return null;
+
+  return loadWorkflowHandoffs().find((record) =>
+    record.workflowId === identifier
+    || record.sessionId === identifier,
+  ) ?? null;
+}
+
+export function getLatestWorkflowHandoff(): WorkflowHandoffRecord | null {
+  return loadWorkflowHandoffs()[0] ?? null;
+}
+
+export function getActiveWorkflowId(): string | null {
+  if (!canUseSessionStorage()) return null;
+
+  try {
+    return window.sessionStorage.getItem(ACTIVE_WORKFLOW_ID_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function getActiveWorkflowHandoff(): WorkflowHandoffRecord | null {
+  const identifier = getActiveWorkflowId();
+  if (!identifier) return null;
+  return getWorkflowHandoff(identifier);
+}
+
+export function setActiveWorkflow(identifier: string | null): WorkflowHandoffRecord | null {
+  if (!identifier?.trim()) {
+    saveActiveWorkflowId(null);
+    return null;
+  }
+
+  const record = getWorkflowHandoff(identifier.trim());
+  saveActiveWorkflowId(record?.workflowId ?? identifier.trim());
+  return record ?? null;
+}
+
+export function upsertWorkflowHandoff(record: WorkflowHandoffRecord): WorkflowHandoffRecord {
+  const existing = loadWorkflowHandoffs();
+  const index = existing.findIndex((candidate) =>
+    candidate.workflowId === record.workflowId
+    || candidate.sessionId === record.sessionId
+    || candidate.workflowId === record.sessionId
+    || candidate.sessionId === record.workflowId,
+  );
+
+  const merged: WorkflowHandoffRecord = index >= 0
+    ? {
+        ...existing[index],
+        ...record,
+        workflowId: record.workflowId || existing[index].workflowId,
+        sessionId: record.sessionId || existing[index].sessionId,
+        createdAt: existing[index].createdAt || record.createdAt,
+      }
+    : record;
+
+  const next = [...existing];
+  if (index >= 0) {
+    next[index] = merged;
+  } else {
+    next.push(merged);
+  }
+
+  saveWorkflowHandoffs(next);
+
+  const activeIdentifier = getActiveWorkflowId();
+  if (!activeIdentifier && next.length === 1) {
+    saveActiveWorkflowId(merged.workflowId);
+  } else if (
+    activeIdentifier
+    && index >= 0
+    && (
+      activeIdentifier === existing[index].workflowId
+      || activeIdentifier === existing[index].sessionId
+      || activeIdentifier === record.workflowId
+      || activeIdentifier === record.sessionId
+    )
+  ) {
+    saveActiveWorkflowId(merged.workflowId);
+  }
+
+  return merged;
+}
+
+export function selectShellTab(storageKey: string, tabIndex: number): void {
+  if (canUseSessionStorage()) {
+    try {
+      window.sessionStorage.setItem(storageKey, String(tabIndex));
+    } catch {
+      // Ignore quota failures and still emit the runtime event.
+    }
+  }
+
+  emitTabSelectionRequested({ storageKey, tabIndex });
+}

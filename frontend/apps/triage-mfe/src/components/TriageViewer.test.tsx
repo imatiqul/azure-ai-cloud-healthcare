@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react';
+import { upsertWorkflowHandoff } from '@healthcare/mfe-events';
 import { TriageViewer } from './TriageViewer';
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  sessionStorage.clear();
 });
 
 describe('TriageViewer', () => {
@@ -186,5 +188,36 @@ describe('TriageViewer', () => {
     const filterBar = screen.getByLabelText(/triage filters/i);
     fireEvent.click(within(filterBar).getByText('Awaiting Review'));
     expect(screen.getByText(/no workflows match the active filters/i)).toBeInTheDocument();
+  });
+
+  it('materializes locally handed-off workflows when the backend is unavailable', async () => {
+    upsertWorkflowHandoff({
+      workflowId: 'sess-live-1',
+      sessionId: 'sess-live-1',
+      patientId: 'PAT-700',
+      patientName: 'Dana Scott',
+      transcriptText: 'Patient reports acute chest pain.',
+      triageLevel: 'P2_Urgent',
+      reasoning: 'Escalated chest pain case.',
+      status: 'Processing',
+      createdAt: '2025-01-03T00:00:00Z',
+      updatedAt: '2025-01-03T00:00:00Z',
+    });
+    global.fetch = vi.fn(() => Promise.reject(new Error('Network error'))) as unknown as typeof fetch;
+
+    render(<TriageViewer />);
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('mfe:agent:decision', {
+          detail: { sessionId: 'sess-live-1', triageLevel: 'P2_Urgent', reasoning: 'Escalated chest pain case.' },
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Dana Scott')).toBeInTheDocument();
+      expect(screen.getByText('P2_Urgent')).toBeInTheDocument();
+    });
   });
 });

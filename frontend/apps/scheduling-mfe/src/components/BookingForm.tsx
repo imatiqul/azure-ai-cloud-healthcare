@@ -2,26 +2,65 @@ import { useState, useEffect } from 'react';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@healthcare/design-system';
-import { onSlotReserved, emitBookingCreated } from '@healthcare/mfe-events';
+import {
+  getActiveWorkflowHandoff,
+  emitBookingCreated,
+  onSlotReserved,
+  setActiveWorkflow,
+  upsertWorkflowHandoff,
+} from '@healthcare/mfe-events';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 export function BookingForm() {
-  const [slotId, setSlotId] = useState('');
-  const [patientId, setPatientId] = useState('');
-  const [practitionerId, setPractitionerId] = useState('');
+  const initialWorkflow = getActiveWorkflowHandoff();
+  const [slotId, setSlotId] = useState(initialWorkflow?.slotId ?? '');
+  const [patientId, setPatientId] = useState(initialWorkflow?.patientId ?? '');
+  const [practitionerId, setPractitionerId] = useState(initialWorkflow?.practitionerId ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    const syncFromWorkflow = () => {
+      const current = getActiveWorkflowHandoff();
+      if (!current || current.status === 'Booked') return;
+      if (current?.slotId) setSlotId(current.slotId);
+      if (current?.patientId) setPatientId(current.patientId);
+      if (current?.practitionerId) setPractitionerId(current.practitionerId);
+    };
+
+    syncFromWorkflow();
+
     const off = onSlotReserved((e) => {
       if (e.detail?.slotId) setSlotId(e.detail.slotId);
       if (e.detail?.patientId) setPatientId(e.detail.patientId);
       if (e.detail?.practitionerId) setPractitionerId(e.detail.practitionerId);
+      syncFromWorkflow();
     });
     return off;
   }, []);
+
+  function finalizeBooking(bookingId?: string) {
+    const existing = getActiveWorkflowHandoff();
+    if (existing) {
+      upsertWorkflowHandoff({
+        ...existing,
+        slotId,
+        patientId,
+        practitionerId,
+        status: 'Booked',
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    setActiveWorkflow(null);
+
+    emitBookingCreated({ bookingId, slotId, patientId });
+    setSlotId('');
+    setPatientId('');
+    setPractitionerId('');
+    setSuccess(true);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,19 +82,12 @@ export function BookingForm() {
         const msg = await res.text().catch(() => res.statusText);
         throw new Error(msg || `Request failed (${res.status})`);
       }
-      emitBookingCreated({ slotId, patientId });
-      setSlotId('');
-      setPatientId('');
-      setPractitionerId('');
-      setSuccess(true);
+      const data = await res.json().catch(() => null) as { id?: string; bookingId?: string } | null;
+      finalizeBooking(data?.bookingId ?? data?.id);
     } catch {
       // Backend offline — confirm booking locally so the scheduling flow completes
-      emitBookingCreated({ slotId, patientId });
-      setSlotId('');
-      setPatientId('');
-      setPractitionerId('');
+      finalizeBooking();
       setError(null);
-      setSuccess(true);
     } finally {
       setSubmitting(false);
     }
