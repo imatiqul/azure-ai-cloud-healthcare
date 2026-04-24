@@ -163,3 +163,92 @@ export async function disposeGlobalVoiceClient(): Promise<void> {
     globalClient = null;
   }
 }
+
+// ── Workflow Ops real-time push ───────────────────────────────────────────────
+
+export interface WorkflowUpdatedMessage {
+  type: 'WorkflowUpdated';
+  action: 'Approved' | 'EscalationClaimed' | 'EscalationReleased' | 'RetryEncounter' | 'RetryRevenue' | 'RetryNotification' | 'RetryScheduling' | 'RequeueScheduling';
+  workflow: WorkflowSummary;
+}
+
+export interface WorkflowSummary {
+  id: string;
+  sessionId: string;
+  patientId: string;
+  patientName?: string;
+  status: string;
+  triageLevel?: string;
+  requiresAttention: boolean;
+  escalationStatus?: string;
+  schedulingStatus?: string;
+  encounterStatus?: string;
+  revenueStatus?: string;
+  notificationStatus?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  latestExceptionCode?: string;
+  latestExceptionMessage?: string;
+}
+
+/**
+ * Subscribes to real-time workflow state changes broadcast by the Agents service.
+ * Connects to the `workflow-ops` WebPubSub group.
+ */
+export class WorkflowOpsClient {
+  private readonly inner: WebPubSubClient;
+  private readonly groupName = 'workflow-ops';
+  private started = false;
+
+  constructor(clientAccessUrl: string) {
+    this.inner = new WebPubSubClient(clientAccessUrl, {
+      protocol: WebPubSubJsonReliableProtocol(),
+    });
+  }
+
+  async start(): Promise<void> {
+    if (this.started) return;
+    await this.inner.start();
+    await this.inner.joinGroup(this.groupName);
+    this.started = true;
+  }
+
+  async stop(): Promise<void> {
+    if (!this.started) return;
+    try { await this.inner.leaveGroup(this.groupName); } catch { /* ignore */ }
+    this.inner.stop();
+    this.started = false;
+  }
+
+  onWorkflowUpdated(handler: (msg: WorkflowUpdatedMessage) => void): () => void {
+    const listener = (e: OnGroupDataMessageArgs) => {
+      try {
+        const data = e.message.data;
+        if (data && typeof data === 'object' && 'type' in data && (data as { type: string }).type === 'WorkflowUpdated') {
+          handler(data as WorkflowUpdatedMessage);
+        }
+      } catch {
+        // malformed — ignore
+      }
+    };
+    this.inner.on('group-message', listener);
+    return () => this.inner.off('group-message', listener);
+  }
+
+  onConnected(handler: () => void): void { this.inner.on('connected', () => handler()); }
+  onDisconnected(handler: () => void): void { this.inner.on('disconnected', () => handler()); }
+}
+
+/**
+ * Negotiates a workflow-ops client access URL from the Agents API
+ * and returns a ready-to-start WorkflowOpsClient.
+ */
+export async function createWorkflowOpsClient(agentsBaseUrl: string, userId = 'anonymous'): Promise<WorkflowOpsClient> {
+  const res = await fetch(
+    `${agentsBaseUrl}/api/v1/agents/workflows/realtime/negotiate?userId=${encodeURIComponent(userId)}`,
+    { credentials: 'include' },
+  );
+  if (!res.ok) throw new Error(`Workflow ops negotiate failed: ${res.status}`);
+  const { url } = (await res.json()) as { url: string };
+  return new WorkflowOpsClient(url);
+}

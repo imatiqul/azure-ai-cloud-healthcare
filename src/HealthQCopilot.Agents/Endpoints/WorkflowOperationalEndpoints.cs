@@ -1,6 +1,7 @@
 using HealthQCopilot.Agents.Infrastructure;
 using HealthQCopilot.Agents.Services;
 using HealthQCopilot.Domain.Agents;
+using HealthQCopilot.Infrastructure.RealTime;
 using HealthQCopilot.Infrastructure.Validation;
 using Microsoft.EntityFrameworkCore;
 
@@ -144,11 +145,23 @@ public static class WorkflowOperationalEndpoints
 
         // ── Operator write actions ─────────────────────────────────────────────
 
+        // Real-time negotiate — lets the workbench connect to the workflow-ops WebPubSub group
+        group.MapGet("/realtime/negotiate", async (
+            IWebPubSubService pubSub,
+            HttpContext httpContext,
+            CancellationToken ct) =>
+        {
+            var userId = httpContext.User.Identity?.Name ?? "anonymous";
+            var url = await pubSub.GetWorkflowOpsClientAccessUriAsync(userId, ct);
+            return Results.Ok(new { url });
+        });
+
         group.MapPost("/{id:guid}/approve", async (
             Guid id,
             WorkflowApproveRequest? request,
             AgentDbContext db,
             WorkflowDispatcher dispatcher,
+            IWebPubSubService pubSub,
             CancellationToken ct) =>
         {
             var workflow = await db.TriageWorkflows.FindAsync([id], ct);
@@ -165,13 +178,16 @@ public static class WorkflowOperationalEndpoints
             // Fire-and-forget scheduling dispatch now that escalation is cleared
             _ = Task.Run(() => dispatcher.DispatchPostApprovalAsync(workflow, CancellationToken.None), CancellationToken.None);
 
-            return Results.Ok(ToWorkflowSummary(workflow, escalation));
+            var summary = ToWorkflowSummary(workflow, escalation);
+            _ = Task.Run(() => pubSub.SendWorkflowUpdateAsync(new { type = "WorkflowUpdated", action = "Approved", workflow = summary }, CancellationToken.None), CancellationToken.None);
+            return Results.Ok(summary);
         });
 
         group.MapPost("/{id:guid}/escalation/claim", async (
             Guid id,
             WorkflowEscalationClaimRequest request,
             AgentDbContext db,
+            IWebPubSubService pubSub,
             CancellationToken ct) =>
         {
             var escalation = await db.EscalationQueue.FirstOrDefaultAsync(item => item.WorkflowId == id, ct);
@@ -183,12 +199,16 @@ public static class WorkflowOperationalEndpoints
             await db.SaveChangesAsync(ct);
 
             var workflow = await db.TriageWorkflows.AsNoTracking().FirstOrDefaultAsync(item => item.Id == id, ct);
-            return workflow is null ? Results.NotFound() : Results.Ok(ToWorkflowSummary(workflow, escalation));
+            if (workflow is null) return Results.NotFound();
+            var summary = ToWorkflowSummary(workflow, escalation);
+            _ = Task.Run(() => pubSub.SendWorkflowUpdateAsync(new { type = "WorkflowUpdated", action = "EscalationClaimed", workflow = summary }, CancellationToken.None), CancellationToken.None);
+            return Results.Ok(summary);
         });
 
         group.MapPost("/{id:guid}/escalation/release", async (
             Guid id,
             AgentDbContext db,
+            IWebPubSubService pubSub,
             CancellationToken ct) =>
         {
             var escalation = await db.EscalationQueue.FirstOrDefaultAsync(item => item.WorkflowId == id, ct);
@@ -200,7 +220,10 @@ public static class WorkflowOperationalEndpoints
             await db.SaveChangesAsync(ct);
 
             var workflow = await db.TriageWorkflows.AsNoTracking().FirstOrDefaultAsync(item => item.Id == id, ct);
-            return workflow is null ? Results.NotFound() : Results.Ok(ToWorkflowSummary(workflow, escalation));
+            if (workflow is null) return Results.NotFound();
+            var summary = ToWorkflowSummary(workflow, escalation);
+            _ = Task.Run(() => pubSub.SendWorkflowUpdateAsync(new { type = "WorkflowUpdated", action = "EscalationReleased", workflow = summary }, CancellationToken.None), CancellationToken.None);
+            return Results.Ok(summary);
         });
 
         group.MapPost("/{id:guid}/retry/{step}", async (
@@ -208,10 +231,23 @@ public static class WorkflowOperationalEndpoints
             string step,
             AgentDbContext db,
             WorkflowDispatcher dispatcher,
+            IWebPubSubService pubSub,
             CancellationToken ct) =>
         {
             var workflow = await db.TriageWorkflows.FindAsync([id], ct);
             if (workflow is null) return Results.NotFound();
+
+            var action = step.ToLowerInvariant() switch
+            {
+                "encounter"    => "RetryEncounter",
+                "revenue"      => "RetryRevenue",
+                "notification" => "RetryNotification",
+                "scheduling"   => "RetryScheduling",
+                _              => null,
+            };
+
+            if (action is null)
+                return Results.BadRequest($"Unknown step '{step}'. Valid steps: encounter, revenue, notification, scheduling.");
 
             switch (step.ToLowerInvariant())
             {
@@ -220,37 +256,34 @@ public static class WorkflowOperationalEndpoints
                     await db.SaveChangesAsync(ct);
                     _ = Task.Run(() => dispatcher.RetryEncounterDispatchAsync(workflow, CancellationToken.None), CancellationToken.None);
                     break;
-
                 case "revenue":
                     workflow.RetryRevenueDispatch();
                     await db.SaveChangesAsync(ct);
                     _ = Task.Run(() => dispatcher.RetryRevenueDispatchAsync(workflow, CancellationToken.None), CancellationToken.None);
                     break;
-
                 case "notification":
                     workflow.RetryNotificationDispatch();
                     await db.SaveChangesAsync(ct);
                     _ = Task.Run(() => dispatcher.RetryNotificationAsync(workflow, CancellationToken.None), CancellationToken.None);
                     break;
-
                 case "scheduling":
                     workflow.RequeueScheduling();
                     await db.SaveChangesAsync(ct);
                     _ = Task.Run(() => dispatcher.RetrySchedulingAsync(workflow, CancellationToken.None), CancellationToken.None);
                     break;
-
-                default:
-                    return Results.BadRequest($"Unknown step '{step}'. Valid steps: encounter, revenue, notification, scheduling.");
             }
 
             var escalation = await db.EscalationQueue.AsNoTracking().FirstOrDefaultAsync(item => item.WorkflowId == id, ct);
-            return Results.Ok(ToWorkflowSummary(workflow, escalation));
+            var summary = ToWorkflowSummary(workflow, escalation);
+            _ = Task.Run(() => pubSub.SendWorkflowUpdateAsync(new { type = "WorkflowUpdated", action, workflow = summary }, CancellationToken.None), CancellationToken.None);
+            return Results.Ok(summary);
         });
 
         group.MapPost("/{id:guid}/requeue-scheduling", async (
             Guid id,
             AgentDbContext db,
             WorkflowDispatcher dispatcher,
+            IWebPubSubService pubSub,
             CancellationToken ct) =>
         {
             var workflow = await db.TriageWorkflows.FindAsync([id], ct);
@@ -262,7 +295,9 @@ public static class WorkflowOperationalEndpoints
             _ = Task.Run(() => dispatcher.RetrySchedulingAsync(workflow, CancellationToken.None), CancellationToken.None);
 
             var escalation = await db.EscalationQueue.AsNoTracking().FirstOrDefaultAsync(item => item.WorkflowId == id, ct);
-            return Results.Ok(ToWorkflowSummary(workflow, escalation));
+            var summary = ToWorkflowSummary(workflow, escalation);
+            _ = Task.Run(() => pubSub.SendWorkflowUpdateAsync(new { type = "WorkflowUpdated", action = "RequeueScheduling", workflow = summary }, CancellationToken.None), CancellationToken.None);
+            return Results.Ok(summary);
         });
 
         return app;

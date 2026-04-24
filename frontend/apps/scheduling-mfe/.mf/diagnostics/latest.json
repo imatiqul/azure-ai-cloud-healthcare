@@ -1,10 +1,10 @@
 {
   "latestErrorEvent": {
     "code": "TYPE-001",
-    "message": "Failed to generate type declaration. Execute the below cmd to reproduce and fix the error. #TYPE-001\nargs: {\"cmd\":\"npx tsc --project C:\\\\ATIQ\\\\sources\\\\repos\\\\healthcare-ai\\\\frontend\\\\apps\\\\scheduling-mfe\\\\node_modules\\\\.federation\\\\tsconfig.54ec803f210a3956273f92aafbd8e467.json\"}\nView the docs to see how to solve: https://module-federation.io/guide/troubleshooting/type#type-001",
+    "message": "Failed to generate type declaration. Execute the below cmd to reproduce and fix the error. #TYPE-001\nargs: {\"cmd\":\"npx tsc --project C:\\\\ATIQ\\\\sources\\\\repos\\\\healthcare-ai\\\\frontend\\\\apps\\\\scheduling-mfe\\\\node_modules\\\\.federation\\\\tsconfig.fe09d9f2f208d021a0d3aa7126baa454.json\"}\nView the docs to see how to solve: https://module-federation.io/guide/troubleshooting/type#type-001",
     "args": {
-      "cmd": "npx tsc --project C:\\ATIQ\\sources\\repos\\healthcare-ai\\frontend\\apps\\scheduling-mfe\\node_modules\\.federation\\tsconfig.54ec803f210a3956273f92aafbd8e467.json"
+      "cmd": "npx tsc --project C:\\ATIQ\\sources\\repos\\healthcare-ai\\frontend\\apps\\scheduling-mfe\\node_modules\\.federation\\tsconfig.fe09d9f2f208d021a0d3aa7126baa454.json"
     },
-    "timestamp": 1777004643679
+    "timestamp": 1777008480724
   }
 }

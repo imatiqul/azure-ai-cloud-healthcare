@@ -23,4 +23,14 @@ public interface IWebPubSubService
     /// The URL embeds a time-limited JWT allowing the client to join the session group.
     /// </summary>
     Task<string> GetClientAccessUriAsync(string sessionId, string userId, CancellationToken ct = default);
+
+    // ── Workflow Ops real-time push ──────────────────────────────────────────
+
+    /// <summary>Broadcasts a workflow state-change event to all connected workbench supervisors.</summary>
+    Task SendWorkflowUpdateAsync(object workflowUpdate, CancellationToken ct = default);
+
+    /// <summary>
+    /// Generates a client access URL scoped to the workflow-ops group.
+    /// </summary>
+    Task<string> GetWorkflowOpsClientAccessUriAsync(string userId, CancellationToken ct = default);
 }

@@ -3,6 +3,18 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WorkflowOperationsWorkbench from './WorkflowOperationsWorkbench';
 
+// ── Mock useWorkflowOpsStream ────────────────────────────────────────────────
+let _mockConnectionState: 'disconnected' | 'connecting' | 'connected' | 'error' = 'connected';
+
+vi.mock('../hooks/useWorkflowOpsStream', () => ({
+  useWorkflowOpsStream: () => ({
+    lastUpdate: null,
+    liveWorkflows: new Map(),
+    connectionState: _mockConnectionState,
+    clearLiveCache: vi.fn(),
+  }),
+}));
+
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
@@ -227,5 +239,41 @@ describe('WorkflowOperationsWorkbench', () => {
         expect.objectContaining({ method: 'POST' }),
       ),
     );
+  });
+
+  it('shows Live chip when connectionState is connected', async () => {
+    _mockConnectionState = 'connected';
+    render(
+      <MemoryRouter>
+        <WorkflowOperationsWorkbench />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => screen.getByText('Jamie Carter'));
+    expect(screen.getByText('Live')).toBeInTheDocument();
+  });
+
+  it('shows Offline chip when connectionState is error', async () => {
+    _mockConnectionState = 'error';
+    render(
+      <MemoryRouter>
+        <WorkflowOperationsWorkbench />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => screen.getByText('Jamie Carter'));
+    expect(screen.getByText('Offline')).toBeInTheDocument();
+  });
+
+  it('shows Connecting chip when connectionState is connecting', async () => {
+    _mockConnectionState = 'connecting';
+    render(
+      <MemoryRouter>
+        <WorkflowOperationsWorkbench />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => screen.getByText('Jamie Carter'));
+    expect(screen.getByText('Connecting')).toBeInTheDocument();
   });
 });

@@ -118,4 +118,50 @@ public sealed class WebPubSubService : IWebPubSubService
     }
 
     private static string GroupName(string sessionId) => $"session-{sessionId}";
+
+    private const string WorkflowOpsGroup = "workflow-ops";
+
+    public async Task SendWorkflowUpdateAsync(object workflowUpdate, CancellationToken ct = default)
+    {
+        if (_client is null) return;
+
+        try
+        {
+            var json = JsonSerializer.Serialize(workflowUpdate, SerializerOptions);
+            var content = RequestContent.Create(BinaryData.FromString(json));
+            var context = ct.CanBeCanceled ? new RequestContext { CancellationToken = ct } : null;
+            await _client.SendToGroupAsync(WorkflowOpsGroup, content, new ContentType("application/json"), excluded: null, context: context);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Web PubSub SendWorkflowUpdate failed");
+        }
+    }
+
+    public async Task<string> GetWorkflowOpsClientAccessUriAsync(string userId, CancellationToken ct = default)
+    {
+        if (_client is null)
+        {
+            return $"ws://localhost:4000/client/hubs/voice?group={WorkflowOpsGroup}&user={userId}";
+        }
+
+        try
+        {
+            var uri = await _client.GetClientAccessUriAsync(
+                expiresAfter: TimeSpan.FromHours(8),
+                userId: userId,
+                roles: new[]
+                {
+                    $"webpubsub.joinLeaveGroup.{WorkflowOpsGroup}",
+                },
+                cancellationToken: ct);
+
+            return uri.AbsoluteUri;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate Web PubSub workflow-ops access URI for user {UserId}", userId);
+            throw;
+        }
+    }
 }

@@ -17,6 +17,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import TextField from '@mui/material/TextField';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
@@ -31,6 +32,7 @@ import ReplayIcon from '@mui/icons-material/Replay';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import { Card, CardContent, CardHeader, CardTitle } from '@healthcare/design-system';
 import { selectShellTab, setActiveWorkflow } from '@healthcare/mfe-events';
+import { useWorkflowOpsStream } from '../hooks/useWorkflowOpsStream';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -382,9 +384,39 @@ export default function WorkflowOperationsWorkbench() {
   const [actionError, setActionError] = useState('');
   const [approveDialog, setApproveDialog] = useState<ApproveDialogState | null>(null);
 
+  // ── Real-time workflow updates via Web PubSub ────────────────────────────
+  const { lastUpdate, connectionState, clearLiveCache } = useWorkflowOpsStream('supervisor', !usingDemo);
+
+  // Merge incoming live updates into local workflow list
+  useEffect(() => {
+    if (!lastUpdate) return;
+    const updated = lastUpdate.workflow;
+    setWorkflows(prev =>
+      prev.map(wf =>
+        wf.id === updated.id
+          ? {
+              ...wf,
+              status: updated.status,
+              requiresAttention: updated.requiresAttention,
+              escalationStatus: updated.escalationStatus,
+              schedulingStatus: updated.schedulingStatus,
+              encounterStatus: updated.encounterStatus,
+              revenueStatus: updated.revenueStatus,
+              notificationStatus: updated.notificationStatus,
+              approvedBy: updated.approvedBy,
+              approvedAt: updated.approvedAt,
+              latestExceptionCode: updated.latestExceptionCode,
+              latestExceptionMessage: updated.latestExceptionMessage,
+            }
+          : wf,
+      ),
+    );
+  }, [lastUpdate]);
+
   const loadWorkbench = useCallback(async () => {
     setLoading(true);
     setError('');
+    clearLiveCache();
 
     try {
       const [summaryResponse, workflowResponse] = await Promise.all([
@@ -418,7 +450,7 @@ export default function WorkflowOperationsWorkbench() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clearLiveCache]);
 
   useEffect(() => {
     void loadWorkbench();
@@ -547,6 +579,17 @@ export default function WorkflowOperationsWorkbench() {
 
         <Stack direction="row" spacing={1} alignItems="center">
           {usingDemo && <Chip size="small" color="warning" label="Demo fallback" />}
+          {!usingDemo && (
+            <Tooltip title={connectionState === 'connected' ? 'Live updates active' : connectionState === 'connecting' ? 'Connecting…' : 'Live updates unavailable'}>
+              <Chip
+                size="small"
+                icon={<FiberManualRecordIcon sx={{ fontSize: 10 }} />}
+                label={connectionState === 'connected' ? 'Live' : connectionState === 'connecting' ? 'Connecting' : 'Offline'}
+                color={connectionState === 'connected' ? 'success' : connectionState === 'connecting' ? 'default' : 'default'}
+                variant={connectionState === 'connected' ? 'filled' : 'outlined'}
+              />
+            </Tooltip>
+          )}
           <Tooltip title="Refresh workflow operations">
             <IconButton aria-label="Refresh workflow operations" onClick={() => void loadWorkbench()}>
               <RefreshIcon />
