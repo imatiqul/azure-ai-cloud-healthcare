@@ -11,7 +11,7 @@
     <PackageReference Include="HotChocolate.Data"                       Version="15.0.0" />
     <PackageReference Include="HotChocolate.Subscriptions.InMemory"     Version="15.0.0" />
     <!-- HTTP downstream clients -->
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi"            Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi"            Version="10.0.7" />
   </ItemGroup>
 
   <ItemGroup>
