@@ -33,14 +33,14 @@ jobs:
         id: filter
         with:
           filters: |
-            shell:          ['frontend/apps/shell/**', 'frontend/packages/**']
-            voice-mfe:      ['frontend/apps/voice-mfe/**', 'frontend/packages/**']
-            triage-mfe:     ['frontend/apps/triage-mfe/**', 'frontend/packages/**']
-            scheduling-mfe: ['frontend/apps/scheduling-mfe/**', 'frontend/packages/**']
-            pophealth-mfe:  ['frontend/apps/pophealth-mfe/**', 'frontend/packages/**']
-            revenue-mfe:    ['frontend/apps/revenue-mfe/**', 'frontend/packages/**']
-            encounters-mfe: ['frontend/apps/encounters-mfe/**', 'frontend/packages/**']
-            engagement-mfe: ['frontend/apps/engagement-mfe/**', 'frontend/packages/**']
+            shell:          ['frontend/apps/shell/**', 'frontend/packages/**', 'frontend/locales/**', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/pnpm-workspace.yaml', 'frontend/turbo.json', 'frontend/.npmrc', 'frontend/vitest.setup.ts', 'frontend/vitest.workspace.ts']
+            voice-mfe:      ['frontend/apps/voice-mfe/**', 'frontend/packages/**', 'frontend/locales/**', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/pnpm-workspace.yaml', 'frontend/turbo.json', 'frontend/.npmrc', 'frontend/vitest.setup.ts', 'frontend/vitest.workspace.ts']
+            triage-mfe:     ['frontend/apps/triage-mfe/**', 'frontend/packages/**', 'frontend/locales/**', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/pnpm-workspace.yaml', 'frontend/turbo.json', 'frontend/.npmrc', 'frontend/vitest.setup.ts', 'frontend/vitest.workspace.ts']
+            scheduling-mfe: ['frontend/apps/scheduling-mfe/**', 'frontend/packages/**', 'frontend/locales/**', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/pnpm-workspace.yaml', 'frontend/turbo.json', 'frontend/.npmrc', 'frontend/vitest.setup.ts', 'frontend/vitest.workspace.ts']
+            pophealth-mfe:  ['frontend/apps/pophealth-mfe/**', 'frontend/packages/**', 'frontend/locales/**', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/pnpm-workspace.yaml', 'frontend/turbo.json', 'frontend/.npmrc', 'frontend/vitest.setup.ts', 'frontend/vitest.workspace.ts']
+            revenue-mfe:    ['frontend/apps/revenue-mfe/**', 'frontend/packages/**', 'frontend/locales/**', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/pnpm-workspace.yaml', 'frontend/turbo.json', 'frontend/.npmrc', 'frontend/vitest.setup.ts', 'frontend/vitest.workspace.ts']
+            encounters-mfe: ['frontend/apps/encounters-mfe/**', 'frontend/packages/**', 'frontend/locales/**', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/pnpm-workspace.yaml', 'frontend/turbo.json', 'frontend/.npmrc', 'frontend/vitest.setup.ts', 'frontend/vitest.workspace.ts']
+            engagement-mfe: ['frontend/apps/engagement-mfe/**', 'frontend/packages/**', 'frontend/locales/**', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/pnpm-workspace.yaml', 'frontend/turbo.json', 'frontend/.npmrc', 'frontend/vitest.setup.ts', 'frontend/vitest.workspace.ts']
 
   build-and-deploy:
     needs: detect-mfe-changes
@@ -138,26 +138,83 @@ jobs:
           output_location: ''
           skip_app_build: true
 
-      # ── Post-deploy smoke: verify shell SWA returns HTTP 200 ─────────────────
-      # Only applies to the shell app (the host that loads all MFEs). Runs after
-      # every successful deploy on main so we catch broken deployments immediately.
-      - name: Post-deploy smoke check (shell only)
+      # ── Post-deploy availability check ───────────────────────────────────────
+      # Verify that the specific app deployed in this matrix row is externally
+      # reachable after SWA propagation. Remote MFEs must serve remoteEntry.js.
+      - name: Post-deploy availability check
         if: >
-          matrix.app == 'shell' &&
           (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
           github.ref == 'refs/heads/main'
         run: |
-          SWA_URL="https://gentle-tree-03115af0f.7.azurestaticapps.net"
-          echo "Waiting for SWA propagation..."
+          case "${{ matrix.app }}" in
+            shell)
+              VERIFY_URL="https://gentle-tree-03115af0f.7.azurestaticapps.net"
+              VERIFY_KIND="shell"
+              ;;
+            voice-mfe)
+              VERIFY_URL="https://happy-smoke-0ba02780f.7.azurestaticapps.net/remoteEntry.js"
+              VERIFY_KIND="remote-entry"
+              ;;
+            triage-mfe)
+              VERIFY_URL="https://brave-hill-0d76ab10f.7.azurestaticapps.net/remoteEntry.js"
+              VERIFY_KIND="remote-entry"
+              ;;
+            scheduling-mfe)
+              VERIFY_URL="https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net/remoteEntry.js"
+              VERIFY_KIND="remote-entry"
+              ;;
+            pophealth-mfe)
+              VERIFY_URL="https://orange-bay-00f28280f.7.azurestaticapps.net/remoteEntry.js"
+              VERIFY_KIND="remote-entry"
+              ;;
+            revenue-mfe)
+              VERIFY_URL="https://lemon-pond-067d2f40f.7.azurestaticapps.net/remoteEntry.js"
+              VERIFY_KIND="remote-entry"
+              ;;
+            encounters-mfe)
+              VERIFY_URL="${{ secrets.ENCOUNTERS_MFE_URL || 'https://calm-river-02bddc70f.7.azurestaticapps.net/remoteEntry.js' }}"
+              VERIFY_KIND="remote-entry"
+              ;;
+            engagement-mfe)
+              VERIFY_URL="${{ secrets.ENGAGEMENT_MFE_URL || 'https://agreeable-hill-0d3115b0f.7.azurestaticapps.net/remoteEntry.js' }}"
+              VERIFY_KIND="remote-entry"
+              ;;
+            *)
+              echo "::error::Unsupported frontend app '${{ matrix.app }}'"
+              exit 1
+              ;;
+          esac
+
+          echo "Waiting for SWA propagation for ${{ matrix.app }}..."
+          TMP_FILE=$(mktemp)
+          trap 'rm -f "$TMP_FILE"' EXIT
+
           for i in $(seq 1 9); do
-            STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$SWA_URL" || echo 000)
-            echo "  Attempt $i/9: HTTP $STATUS"
-            [ "$STATUS" = "200" ] && break
+            STATUS=$(curl -sS -o "$TMP_FILE" -w '%{http_code}' "$VERIFY_URL" 2>/dev/null || echo 000)
+            SIZE=$(wc -c < "$TMP_FILE" 2>/dev/null || echo 0)
+            echo "  Attempt $i/9: HTTP $STATUS, bytes $SIZE"
+
+            if [ "$VERIFY_KIND" = "shell" ] && [ "$STATUS" = "200" ]; then
+              break
+            fi
+
+            if [ "$VERIFY_KIND" = "remote-entry" ] && [ "$STATUS" = "200" ] && [ "$SIZE" -gt 0 ]; then
+              break
+            fi
+
             sleep 10
           done
-          if [ "$STATUS" != "200" ]; then
-            echo "::error::Shell SWA did not return HTTP 200 after deploy (last status: $STATUS)"
+
+          if [ "$VERIFY_KIND" = "shell" ] && [ "$STATUS" != "200" ]; then
+            echo "::error::${{ matrix.app }} did not return HTTP 200 after deploy (last status: $STATUS)"
             exit 1
           fi
-          echo "✅ Shell SWA is live (HTTP 200)" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$VERIFY_KIND" = "remote-entry" ] && { [ "$STATUS" != "200" ] || [ "$SIZE" -le 0 ]; }; then
+            echo "::error::${{ matrix.app }} remoteEntry.js was not served correctly after deploy (status: $STATUS, bytes: $SIZE)"
+            exit 1
+          fi
+
+          echo "✅ ${{ matrix.app }} is live at $VERIFY_URL" >> $GITHUB_STEP_SUMMARY
 

@@ -37,16 +37,16 @@ jobs:
         id: filter
         with:
           filters: |
-            voice:        ['src/HealthQCopilot.Voice/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**']
-            ai-agent:     ['src/HealthQCopilot.Agents/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**']
-            fhir:         ['src/HealthQCopilot.Fhir/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**']
-            identity:     ['src/HealthQCopilot.Identity/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**']
-            ocr:          ['src/HealthQCopilot.Ocr/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**']
-            scheduling:   ['src/HealthQCopilot.Scheduling/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**']
-            notification: ['src/HealthQCopilot.Notifications/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**']
-            pop-health:   ['src/HealthQCopilot.PopulationHealth/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**']
-            revenue:      ['src/HealthQCopilot.RevenueCycle/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**']
-            gateway:      ['src/HealthQCopilot.Gateway/**', 'src/HealthQCopilot.ServiceDefaults/**']
+            voice:        ['src/HealthQCopilot.Voice/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
+            ai-agent:     ['src/HealthQCopilot.Agents/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
+            fhir:         ['src/HealthQCopilot.Fhir/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
+            identity:     ['src/HealthQCopilot.Identity/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
+            ocr:          ['src/HealthQCopilot.Ocr/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
+            scheduling:   ['src/HealthQCopilot.Scheduling/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
+            notification: ['src/HealthQCopilot.Notifications/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
+            pop-health:   ['src/HealthQCopilot.PopulationHealth/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
+            revenue:      ['src/HealthQCopilot.RevenueCycle/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
+            gateway:      ['src/HealthQCopilot.Gateway/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
 
   test-and-build:
     needs: detect-changes

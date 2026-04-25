@@ -108,12 +108,26 @@ jobs:
             exit 1
           fi
 
+  prepare-live-data:
+    name: Prepare Live Seed Data
+    runs-on: ubuntu-latest
+    needs: trivy-scan
+    if: github.event.inputs.skip_zap != 'true' || github.event.inputs.skip_load_test != 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Seed live APIM data
+        run: bash .github/scripts/prepare-live-seed-data.sh
+        env:
+          LIVE_API_BASE_URL: ${{ env.APIM_BASE }}
+
   # ── 2. OWASP ZAP: Full API Scan ───────────────────────────────────────────
   owasp-zap:
     name: OWASP ZAP Full Scan
     runs-on: ubuntu-latest
     if: github.event.inputs.skip_zap != 'true'
-    needs: trivy-scan
+    needs: [trivy-scan, prepare-live-data]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -146,7 +160,7 @@ jobs:
     name: k6 Performance Gate
     runs-on: ubuntu-latest
     if: github.event.inputs.skip_load_test != 'true'
-    needs: trivy-scan
+    needs: [trivy-scan, prepare-live-data]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -264,7 +278,7 @@ jobs:
   compliance-summary:
     name: Compliance Summary
     runs-on: ubuntu-latest
-    needs: [trivy-scan, k6-load-test, lighthouse]
+    needs: [trivy-scan, owasp-zap, k6-load-test, lighthouse]
     if: always()
     steps:
       - name: Print result

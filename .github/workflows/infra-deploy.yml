@@ -15,7 +15,7 @@ on:
       skip_aks_bootstrap:
         description: 'Skip AKS bootstrap (ArgoCD/KEDA already installed)'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 permissions:
@@ -47,6 +47,14 @@ jobs:
             --location eastus2 \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/main.${{ inputs.environment || 'dev' }}.bicepparam
+
+      - name: Preview infrastructure changes (what-if)
+        run: |
+          az deployment sub what-if \
+            --location eastus2 \
+            --template-file infra/bicep/main.bicep \
+            --parameters infra/bicep/main.${{ inputs.environment || 'dev' }}.bicepparam \
+            --exclude-change-types Ignore NoChange
 
   deploy-infrastructure:
     needs: validate
@@ -82,7 +90,7 @@ jobs:
 
   bootstrap-aks:
     needs: deploy-infrastructure
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && inputs.skip_aks_bootstrap != 'true'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.skip_aks_bootstrap
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || 'dev' }}
     steps:
@@ -103,13 +111,13 @@ jobs:
       - name: Install ArgoCD
         run: |
           kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
-          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.3.8/manifests/install.yaml
           kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s
 
       - name: Install Argo Rollouts
         run: |
           kubectl create namespace argo-rollouts --dry-run=client -o yaml | kubectl apply -f -
-          kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+          kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/download/v1.9.0/install.yaml
           kubectl wait --for=condition=available deployment/argo-rollouts -n argo-rollouts --timeout=300s
 
       - name: Install KEDA
@@ -171,7 +179,10 @@ jobs:
   # Updates the APIM backend URL to point at the ingress internal load balancer.
   # ---------------------------------------------------------------------------
   configure-apim:
-    needs: bootstrap-aks
+    needs: [deploy-infrastructure, bootstrap-aks]
+    if: >
+      needs.deploy-infrastructure.result == 'success' &&
+      (needs.bootstrap-aks.result == 'success' || needs.bootstrap-aks.result == 'skipped')
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || 'dev' }}
     env:
@@ -189,7 +200,7 @@ jobs:
         run: |
           az aks get-credentials \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --name ${{ env.AKS_CLUSTER_NAME }} \
+            --name ${{ needs.deploy-infrastructure.outputs.aks_cluster_name || env.AKS_CLUSTER_NAME }} \
             --overwrite-existing
 
       - name: Wait for Nginx Ingress IP assignment

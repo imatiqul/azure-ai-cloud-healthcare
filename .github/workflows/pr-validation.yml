@@ -52,6 +52,9 @@ jobs:
             --results-directory ./coverage \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
+      - name: Integration tests
+        run: dotnet test tests/HealthQCopilot.Tests.Integration --configuration Release
+
       - name: Enforce 80% coverage threshold
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
@@ -66,7 +69,7 @@ jobs:
           fail_below_min: true
 
       - name: Trivy security scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: fs
           severity: CRITICAL,HIGH

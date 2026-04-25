@@ -36,6 +36,16 @@ jobs:
       - name: Build shell MFE
         run: pnpm --filter shell build
         working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://healthq-copilot-apim.azure-api.net
+          VITE_SIGNALR_HUB_URL: ""
+          VOICE_MFE_URL: https://happy-smoke-0ba02780f.7.azurestaticapps.net/remoteEntry.js
+          TRIAGE_MFE_URL: https://brave-hill-0d76ab10f.7.azurestaticapps.net/remoteEntry.js
+          SCHEDULING_MFE_URL: https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net/remoteEntry.js
+          POPHEALTH_MFE_URL: https://orange-bay-00f28280f.7.azurestaticapps.net/remoteEntry.js
+          REVENUE_MFE_URL: https://lemon-pond-067d2f40f.7.azurestaticapps.net/remoteEntry.js
+          ENCOUNTERS_MFE_URL: ${{ secrets.ENCOUNTERS_MFE_URL || 'https://calm-river-02bddc70f.7.azurestaticapps.net/remoteEntry.js' }}
+          ENGAGEMENT_MFE_URL: ${{ secrets.ENGAGEMENT_MFE_URL || 'https://agreeable-hill-0d3115b0f.7.azurestaticapps.net/remoteEntry.js' }}
 
       - name: Install LHCI
         run: npm install -g @lhci/cli@0.14.x

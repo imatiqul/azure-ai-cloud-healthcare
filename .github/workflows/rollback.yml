@@ -41,6 +41,7 @@ on:
 permissions:
   id-token: write
   contents: write  # to write rollback event to audit log
+  packages: read
 
 env:
   REGISTRY: ghcr.io
@@ -110,18 +111,19 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Verify rollback image exists in GHCR
         run: |
           TARGET_SHA="${{ needs.preflight.outputs.target_sha }}"
           IMAGE="${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${TARGET_SHA}"
           echo "Checking image: $IMAGE"
-          # Use GHCR API to confirm the manifest exists before rolling back
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer $(echo '${{ secrets.GITHUB_TOKEN }}' | base64)" \
-            "https://ghcr.io/v2/${{ github.repository_owner }}/healthcare-ai/healthq-copilot/${{ matrix.service }}/manifests/${TARGET_SHA}" \
-            2>/dev/null || echo "000")
-          if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "401" ]; then
-            # 401 means the registry responded (image exists, auth needed for full access)
+          if docker manifest inspect "$IMAGE" >/dev/null 2>&1; then
             echo "✅ Image confirmed in GHCR: $IMAGE"
           else
             echo "⚠️  Image may not exist for SHA ${TARGET_SHA} — will attempt rollback using ACA revision history"
@@ -200,17 +202,66 @@ jobs:
             exit 1
           fi
 
+  post-rollback-verification:
+    name: Post-rollback Live Verification
+    needs: rollback
+    if: needs.rollback.result == 'success'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve gateway URL
+        id: gateway-url
+        run: |
+          GATEWAY_FQDN=$(az containerapp show \
+            --name gateway \
+            --resource-group "${{ env.ACA_RESOURCE_GROUP }}" \
+            --query "properties.configuration.ingress.fqdn" \
+            -o tsv)
+
+          if [ -z "$GATEWAY_FQDN" ] || [ "$GATEWAY_FQDN" = "null" ]; then
+            echo "❌ Unable to resolve gateway FQDN after rollback"
+            exit 1
+          fi
+
+          echo "url=https://$GATEWAY_FQDN" >> $GITHUB_OUTPUT
+          echo "Resolved gateway URL: https://$GATEWAY_FQDN"
+
+      - name: Probe gateway health
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 20 --retry 3 --retry-delay 5 \
+            "${{ steps.gateway-url.outputs.url }}/health" 2>/dev/null || echo "000")
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Gateway health probe failed after rollback (status $HTTP_STATUS)"
+            exit 1
+          fi
+
+      - name: Prepare live seed data via gateway
+        run: bash .github/scripts/prepare-live-seed-data.sh
+        env:
+          LIVE_API_BASE_URL: ${{ steps.gateway-url.outputs.url }}
+
   # ── Summary: emit Job Summary with rollback outcome ────────────────────────
   rollback-summary:
-    needs: [preflight, rollback]
+    needs: [preflight, rollback, post-rollback-verification]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Emit rollback summary
         run: |
-          OUTCOME="${{ needs.rollback.result }}"
+          ROLLBACK_OUTCOME="${{ needs.rollback.result }}"
+          LIVE_VERIFY_OUTCOME="${{ needs.post-rollback-verification.result }}"
 
-          if [ "$OUTCOME" = "success" ]; then
+          if [ "$ROLLBACK_OUTCOME" = "success" ] && [ "$LIVE_VERIFY_OUTCOME" = "success" ]; then
             STATUS_EMOJI="✅"
             STATUS_TEXT="SUCCESS"
           else
@@ -225,6 +276,8 @@ jobs:
           echo "| Service(s) | ${{ inputs.service }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Target SHA | ${{ needs.preflight.outputs.target_sha }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Environment | ${{ inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Rollback Execution | $ROLLBACK_OUTCOME |" >> $GITHUB_STEP_SUMMARY
+          echo "| Live Verification | $LIVE_VERIFY_OUTCOME |" >> $GITHUB_STEP_SUMMARY
           echo "| Initiated By | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Reason | ${{ inputs.reason }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Completed At | $(date -u '+%Y-%m-%dT%H:%M:%SZ') |" >> $GITHUB_STEP_SUMMARY

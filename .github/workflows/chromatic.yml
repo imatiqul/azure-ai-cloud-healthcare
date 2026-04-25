@@ -5,11 +5,23 @@ on:
     branches: [main]
     paths:
       - 'frontend/packages/design-system/**'
+      - 'frontend/packages/tsconfig/**'
       - 'frontend/apps/**'
+      - 'frontend/package.json'
+      - 'frontend/pnpm-lock.yaml'
+      - 'frontend/pnpm-workspace.yaml'
+      - 'frontend/turbo.json'
+      - 'frontend/.npmrc'
   push:
     branches: [main]
     paths:
       - 'frontend/packages/design-system/**'
+      - 'frontend/packages/tsconfig/**'
+      - 'frontend/package.json'
+      - 'frontend/pnpm-lock.yaml'
+      - 'frontend/pnpm-workspace.yaml'
+      - 'frontend/turbo.json'
+      - 'frontend/.npmrc'
   workflow_dispatch:
 
 permissions:
@@ -49,7 +61,7 @@ jobs:
 
       - name: Publish to Chromatic
         if: env.CHROMATIC_TOKEN != ''
-        uses: chromaui/action@latest
+        uses: chromaui/action@v16.6.0
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           storybookBuildDir: frontend/packages/design-system/storybook-static
