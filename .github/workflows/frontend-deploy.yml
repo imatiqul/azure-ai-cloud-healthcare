@@ -27,6 +27,8 @@ jobs:
       revenue-mfe: ${{ steps.filter.outputs.revenue-mfe }}
       encounters-mfe: ${{ steps.filter.outputs.encounters-mfe }}
       engagement-mfe: ${{ steps.filter.outputs.engagement-mfe }}
+      any-changed: ${{ steps.build-matrix.outputs.any-changed }}
+      deploy-matrix: ${{ steps.build-matrix.outputs.deploy-matrix }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -42,38 +44,63 @@ jobs:
             encounters-mfe: ['frontend/apps/encounters-mfe/**', 'frontend/packages/**', 'frontend/locales/**', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/pnpm-workspace.yaml', 'frontend/turbo.json', 'frontend/.npmrc', 'frontend/vitest.setup.ts', 'frontend/vitest.workspace.ts']
             engagement-mfe: ['frontend/apps/engagement-mfe/**', 'frontend/packages/**', 'frontend/locales/**', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/pnpm-workspace.yaml', 'frontend/turbo.json', 'frontend/.npmrc', 'frontend/vitest.setup.ts', 'frontend/vitest.workspace.ts']
 
+      - name: Build deploy matrix
+        id: build-matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SHELL_CHANGED: ${{ steps.filter.outputs.shell }}
+          VOICE_CHANGED: ${{ steps.filter.outputs.voice-mfe }}
+          TRIAGE_CHANGED: ${{ steps.filter.outputs.triage-mfe }}
+          SCHEDULING_CHANGED: ${{ steps.filter.outputs.scheduling-mfe }}
+          POPHEALTH_CHANGED: ${{ steps.filter.outputs.pophealth-mfe }}
+          REVENUE_CHANGED: ${{ steps.filter.outputs.revenue-mfe }}
+          ENCOUNTERS_CHANGED: ${{ steps.filter.outputs.encounters-mfe }}
+          ENGAGEMENT_CHANGED: ${{ steps.filter.outputs.engagement-mfe }}
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          import os
+
+          apps = [
+              ('shell', os.environ['SHELL_CHANGED'], 'SHELL_DEPLOY_TOKEN'),
+              ('voice-mfe', os.environ['VOICE_CHANGED'], 'VOICE_MFE_DEPLOY_TOKEN'),
+              ('triage-mfe', os.environ['TRIAGE_CHANGED'], 'TRIAGE_MFE_DEPLOY_TOKEN'),
+              ('scheduling-mfe', os.environ['SCHEDULING_CHANGED'], 'SCHEDULING_MFE_DEPLOY_TOKEN'),
+              ('pophealth-mfe', os.environ['POPHEALTH_CHANGED'], 'POPHEALTH_MFE_DEPLOY_TOKEN'),
+              ('revenue-mfe', os.environ['REVENUE_CHANGED'], 'REVENUE_MFE_DEPLOY_TOKEN'),
+              ('encounters-mfe', os.environ['ENCOUNTERS_CHANGED'], 'ENCOUNTERS_MFE_DEPLOY_TOKEN'),
+              ('engagement-mfe', os.environ['ENGAGEMENT_CHANGED'], 'ENGAGEMENT_MFE_DEPLOY_TOKEN'),
+          ]
+
+          force_all = os.environ['EVENT_NAME'] == 'workflow_dispatch'
+          include = []
+          any_changed = False
+
+          for app, changed, deploy_token_secret in apps:
+              if changed == 'true':
+                  any_changed = True
+
+              if force_all or changed == 'true':
+                  include.append(
+                      {
+                          'app': app,
+                          'changed': changed,
+                          'deploy_token_secret': deploy_token_secret,
+                      }
+                  )
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as fh:
+              fh.write(f"any-changed={'true' if any_changed else 'false'}\n")
+              fh.write(f"deploy-matrix={json.dumps({'include': include})}\n")
+          PYEOF
+
   build-and-deploy:
     needs: detect-mfe-changes
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || needs.detect-mfe-changes.outputs.any-changed == 'true'
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - app: shell
-            changed: ${{ needs.detect-mfe-changes.outputs.shell }}
-            deploy_token_secret: SHELL_DEPLOY_TOKEN
-          - app: voice-mfe
-            changed: ${{ needs.detect-mfe-changes.outputs.voice-mfe }}
-            deploy_token_secret: VOICE_MFE_DEPLOY_TOKEN
-          - app: triage-mfe
-            changed: ${{ needs.detect-mfe-changes.outputs.triage-mfe }}
-            deploy_token_secret: TRIAGE_MFE_DEPLOY_TOKEN
-          - app: scheduling-mfe
-            changed: ${{ needs.detect-mfe-changes.outputs.scheduling-mfe }}
-            deploy_token_secret: SCHEDULING_MFE_DEPLOY_TOKEN
-          - app: pophealth-mfe
-            changed: ${{ needs.detect-mfe-changes.outputs.pophealth-mfe }}
-            deploy_token_secret: POPHEALTH_MFE_DEPLOY_TOKEN
-          - app: revenue-mfe
-            changed: ${{ needs.detect-mfe-changes.outputs.revenue-mfe }}
-            deploy_token_secret: REVENUE_MFE_DEPLOY_TOKEN
-          - app: encounters-mfe
-            changed: ${{ needs.detect-mfe-changes.outputs.encounters-mfe }}
-            deploy_token_secret: ENCOUNTERS_MFE_DEPLOY_TOKEN
-          - app: engagement-mfe
-            changed: ${{ needs.detect-mfe-changes.outputs.engagement-mfe }}
-            deploy_token_secret: ENGAGEMENT_MFE_DEPLOY_TOKEN
-    if: always()
+      matrix: ${{ fromJson(needs.detect-mfe-changes.outputs.deploy-matrix) }}
     steps:
       - uses: actions/checkout@v4
         if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'
