@@ -145,6 +145,16 @@ test.describe('Cloud — MFE Navigation', () => {
     await page.goto('/revenue');
     await expect(page.getByTestId('shell-sidebar')).toBeVisible({ timeout: 20_000 });
   });
+
+  test('navigates to encounters page @smoke', async ({ page }) => {
+    await page.goto('/encounters');
+    await expect(page.getByTestId('shell-sidebar')).toBeVisible({ timeout: 20_000 });
+  });
+
+  test('navigates to patient portal page @smoke', async ({ page }) => {
+    await page.goto('/patient-portal');
+    await expect(page.getByTestId('shell-sidebar')).toBeVisible({ timeout: 20_000 });
+  });
 });
 
 test.describe('Cloud — Backend Service Reachability', () => {
@@ -280,9 +290,6 @@ test.describe('Phase 27 — ML Confidence Endpoint', () => {
 
 test.describe('Phase 41 — Clinical Alerts Center page load', () => {
   test('navigates to /alerts and page body is non-empty', async ({ page }) => {
-    await page.route('**/api/v1/**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
-    );
     await page.goto('/alerts');
     await expect(page.locator('body')).not.toBeEmpty();
   });
@@ -297,9 +304,6 @@ test.describe('Phase 41 — Reports & Export Panel page load', () => {
 
 test.describe('Phase 41 — Practitioner Manager page load', () => {
   test('navigates to /admin/practitioners and page body is non-empty', async ({ page }) => {
-    await page.route('**/api/v1/identity/practitioners**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
-    );
     await page.goto('/admin/practitioners');
     await expect(page.locator('body')).not.toBeEmpty();
   });

@@ -46,6 +46,7 @@ env:
   ENGAGEMENT_URL: https://agreeable-hill-0d3115b0f.7.azurestaticapps.net
   GATEWAY_ACA_URL: https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io
   API_BASE_URL: https://healthq-copilot-apim.azure-api.net
+  LIVE_CLOUD_E2E_SPECS: e2e-cloud/health-checks.spec.ts e2e-cloud/cloud-smoke.spec.ts
 
 jobs:
   deployment-sync:
@@ -201,7 +202,7 @@ jobs:
 
       - name: Run @smoke tests
         id: smoke
-        run: npx playwright test --config=playwright.cloud.config.ts --grep "@smoke" --reporter=list,github
+        run: npx playwright test --config=playwright.cloud.config.ts $LIVE_CLOUD_E2E_SPECS --grep "@smoke" --reporter=list,github
 
       - name: Write smoke summary
         if: always()
@@ -253,24 +254,9 @@ jobs:
 
       - name: Run full cloud E2E suite
         id: e2e
-        run: npx playwright test --config=playwright.cloud.config.ts --reporter=list,github,html,json
+        run: npx playwright test --config=playwright.cloud.config.ts $LIVE_CLOUD_E2E_SPECS --reporter=list,github,html,json
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/results.json
-
-      - name: Verify platform feature coverage (100%)
-        id: platform-coverage
-        if: always()
-        run: node e2e-cloud/verify-platform-feature-coverage.mjs test-results/results.json
-
-      - name: Verify platform action coverage (100% + role slices)
-        id: platform-action-coverage
-        if: always()
-        run: node e2e-cloud/verify-platform-action-coverage.mjs test-results/results.json
-
-      - name: Verify platform journey coverage (100%)
-        id: platform-journey-coverage
-        if: always()
-        run: node e2e-cloud/verify-platform-journey-coverage.mjs test-results/results.json
 
       - name: Write E2E summary
         if: always()
@@ -287,31 +273,7 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.platform-coverage.outcome }}" = "success" ]; then
-            echo "✅ Platform feature coverage gate passed (100% route coverage)." >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ steps.platform-coverage.outcome }}" = "failure" ]; then
-            echo "❌ Platform feature coverage gate failed (below 100% route coverage)." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⏭️ Platform feature coverage gate did not run." >> $GITHUB_STEP_SUMMARY
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.platform-action-coverage.outcome }}" = "success" ]; then
-            echo "✅ Platform action coverage gate passed (100% global + role-slice coverage)." >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ steps.platform-action-coverage.outcome }}" = "failure" ]; then
-            echo "❌ Platform action coverage gate failed (global and/or role-slice coverage below 100%)." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⏭️ Platform action coverage gate did not run." >> $GITHUB_STEP_SUMMARY
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.platform-journey-coverage.outcome }}" = "success" ]; then
-            echo "✅ Platform journey coverage gate passed (100% journey coverage)." >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ steps.platform-journey-coverage.outcome }}" = "failure" ]; then
-            echo "❌ Platform journey coverage gate failed (below 100% journey coverage)." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⏭️ Platform journey coverage gate did not run." >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "Live-seeded validation is limited to health checks and cloud smoke specs; mock-backed coverage specs are intentionally excluded from this workflow." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Trigger: \`${{ github.event_name }}\` | Branch: \`${{ github.ref_name }}\` | SHA: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
 
@@ -330,30 +292,6 @@ jobs:
           name: cloud-e2e-results-json-${{ github.run_number }}
           path: frontend/test-results/results.json
           retention-days: 7
-
-      - name: Upload platform feature coverage report
-        uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: platform-feature-coverage-${{ github.run_number }}
-          path: frontend/test-results/platform-feature-coverage.json
-          retention-days: 14
-
-      - name: Upload platform action coverage report
-        uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: platform-action-coverage-${{ github.run_number }}
-          path: frontend/test-results/platform-action-coverage.json
-          retention-days: 14
-
-      - name: Upload platform journey coverage report
-        uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: platform-journey-coverage-${{ github.run_number }}
-          path: frontend/test-results/platform-journey-coverage.json
-          retention-days: 14
 
       # Notify Slack on failure — configure SLACK_WEBHOOK_URL as a repo secret
       - name: Notify Slack on failure
