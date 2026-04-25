@@ -1,8 +1,8 @@
 # Azure AI Cloud Healthcare (HealthQ Copilot)
 
-Azure AI Cloud Healthcare, delivered here as HealthQ Copilot, is a distributed healthcare platform built with .NET microservices, React/Vite micro frontends, and AI-assisted triage workflows.
+Azure AI Cloud Healthcare, delivered here as HealthQ Copilot, is a distributed healthcare platform built with .NET 10 microservices, React/Vite micro frontends, and AI-assisted triage workflows powered by Semantic Kernel.
 
-This repository now uses role-specific documentation so each stakeholder can get to the right context quickly.
+This repository uses role-specific documentation so each stakeholder can get to the right context quickly.
 
 ## Stakeholder Guides
 
@@ -22,11 +22,15 @@ Full role index: [Stakeholder Documentation Hub](docs/stakeholders/README.md)
 
 ## Architecture Snapshot
 
-- Backend runtime: domain services in `src/`, plus API gateway (`src/HealthQCopilot.Gateway`) and GraphQL BFF (`src/HealthQCopilot.BFF`).
-- Frontend runtime: shell host plus 7 remotes under `frontend/apps/`.
-- Shared frontend contracts: `frontend/packages/mfe-events`, `frontend/packages/graphql-client`, `frontend/packages/web-pubsub-client`.
-- Local orchestration: Aspire AppHost (`src/HealthQCopilot.AppHost`) and Docker Compose + Dapr (`docker-compose.yml`, `infra/dapr`).
-- Delivery tracks currently present in repo:
+- **Runtime:** .NET 10 / C# 14 across all microservices; Semantic Kernel 1.71 for AI orchestration.
+- **Backend services:** domain services in `src/`, API gateway (`src/HealthQCopilot.Gateway`), GraphQL BFF (`src/HealthQCopilot.BFF`).
+- **AI layer:** Agents service (`src/HealthQCopilot.Agents`) hosts the SK kernel, agentic planning loop, triage orchestrator, and five SK plugin groups — Triage, ClinicalCoder, PriorAuth, CareGap, and the Phase 3 microservice API plugins (PatientPlugin → FHIR service, ClinicalPlugin → Population Health service, SchedulingPlugin → Scheduling service).
+- **RAG + vector search:** Qdrant for clinical-protocol retrieval; `IRagContextProvider` enriches triage prompts when the `HealthQ:RagRetrieval` feature flag is enabled.
+- **Feature flags:** Microsoft.FeatureManagement with Azure App Configuration integration. Flag constants live in `HealthQFeatures`; local defaults are in each service's `appsettings.json`.
+- **Frontend runtime:** shell host plus 7 remotes under `frontend/apps/`.
+- **Shared frontend contracts:** `frontend/packages/mfe-events`, `frontend/packages/graphql-client`, `frontend/packages/web-pubsub-client`.
+- **Local orchestration:** Aspire AppHost (`src/HealthQCopilot.AppHost`) is the single source of truth — it wires all 9 microservices, Postgres (9 databases), Redis, HAPI FHIR, Qdrant, Azure Service Bus emulator, Dapr placement, and the Vite frontend shell.
+- **Delivery tracks:**
   - Azure Container Apps + Static Web Apps pipelines for application deploys.
   - AKS + Helm + ArgoCD/Argo Rollouts infrastructure baseline.
 
@@ -46,7 +50,7 @@ healthcare-ai/
 
 ### Prerequisites
 
-- .NET 9 SDK + Aspire workload (`dotnet workload install aspire`)
+- .NET 10 SDK + Aspire workload (`dotnet workload install aspire`)
 - Docker Desktop (Compose v2)
 - Dapr CLI
 - Node.js 20+ and pnpm 9+
@@ -54,9 +58,11 @@ healthcare-ai/
 ### Start the Platform Locally
 
 ```bash
-# Start backend services + infra using Aspire
+# Start all backend services + infra via Aspire (single command)
 dotnet run --project src/HealthQCopilot.AppHost
 ```
+
+Aspire provisions all 9 microservices, databases, Redis, HAPI FHIR, Qdrant, Service Bus emulator, and Dapr placement automatically. No separate `docker compose up` step is required.
 
 ```bash
 # In a second terminal, start all frontend apps
