@@ -111,6 +111,8 @@ jobs:
     continue-on-error: true   # advisory — health issues reported in summary but do not block CI
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: azure/login@v2
         continue-on-error: true   # OIDC may not be configured in all environments

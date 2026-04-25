@@ -1,0 +1,124 @@
+name: Cloud E2E Regression
+
+# Runs the broader cloud regression and coverage suite after the live-seeded
+# cloud smoke workflow passes, or on manual demand.
+on:
+  workflow_run:
+    workflows:
+      - "Cloud E2E Tests"
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloud-e2e-regression-${{ github.event.workflow_run.head_sha || github.sha || github.run_id }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: frontend
+
+env:
+  SHELL_URL: https://gentle-tree-03115af0f.7.azurestaticapps.net
+  VOICE_URL: https://happy-smoke-0ba02780f.7.azurestaticapps.net
+  TRIAGE_URL: https://brave-hill-0d76ab10f.7.azurestaticapps.net
+  SCHEDULING_URL: https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net
+  POPHEALTH_URL: https://orange-bay-00f28280f.7.azurestaticapps.net
+  REVENUE_URL: https://lemon-pond-067d2f40f.7.azurestaticapps.net
+  ENCOUNTERS_URL: https://calm-river-02bddc70f.7.azurestaticapps.net
+  ENGAGEMENT_URL: https://agreeable-hill-0d3115b0f.7.azurestaticapps.net
+  GATEWAY_ACA_URL: https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io
+  API_BASE_URL: https://healthq-copilot-apim.azure-api.net
+  CLOUD_REGRESSION_SPECS: >-
+    e2e-cloud/mfe-integration.spec.ts
+    e2e-cloud/phase41-features.spec.ts
+    e2e-cloud/platform-action-coverage.spec.ts
+    e2e-cloud/platform-feature-coverage.spec.ts
+    e2e-cloud/platform-journey-coverage.spec.ts
+    e2e-cloud/post-deploy-regression.spec.ts
+    e2e-cloud/shell-navigation.spec.ts
+    e2e-cloud/workflow-handoff.spec.ts
+
+jobs:
+  regression:
+    name: Cloud Regression Coverage Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Wait for shell SWA warmup
+        run: |
+          echo "Waiting for shell SWA to respond..."
+          for i in $(seq 1 6); do
+            STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$SHELL_URL" || echo 000)
+            echo "  Attempt $i: HTTP $STATUS"
+            [ "$STATUS" = "200" ] && break
+            sleep 10
+          done
+          echo "Warmup complete."
+
+      - name: Run cloud regression coverage suite
+        id: regression
+        run: npx playwright test --config=playwright.cloud.config.ts $CLOUD_REGRESSION_SPECS --reporter=list,github,html,json
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/results.json
+
+      - name: Write regression summary
+        if: always()
+        run: |
+          echo "## Cloud Regression Coverage Suite" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          OUTCOME="${{ steps.regression.outcome }}"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "✅ All cloud regression coverage specs passed." >> $GITHUB_STEP_SUMMARY
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "⚠️ Some cloud regression coverage specs failed — inspect the report artifacts below." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ Cloud regression coverage was skipped or cancelled." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This workflow covers the broader cloud regression and mock-backed coverage specs that are intentionally excluded from the live-seeded Cloud E2E Tests workflow." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Trigger: \`${{ github.event_name }}\` | Branch: \`${{ github.event.workflow_run.head_branch || github.ref_name }}\` | SHA: \`${{ github.event.workflow_run.head_sha || github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload regression HTML report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: cloud-e2e-regression-report-${{ github.run_number }}
+          path: frontend/playwright-report/
+          retention-days: 14
+
+      - name: Upload regression JSON results
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: cloud-e2e-regression-results-json-${{ github.run_number }}
+          path: frontend/test-results/results.json
+          retention-days: 7
