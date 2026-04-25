@@ -1,3 +1,18 @@
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │  DEPRECATED — use Aspire AppHost instead                                │
+# │                                                                         │
+# │  This file is kept for reference only. As of the Phase 1 migration,     │
+# │  the Aspire AppHost (src/HealthQCopilot.AppHost) is the single source   │
+# │  of truth for local orchestration. It provisions all 9 microservices,   │
+# │  databases, Redis, HAPI FHIR, Qdrant, Service Bus emulator, Dapr        │
+# │  placement, and the Vite frontend shell in one command:                  │
+# │                                                                         │
+# │      dotnet run --project src/HealthQCopilot.AppHost                    │
+# │                                                                         │
+# │  This file is no longer maintained and may drift from the real service   │
+# │  topology.                                                               │
+# └─────────────────────────────────────────────────────────────────────────┘
+
 services:
   # ──────────────────────────────────────────────
   # PostgreSQL — one per bounded context

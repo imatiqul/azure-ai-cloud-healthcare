@@ -52,7 +52,7 @@ dotnet run
 | Environment | How to Run |
 |---|---|
 | **Local (Aspire)** | `dotnet run` — launches all services, infra containers, and dashboard |
-| **Local (Docker Compose)** | Use `docker compose up -d` from repo root instead (see docker-compose.yml) |
+| **Local (Docker Compose)** | Deprecated — use Aspire AppHost. `docker-compose.yml` is kept for reference only. |
 | **Staging / Production** | Services deploy to AKS via Helm; Aspire AppHost is not used in deployed environments |
 
 ## Aspire Dashboard
