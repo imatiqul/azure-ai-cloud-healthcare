@@ -38,6 +38,8 @@ builder.Services.AddHealthcareDb<AgentDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<AgentDbContext>(builder.Configuration);
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+builder.Services.AddDomainEvents<AgentDbContext>();
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<AgentDbContext>("agent");
 
@@ -78,6 +80,7 @@ builder.Services.AddHttpClient<WorkflowDispatcher>(client =>
     client.Timeout = TimeSpan.FromSeconds(15);
 }).AddServiceResilienceHandler();
 builder.Services.AddScoped<WorkflowDispatcher>();
+builder.Services.AddScoped<HealthQCopilot.Agents.Sagas.BookingOrchestrationSaga>();
 // Named HTTP clients for SK microservice API plugins — resolved via Aspire service discovery
 builder.Services.AddHttpClient("fhir-service", client =>
 {
@@ -101,6 +104,14 @@ builder.Services.AddHttpClient("scheduling-service", client =>
         builder.Configuration.GetConnectionString("scheduling-service")
         ?? builder.Configuration["Services:Scheduling"]
         ?? "http://scheduling-service");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHttpClient("notification-service", client =>
+{
+    client.BaseAddress = new Uri(
+        builder.Configuration.GetConnectionString("notification-service")
+        ?? builder.Configuration["Services:Notifications"]
+        ?? "http://notification-service");
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 // DaprClient for publishing events to pub/sub

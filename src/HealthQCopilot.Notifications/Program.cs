@@ -26,6 +26,8 @@ builder.Services.AddHealthcareDb<NotificationDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<NotificationDbContext>(builder.Configuration);
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+builder.Services.AddDomainEvents<NotificationDbContext>();
 builder.Services.AddScoped<INotificationSender, AcsNotificationSender>();
 builder.Services.AddScoped<WebPushSender>();
 builder.Services.AddHttpClient("WebPush").AddServiceResilienceHandler();

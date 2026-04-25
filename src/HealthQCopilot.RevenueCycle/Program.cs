@@ -29,6 +29,8 @@ builder.Services.AddHealthcareDb<RevenueDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<RevenueDbContext>(builder.Configuration);
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+builder.Services.AddDomainEvents<RevenueDbContext>();
 builder.Services.AddSingleton<CodeSuggestionService>();
 builder.Services.AddSingleton<Edi837Generator>();
 builder.Services.AddSingleton<Edi835Parser>();

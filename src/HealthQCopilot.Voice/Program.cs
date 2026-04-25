@@ -30,6 +30,8 @@ builder.Services.AddHealthcareDb<VoiceDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<VoiceDbContext>(builder.Configuration);
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+builder.Services.AddDomainEvents<VoiceDbContext>();
 builder.Services.AddSingleton<ITranscriptionService, AzureSpeechTranscriptionService>();
 builder.Services.AddDaprClient();
 builder.Services.AddHealthChecks();

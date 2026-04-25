@@ -26,6 +26,8 @@ builder.Services.AddHealthcareDb<FhirDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<FhirDbContext>(builder.Configuration);
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+builder.Services.AddDomainEvents<FhirDbContext>();
 builder.Services.AddFhirHttpClient(builder.Configuration);
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<FhirDbContext>("fhir");

@@ -25,6 +25,8 @@ builder.Services.AddHealthcareDb<OcrDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<OcrDbContext>(builder.Configuration);
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+builder.Services.AddDomainEvents<OcrDbContext>();
 builder.Services.AddScoped<IDocumentProcessor, AzureDocumentProcessor>();
 builder.Services.AddHostedService<OcrProcessingService>();
 builder.Services.AddHealthChecks();

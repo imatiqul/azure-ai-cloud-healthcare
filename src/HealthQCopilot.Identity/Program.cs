@@ -28,6 +28,8 @@ builder.Services.AddHealthcareDb<IdentityDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<IdentityDbContext>(builder.Configuration);
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+builder.Services.AddDomainEvents<IdentityDbContext>();
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<IdentityDbContext>("identity");
 builder.Services.AddHealthcareDb<AuditDbContext>(builder.Configuration, "IdentityDb");

@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using HealthQCopilot.Agents.Infrastructure;
+using HealthQCopilot.Agents.Sagas;
 using HealthQCopilot.Domain.Agents;
 using Microsoft.EntityFrameworkCore;
 
@@ -182,26 +183,29 @@ public sealed class WorkflowDispatcher
                 PractitionerId = slot.PractitionerId
             };
 
-            // Reserve then book
+            // Delegate to BookingOrchestrationSaga — handles reserve, book, FHIR Appointment,
+            // notification, and automatic compensation on partial failure.
             await UpdateWorkflowAsync(workflow.Id,
                 current => current.BeginScheduling(slot.Id.ToString(), slot.PractitionerId), ct);
-            await _http.PostAsJsonAsync($"/api/v1/scheduling/slots/{slot.Id}/reserve",
-                new { PatientId = patientId }, ct);
 
-            var bookingResp = await _http.PostAsJsonAsync("/api/v1/scheduling/bookings", bookingPayload, ct);
-            if (bookingResp.IsSuccessStatusCode)
+            using var scope = _scopeFactory.CreateScope();
+            var saga = scope.ServiceProvider.GetRequiredService<BookingOrchestrationSaga>();
+            var result = await saga.ExecuteAsync(
+                workflow.Id, workflow.PatientId, slot.Id, slot.PractitionerId, slot.StartTime, ct);
+
+            if (result.IsSuccess)
             {
-                var booking = await bookingResp.Content.ReadFromJsonAsync<BookingCreatedResult>(cancellationToken: ct);
                 await UpdateWorkflowAsync(workflow.Id,
-                    current => current.MarkBooked(booking?.Id?.ToString(), slot.Id.ToString(), slot.PractitionerId), ct);
-                _logger.LogInformation("Auto-scheduled slot {SlotId} for session {SessionId}", slot.Id, workflow.SessionId);
+                    current => current.MarkBooked(result.BookingId?.ToString(), slot.Id.ToString(), slot.PractitionerId), ct);
+                _logger.LogInformation("Auto-scheduled slot {SlotId} for session {SessionId} via saga", slot.Id, workflow.SessionId);
             }
             else
             {
+                var compensationMsg = result.WasCompensated ? " (compensated)" : " (no compensation)";
                 await UpdateWorkflowAsync(workflow.Id,
-                    current => current.FailScheduling($"Auto-booking returned {(int)bookingResp.StatusCode}."), ct);
-                _logger.LogWarning("Auto-scheduling returned {Status} for session {SessionId}",
-                    bookingResp.StatusCode, workflow.SessionId);
+                    current => current.FailScheduling($"Saga failed at {result.FailedStep}: {result.Error}{compensationMsg}"), ct);
+                _logger.LogWarning("Booking saga failed at step {Step} for session {SessionId}: {Error}",
+                    result.FailedStep, workflow.SessionId, result.Error);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

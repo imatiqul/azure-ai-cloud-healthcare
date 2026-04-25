@@ -28,6 +28,8 @@ builder.Services.AddHealthcareDb<SchedulingDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<SchedulingDbContext>(builder.Configuration);
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+builder.Services.AddDomainEvents<SchedulingDbContext>();
 builder.Services.AddHostedService<SlotGenerationService>();
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<SchedulingDbContext>("scheduling");

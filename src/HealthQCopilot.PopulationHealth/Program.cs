@@ -28,6 +28,8 @@ builder.Services.AddHealthcareDb<PopHealthDbContext>(
     new HealthQCopilot.Infrastructure.Persistence.AuditInterceptor(),
     new HealthQCopilot.Infrastructure.Persistence.SoftDeleteInterceptor());
 builder.Services.AddOutboxRelay<PopHealthDbContext>(builder.Configuration);
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+builder.Services.AddDomainEvents<PopHealthDbContext>();
 builder.Services.AddHealthChecks();
 builder.Services.AddDatabaseHealthCheck<PopHealthDbContext>("pophealth");
 
