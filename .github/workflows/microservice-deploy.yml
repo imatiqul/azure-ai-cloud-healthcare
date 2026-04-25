@@ -313,6 +313,8 @@ jobs:
     env:
       GATEWAY_URL: https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io
     steps:
+      - uses: actions/checkout@v4
+
       - name: Wait for ACA replicas to stabilise
         run: sleep 30
 
@@ -374,6 +376,11 @@ jobs:
             exit 1
           fi
           echo "✅ Gateway is healthy"
+
+      - name: Prepare live seed data via gateway
+        run: bash .github/scripts/prepare-live-seed-data.sh
+        env:
+          LIVE_API_BASE_URL: ${{ env.GATEWAY_URL }}
 
       - name: Service smoke tests via gateway
         run: |
