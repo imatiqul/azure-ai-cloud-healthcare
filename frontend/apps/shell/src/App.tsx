@@ -1,4 +1,4 @@
-import { lazy, Suspense, Component, useEffect, useRef, type ReactNode, type ErrorInfo } from 'react';
+import { lazy, Suspense, Component, useEffect, useRef, type ComponentType, type ReactNode, type ErrorInfo } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -42,21 +42,21 @@ const RevenuePage = lazy(() => import('revenue/CodingQueue').then(m => ({ defaul
 const PriorAuthTrackerPage = lazy(() => import('revenue/PriorAuthTracker').then(m => ({ default: m.PriorAuthTracker })));
 const DenialManagerPage = lazy(() => import('revenue/DenialManager').then(m => ({ default: m.DenialManager })));
 const EncountersPage = lazy(() => import('encounters/EncounterList').then(m => ({ default: m.EncounterList })));
-const EngagementPage = lazy(() => import('engagement/PatientPortal').then(m => ({ default: m.PatientPortal })));
-const DeliveryAnalyticsDashboardPage = lazy(() => import('engagement/DeliveryAnalyticsDashboard').then(m => ({ default: m.DeliveryAnalyticsDashboard })));
+const EngagementPage = lazy(() => import('engagement/PatientPortal').then(m => ({ default: m.PatientPortal })).catch((): { default: ComponentType } => ({ default: () => null })));
+const DeliveryAnalyticsDashboardPage = lazy(() => import('engagement/DeliveryAnalyticsDashboard').then(m => ({ default: m.DeliveryAnalyticsDashboard })).catch((): { default: ComponentType } => ({ default: () => null })));
 const LabDeltaFlagsPanelPage = lazy(() => import('encounters/LabDeltaFlagsPanel').then(m => ({ default: m.LabDeltaFlagsPanel })));
 const DrugInteractionCheckerPage = lazy(() => import('encounters/DrugInteractionChecker').then(m => ({ default: m.DrugInteractionChecker })));
 const FhirObservationViewerPage = lazy(() => import('encounters/FhirObservationViewer').then(m => ({ default: m.FhirObservationViewer })));
-const ConsentManagementPanelPage = lazy(() => import('engagement/ConsentManagementPanel').then(m => ({ default: m.ConsentManagementPanel })));
+const ConsentManagementPanelPage = lazy(() => import('engagement/ConsentManagementPanel').then(m => ({ default: m.ConsentManagementPanel })).catch((): { default: ComponentType } => ({ default: () => null })));
 const VoiceSessionHistoryPage = lazy(() => import('voice/VoiceSessionHistory').then(m => ({ default: m.VoiceSessionHistory })));
 const SdohAssessmentPanelPage = lazy(() => import('pophealth/SdohAssessmentPanel').then(m => ({ default: m.SdohAssessmentPanel })));
 const CostPredictionPanelPage = lazy(() => import('pophealth/CostPredictionPanel').then(m => ({ default: m.CostPredictionPanel })));
-const PatientProfilePanelPage = lazy(() => import('engagement/PatientProfilePanel').then(m => ({ default: m.PatientProfilePanel })));
-const PatientRegistrationPanelPage = lazy(() => import('engagement/PatientRegistrationPanel').then(m => ({ default: m.PatientRegistrationPanel })));
-const OcrDocumentPanelPage = lazy(() => import('engagement/OcrDocumentPanel').then(m => ({ default: m.OcrDocumentPanel })));
+const PatientProfilePanelPage = lazy(() => import('engagement/PatientProfilePanel').then(m => ({ default: m.PatientProfilePanel })).catch((): { default: ComponentType } => ({ default: () => null })));
+const PatientRegistrationPanelPage = lazy(() => import('engagement/PatientRegistrationPanel').then(m => ({ default: m.PatientRegistrationPanel })).catch((): { default: ComponentType } => ({ default: () => null })));
+const OcrDocumentPanelPage = lazy(() => import('engagement/OcrDocumentPanel').then(m => ({ default: m.OcrDocumentPanel })).catch((): { default: ComponentType } => ({ default: () => null })));
 const FhirEverythingViewerPage = lazy(() => import('encounters/FhirEverythingViewer').then(m => ({ default: m.FhirEverythingViewer })));
 const ModelGovernanceDashboardPage = lazy(() => import('./pages/ModelGovernanceDashboard'));
-const OtpVerificationPanelPage = lazy(() => import('engagement/OtpVerificationPanel').then(m => ({ default: m.OtpVerificationPanel })));
+const OtpVerificationPanelPage = lazy(() => import('engagement/OtpVerificationPanel').then(m => ({ default: m.OtpVerificationPanel })).catch((): { default: ComponentType } => ({ default: () => null })));
 const HedisMeasuresPanelPage = lazy(() => import('pophealth/HedisMeasuresPanel').then(m => ({ default: m.HedisMeasuresPanel })));
 const TenantAdminPanelPage = lazy(() => import('./pages/TenantAdminPanel'));
 const ModelEvaluationPanelPage = lazy(() => import('./pages/ModelEvaluationPanel'));
@@ -66,14 +66,14 @@ const BreakGlassAccessPanelPage = lazy(() => import('./pages/BreakGlassAccessPan
 const ModelRegisterPanelPage = lazy(() => import('./pages/ModelRegisterPanel'));          // Phase 24
 const ClinicianFeedbackDashboardPage = lazy(() => import('./pages/ClinicianFeedbackDashboard')); // Phase 25
 const ExperimentSummaryPanelPage = lazy(() => import('./pages/ExperimentSummaryPanel')); // Phase 25
-const PushSubscriptionPanelPage = lazy(() => import('engagement/PushSubscriptionPanel').then(m => ({ default: m.PushSubscriptionPanel }))); // Phase 25
-const GdprErasurePanelPage = lazy(() => import('engagement/GdprErasurePanel').then(m => ({ default: m.GdprErasurePanel }))); // Phase 25
+const PushSubscriptionPanelPage = lazy(() => import('engagement/PushSubscriptionPanel').then(m => ({ default: m.PushSubscriptionPanel })).catch((): { default: ComponentType } => ({ default: () => null }))); // Phase 25
+const GdprErasurePanelPage = lazy(() => import('engagement/GdprErasurePanel').then(m => ({ default: m.GdprErasurePanel })).catch((): { default: ComponentType } => ({ default: () => null }))); // Phase 25
 const XaiExplanationPanelPage = lazy(() => import('./pages/XaiExplanationPanel')); // Phase 26
 const GuideHistoryPanelPage = lazy(() => import('./pages/GuideHistoryPanel')); // Phase 26
 const DemoAdminPanelPage = lazy(() => import('./pages/DemoAdminPanel')); // Phase 26
 const ClinicalCoderPanelPage = lazy(() => import('triage/ClinicalCoderPanel').then(m => ({ default: m.ClinicalCoderPanel }))); // Phase 26
 const MlConfidencePanelPage = lazy(() => import('./pages/MlConfidencePanel')); // Phase 27
-const CampaignManagerPanelPage = lazy(() => import('engagement/CampaignManagerPanel').then(m => ({ default: m.CampaignManagerPanel }))); // Phase 27
+const CampaignManagerPanelPage = lazy(() => import('engagement/CampaignManagerPanel').then(m => ({ default: m.CampaignManagerPanel })).catch((): { default: ComponentType } => ({ default: () => null }))); // Phase 27
 const DemoLive = lazy(() => import('./pages/DemoLive'));
 const ClinicalAlertsCenterPage = lazy(() => import('./pages/ClinicalAlertsCenter')); // Phase 41
 const ReportsExportPanelPage   = lazy(() => import('./pages/ReportsExportPanel'));   // Phase 41

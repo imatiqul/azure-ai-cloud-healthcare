@@ -148,7 +148,7 @@ export function CampaignManagerPanel() {
   }
 
   return (
-    <Stack spacing={2} sx={{ mt: 2 }}>
+    <Stack spacing={2} sx={{ mt: 2 }} data-testid="campaign-manager-panel">
       <Typography variant="h5" fontWeight="bold">
         Campaign Manager
       </Typography>
