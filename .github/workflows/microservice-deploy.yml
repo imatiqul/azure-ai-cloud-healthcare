@@ -331,6 +331,15 @@ jobs:
           cosign sign --yes \
             "${{ env.IMAGE_PREFIX }}/${{ matrix.service }}@${{ steps.docker-build.outputs.digest }}"
 
+      # ── GitHub build provenance attestation (verifiable via gh attestation verify) ──
+      - name: Attest build provenance
+        if: (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') && steps.service-selection.outputs.selected == 'true' && github.ref == 'refs/heads/main'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          subject-digest: ${{ steps.docker-build.outputs.digest }}
+          push-to-registry: true
+
       - name: Deploy to Azure Container Apps
         if: (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') && steps.service-selection.outputs.selected == 'true' && github.ref == 'refs/heads/main'
         run: |

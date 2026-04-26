@@ -274,19 +274,128 @@ jobs:
       - name: Run Lighthouse CI
         run: lhci autorun --config=.lighthouserc.json
 
-  # ── 5. Summary report ─────────────────────────────────────────────────────
+  # ── 5. NuGet vulnerability scan ──────────────────────────────────────────
+  nuget-vuln-scan:
+    name: NuGet Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore NuGet packages
+        run: dotnet restore
+
+      - name: Check for known vulnerabilities in NuGet packages
+        id: vuln
+        run: |
+          set +e
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee /tmp/nuget-vuln.txt
+          CRITICAL=$(grep -c "Critical" /tmp/nuget-vuln.txt || true)
+          HIGH=$(grep -c "High" /tmp/nuget-vuln.txt || true)
+          echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
+          echo "high=$HIGH" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## NuGet Vulnerability Scan"
+            echo ""
+            echo "Critical: $CRITICAL  High: $HIGH"
+            echo ""
+            echo '```'
+            cat /tmp/nuget-vuln.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload NuGet vulnerability report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-vuln-report
+          path: /tmp/nuget-vuln.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Fail on Critical NuGet vulnerabilities
+        if: steps.vuln.outputs.critical != '0'
+        run: |
+          echo "::error::${{ steps.vuln.outputs.critical }} Critical NuGet vulnerabilities found — update affected packages"
+          exit 1
+
+  # ── 6. npm audit ─────────────────────────────────────────────────────────
+  npm-audit:
+    name: npm Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --prefer-offline
+
+      - name: Run npm audit (high and critical)
+        id: audit
+        working-directory: frontend
+        run: |
+          set +e
+          npm audit --audit-level=high --json > /tmp/npm-audit.json 2>&1
+          EXIT_CODE=$?
+
+          CRITICAL=$(node -e "try{const d=require('/tmp/npm-audit.json');console.log((d.metadata?.vulnerabilities?.critical)||0)}catch(e){console.log(0)}")
+          HIGH=$(node -e "try{const d=require('/tmp/npm-audit.json');console.log((d.metadata?.vulnerabilities?.high)||0)}catch(e){console.log(0)}")
+
+          echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
+          echo "high=$HIGH" >> "$GITHUB_OUTPUT"
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## npm Audit"
+            echo ""
+            echo "Critical: $CRITICAL  High: $HIGH"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload npm audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: /tmp/npm-audit.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Fail on Critical or High npm vulnerabilities
+        if: steps.audit.outputs.exit_code != '0'
+        env:
+          CRITICAL: ${{ steps.audit.outputs.critical }}
+          HIGH: ${{ steps.audit.outputs.high }}
+        run: |
+          echo "::error::npm audit found Critical (${CRITICAL}) or High (${HIGH}) severity vulnerabilities"
+          exit 1
+
+  # ── 7. Summary report ─────────────────────────────────────────────────────
   compliance-summary:
     name: Compliance Summary
     runs-on: ubuntu-latest
-    needs: [trivy-scan, owasp-zap, k6-load-test, lighthouse]
+    needs: [trivy-scan, owasp-zap, k6-load-test, lighthouse, nuget-vuln-scan, npm-audit]
     if: always()
     steps:
       - name: Print result
         run: |
-          echo "## Compliance Gate Results" >> $GITHUB_STEP_SUMMARY
-          echo "| Check | Result |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Trivy CVE Scan      | ${{ needs.trivy-scan.result }} |"      >> $GITHUB_STEP_SUMMARY
-          echo "| OWASP ZAP           | ${{ needs.owasp-zap.result }} |"       >> $GITHUB_STEP_SUMMARY
-          echo "| k6 Load Test (P95)  | ${{ needs.k6-load-test.result }} |"    >> $GITHUB_STEP_SUMMARY
-          echo "| Lighthouse Perf >90 | ${{ needs.lighthouse.result }} |"      >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Compliance Gate Results"
+            echo "| Check | Result |"
+            echo "|-------|--------|"
+            echo "| Trivy CVE Scan         | ${{ needs.trivy-scan.result }} |"
+            echo "| OWASP ZAP              | ${{ needs.owasp-zap.result }} |"
+            echo "| k6 Load Test (P95)     | ${{ needs.k6-load-test.result }} |"
+            echo "| Lighthouse Perf >90    | ${{ needs.lighthouse.result }} |"
+            echo "| NuGet Vuln Scan        | ${{ needs.nuget-vuln-scan.result }} |"
+            echo "| npm Audit              | ${{ needs.npm-audit.result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
