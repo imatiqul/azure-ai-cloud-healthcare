@@ -57,6 +57,9 @@ This backlog captures the highest-impact platform gaps identified during the lat
   - Hardened cloud smoke probes for trailing-slash route variants (`denials`, `break-glass`, `practitioners`) and added ML confidence legacy probe fallback to reduce rollout-time false negatives.
   - Validation for SHA `551b904`: `Microservice CI/CD` run `24947854391` succeeded; authoritative `Cloud E2E Tests` run `24947857842` succeeded with intentional no-deploy skips.
   - Added optional `AZURE_CREDENTIALS` service-principal fallback in `Microservice CI/CD` manual preflight and deploy login path so emergency redeploy can proceed if OIDC federation is misconfigured.
+  - Workflow parse regression from secret checks in `if` was corrected on SHA `2f87dd6`; push run `24948027975` completed `success` with expected no-deploy skips.
+  - Manual fallback validation run `24948028887` on SHA `2f87dd6` confirms both auth attempts execute: OIDC fails with `AADSTS700213`, then secret fallback runs and fails because required credential values are not present (indicating `AZURE_CREDENTIALS` is not configured with valid service principal JSON).
+  - Current state: fallback path is implemented and exercised, but emergency redeploy remains blocked until either federated credential subject is fixed or `AZURE_CREDENTIALS` is provisioned.
   - Until Entra federated credential subject is corrected, Cloud E2E route failures remain a blocked runtime convergence issue (not a resolved test-contract issue).
 
 ## Acceptance Criteria
