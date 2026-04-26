@@ -67,6 +67,7 @@ jobs:
             const maxAttempts = 20;
 
             if (context.eventName !== 'workflow_run') {
+              core.setOutput('reason', 'manual-or-scheduled');
               await core.summary
                 .addHeading('Deployment Sync Gate')
                 .addRaw('Manual or scheduled run detected — no upstream workflow sync required.')
@@ -176,16 +177,23 @@ jobs:
               .write();
 
             if (gateResult.hardFailure) {
+              core.setOutput('reason', 'failed-required-workflow');
               core.setFailed(`Cloud E2E gate blocked: required deploy workflow(s) failed for SHA ${headSha}.`);
               return 'false';
             }
 
             if (gateResult.terminalNoDeploy) {
+              core.setOutput('reason', 'no-deploy');
               core.notice(`Cloud E2E sync found no deploy execution for SHA ${headSha} (post-deploy-smoke skipped). Full cloud E2E will be skipped for this trigger.`);
             }
 
-            if (!gateResult.ready) {
+            if (!gateResult.ready && !gateResult.terminalNoDeploy) {
+              core.setOutput('reason', 'waiting-for-ready-workflows');
               core.notice(`Cloud E2E did not observe all required deploy workflows ready for SHA ${headSha} within the wait window. This run will exit in waiting mode.`);
+            }
+
+            if (gateResult.ready) {
+              core.setOutput('reason', 'ready');
             }
 
             return gateResult.ready ? 'true' : 'false';
@@ -195,6 +203,8 @@ jobs:
         run: |
           if [ "${{ steps.check.outputs.result }}" = "true" ]; then
             echo "Deployment sync gate passed for this SHA." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.check.outputs.reason }}" = "no-deploy" ]; then
+            echo "Deployment sync gate detected no deploy execution for this SHA (post-deploy-smoke skipped). Downstream smoke/full E2E jobs were intentionally skipped." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Deployment sync gate did not observe all required deploy workflows ready within the wait window for this SHA." >> "$GITHUB_STEP_SUMMARY"
           fi
