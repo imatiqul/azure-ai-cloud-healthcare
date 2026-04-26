@@ -3,6 +3,7 @@ using HealthQCopilot.Domain.Identity;
 using HealthQCopilot.Identity.Persistence;
 using HealthQCopilot.Infrastructure.Metrics;
 using HealthQCopilot.Infrastructure.Validation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace HealthQCopilot.Identity.Endpoints;
@@ -147,7 +148,7 @@ public static class BreakGlassEndpoints
         // ── Revoke break-glass access (supervisor action) ─────────────────────
         group.MapDelete("/{id:guid}", async (
             Guid id,
-            RevokeBreakGlassRequest? request,
+            [FromBody] RevokeBreakGlassRequest? request,
             IdentityDbContext db,
             CancellationToken ct) =>
         {

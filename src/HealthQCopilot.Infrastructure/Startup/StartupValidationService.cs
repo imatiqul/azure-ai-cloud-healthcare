@@ -21,14 +21,17 @@ public sealed class StartupValidationService(
         // ── Database ────────────────────────────────────────────────────────
         ValidateAny(errors, config,
             "ConnectionStrings:AppDb",
+            "ConnectionStrings:AgentDb",
             "ConnectionStrings:AgentsDb",
             "ConnectionStrings:PopHealthDb",
             "ConnectionStrings:RevenueDb",
             "ConnectionStrings:SchedulingDb",
+            "ConnectionStrings:NotificationDb",
             "ConnectionStrings:NotificationsDb",
             "ConnectionStrings:FhirDb",
             "ConnectionStrings:IdentityDb",
-            "ConnectionStrings:VoiceDb");
+            "ConnectionStrings:VoiceDb",
+            "ConnectionStrings:OcrDb");
 
         // ── Dapr pub/sub ────────────────────────────────────────────────────
         // Dapr sidecar config is injected at runtime; warn in non-Development if not found
