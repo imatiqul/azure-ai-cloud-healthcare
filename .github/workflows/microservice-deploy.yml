@@ -433,7 +433,7 @@ jobs:
   # was actually built & deployed (or triggered manually).
   # Verifies every ACA service returns a healthy response via the external gateway.
   post-deploy-smoke:
-    needs: [detect-changes, test-and-build]
+    needs: [detect-changes, validate-dispatch-inputs, test-and-build]
     if: >
       needs.test-and-build.result == 'success' &&
       github.ref == 'refs/heads/main' &&
@@ -603,6 +603,12 @@ jobs:
           done
 
           # Phase 12 — new endpoint smoke checks
+          NORMALIZED_SERVICES="${{ needs.validate-dispatch-inputs.outputs.normalized_services }}"
+          TARGETED_NON_NOTIFICATION_DISPATCH="false"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$NORMALIZED_SERVICES" != "all" ] && [[ ",$NORMALIZED_SERVICES," != *",notification,"* ]]; then
+            TARGETED_NON_NOTIFICATION_DISPATCH="true"
+          fi
+
           declare -A PHASE12_PATHS=(
             [scheduling-slots]="/api/v1/scheduling/slots"
             [revenue-denials]="/api/v1/revenue/denials"
@@ -614,6 +620,10 @@ jobs:
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
               --max-time 15 --retry 2 --retry-delay 3 \
               "${{ env.GATEWAY_URL }}${SVC_PATH}")
+            if [ "$ENDPOINT" = "notifications-analytics" ] && [ "$STATUS" = "404" ] && [ "$TARGETED_NON_NOTIFICATION_DISPATCH" = "true" ]; then
+              echo "::warning::Phase-12 $ENDPOINT ($SVC_PATH) → HTTP $STATUS on targeted non-notification dispatch; skipping."
+              continue
+            fi
             if [ "$STATUS" = "404" ] || [ "$STATUS" = "405" ] || [ "$STATUS" -ge 500 ]; then
               echo "❌ Phase-12 $ENDPOINT ($SVC_PATH) → HTTP $STATUS"
               FAIL=1
