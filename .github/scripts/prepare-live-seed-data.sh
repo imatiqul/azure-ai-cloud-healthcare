@@ -36,6 +36,15 @@ post_seed() {
       return 0
     fi
 
+    # Some public gateway/APIM surfaces expose the live read endpoints but do not
+    # publish the internal demo seed routes. In that case, continue and let the
+    # subsequent live-data assertions decide whether the environment is usable.
+    if [[ "$status" == "404" || "$status" == "405" ]]; then
+      record_summary "- ${service_name}: seed endpoint unavailable on public surface (HTTP ${status}); continuing to live-data verification"
+      rm -f "$body_file"
+      return 0
+    fi
+
     if [[ "$status" == "000" || "$status" == "500" || "$status" == "502" || "$status" == "503" || "$status" == "504" ]]; then
       echo "Waiting for ${service_name} seed endpoint (${attempt}/${attempts}, HTTP ${status})"
       sleep 10
@@ -108,7 +117,7 @@ post_seed "Identity"          "$LIVE_API_BASE_URL" "/api/v1/identity/seed"
 post_seed "AI Agent"          "$LIVE_API_BASE_URL" "/api/v1/agents/seed"
 
 assert_non_empty_array "Voice sessions"            "$LIVE_API_BASE_URL" "/api/v1/voice/sessions"
-assert_non_empty_array "Scheduling waitlist"       "$LIVE_API_BASE_URL" "/api/v1/scheduling/waitlist"
+assert_non_empty_array "Scheduling slots"          "$LIVE_API_BASE_URL" "/api/v1/scheduling/slots"
 assert_non_empty_array "Population health risks"   "$LIVE_API_BASE_URL" "/api/v1/population-health/risks"
 assert_non_empty_array "Revenue coding jobs"       "$LIVE_API_BASE_URL" "/api/v1/revenue/coding-jobs"
 assert_non_empty_array "AI agent triage workflows" "$LIVE_API_BASE_URL" "/api/v1/agents/triage"
