@@ -5,6 +5,7 @@ using HealthQCopilot.Infrastructure.Metrics;
 using HealthQCopilot.Infrastructure.Validation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace HealthQCopilot.Identity.Endpoints;
 
@@ -122,27 +123,39 @@ public static class BreakGlassEndpoints
             Guid? userId,
             string? patientId,
             IdentityDbContext db,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
-            var query = db.BreakGlassAccesses.AsNoTracking().AsQueryable();
-
-            if (userId.HasValue)
-                query = query.Where(a => a.RequestedByUserId == userId.Value);
-            if (!string.IsNullOrEmpty(patientId))
-                query = query.Where(a => a.TargetPatientId == patientId);
-
-            var results = await query.OrderByDescending(a => a.GrantedAt).Select(a => new
+            try
             {
-                a.Id,
-                a.RequestedByUserId,
-                a.TargetPatientId,
-                a.Status,
-                a.GrantedAt,
-                a.ExpiresAt,
-                a.ClinicalJustification
-            }).ToListAsync(ct);
+                var query = db.BreakGlassAccesses.AsNoTracking().AsQueryable();
 
-            return Results.Ok(results);
+                if (userId.HasValue)
+                    query = query.Where(a => a.RequestedByUserId == userId.Value);
+                if (!string.IsNullOrEmpty(patientId))
+                    query = query.Where(a => a.TargetPatientId == patientId);
+
+                var results = await query.OrderByDescending(a => a.GrantedAt).Select(a => new
+                {
+                    a.Id,
+                    a.RequestedByUserId,
+                    a.TargetPatientId,
+                    a.Status,
+                    a.GrantedAt,
+                    a.ExpiresAt,
+                    a.ClinicalJustification
+                }).ToListAsync(ct);
+
+                return Results.Ok(results);
+            }
+            catch (PostgresException ex) when (ex.SqlState == "42P01")
+            {
+                var logger = loggerFactory.CreateLogger("HealthQCopilot.Identity.BreakGlass");
+                logger.LogWarning(ex,
+                    "Break-glass table is missing in identity database; returning an empty list as a compatibility fallback.");
+
+                return Results.Ok(Array.Empty<object>());
+            }
         }).WithSummary("List break-glass access records");
 
         // ── Revoke break-glass access (supervisor action) ─────────────────────

@@ -1,6 +1,7 @@
 using HealthQCopilot.Domain.Scheduling;
 using HealthQCopilot.Scheduling.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace HealthQCopilot.Scheduling.Endpoints;
 
@@ -15,31 +16,45 @@ public static class PractitionerEndpoints
             bool? activeOnly,
             string? specialty,
             SchedulingDbContext db,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
-            var query = db.Practitioners.AsQueryable();
-            if (activeOnly ?? true)
-                query = query.Where(p => p.IsActive);
-            if (!string.IsNullOrWhiteSpace(specialty))
-                query = query.Where(p => p.Specialty.Contains(specialty));
-            var practitioners = await query
-                .OrderBy(p => p.Name)
-                .Select(p => new
-                {
-                    p.Id,
-                    p.PractitionerId,
-                    p.Name,
-                    p.Specialty,
-                    p.Email,
-                    AvailabilityStart = p.AvailabilityStart.ToString("HH:mm"),
-                    AvailabilityEnd = p.AvailabilityEnd.ToString("HH:mm"),
-                    p.TimeZoneId,
-                    p.IsActive,
-                    p.CreatedAt,
-                    p.UpdatedAt,
-                })
-                .ToListAsync(ct);
-            return Results.Ok(practitioners);
+            try
+            {
+                var query = db.Practitioners.AsQueryable();
+                if (activeOnly ?? true)
+                    query = query.Where(p => p.IsActive);
+                if (!string.IsNullOrWhiteSpace(specialty))
+                    query = query.Where(p => p.Specialty.Contains(specialty));
+
+                var practitioners = await query
+                    .OrderBy(p => p.Name)
+                    .Select(p => new
+                    {
+                        p.Id,
+                        p.PractitionerId,
+                        p.Name,
+                        p.Specialty,
+                        p.Email,
+                        AvailabilityStart = p.AvailabilityStart.ToString("HH:mm"),
+                        AvailabilityEnd = p.AvailabilityEnd.ToString("HH:mm"),
+                        p.TimeZoneId,
+                        p.IsActive,
+                        p.CreatedAt,
+                        p.UpdatedAt,
+                    })
+                    .ToListAsync(ct);
+
+                return Results.Ok(practitioners);
+            }
+            catch (PostgresException ex) when (ex.SqlState == "42P01")
+            {
+                var logger = loggerFactory.CreateLogger("HealthQCopilot.Scheduling.PractitionerEndpoints");
+                logger.LogWarning(ex,
+                    "Practitioners table is missing in the scheduling database; returning an empty list as a compatibility fallback.");
+
+                return Results.Ok(Array.Empty<object>());
+            }
         }).WithSummary("List practitioners");
 
         group.MapGet("/{id:guid}", async (

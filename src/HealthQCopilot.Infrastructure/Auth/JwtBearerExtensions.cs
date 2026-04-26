@@ -43,6 +43,8 @@ public static class JwtBearerExtensions
                 policy.RequireClaim(ClaimTypes.Role, "Clinician", "Admin"))
             .AddPolicy("Admin", policy =>
                 policy.RequireClaim(ClaimTypes.Role, "Admin"))
+            .AddPolicy("PlatformAdmin", policy =>
+                policy.RequireClaim(ClaimTypes.Role, "PlatformAdmin", "Admin"))
             .AddPolicy("Patient", policy =>
                 policy.RequireClaim(ClaimTypes.Role, "Patient", "Admin"))
             .AddPolicy("PatientOrClinician", policy =>
