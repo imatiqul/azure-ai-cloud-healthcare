@@ -16,6 +16,7 @@ This backlog captures the highest-impact platform gaps identified during the lat
 |---|---|---|---|---|---|
 | P0 | Full cloud E2E route failures on production gateway | Release confidence blocked; high regression risk | Run targeted service redeploy for identity, agent, scheduling, notification, revenue and rerun cloud E2E | DevOps + Service leads | 24 hours |
 | P0 | API contract mismatch between live tests and backend route ownership | False negatives in release gates; noisy triage | Align cloud smoke route probes to current service contracts and publish canonical route map | QA + Backend | 24 hours |
+| P0 | Azure OIDC federated credential subject mismatch blocks ACA deployment | Cannot ship runtime fixes; Cloud E2E gate remains stale | Update Entra federated identity subject to `repo:imatiqul/azure-ai-cloud-healthcare:ref:refs/heads/main` (or matching environment subject) and re-run targeted redeploy | DevOps + Cloud platform | 24 hours |
 | P1 | Documentation confidence drift ("all complete" narrative vs failing live evidence) | Leadership signal quality reduced | Introduce weekly evidence-driven scorecard from workflow outcomes and route probe SLOs | Product + Platform manager | 1 week |
 | P1 | workflow_run gating allows optional frontend deploy evidence | Incomplete release evidence chain | Make frontend deploy required for production cloud E2E release gate where applicable | DevOps | 1 week |
 | P1 | Node 20 GitHub Action deprecation warnings | Near-term CI instability risk | Upgrade action versions and validate Node 24 compatibility before enforcement date | DevOps | Before June 2026 |
@@ -34,6 +35,11 @@ This backlog captures the highest-impact platform gaps identified during the lat
 - Immediate next execution:
   - Merge workflow update that adds manual input `skip_format_check` for emergency redeploys.
   - Rerun `Microservice CI/CD` with `services=revenue,notification,identity,ai-agent,scheduling` and `skip_format_check=true`.
+- Execution update:
+  - Run `24947129713` launched on SHA `d228046` with `skip_format_check=true`.
+  - Build, unit tests, and integration tests completed successfully for targeted services.
+  - Deployment blocked at `Azure login (OIDC)` with `AADSTS700213` (no matching federated identity record for current repo subject).
+  - Cloud E2E run `24947167417` is waiting in `Deployment Sync Gate` because required deploy workflows for the SHA are not ready.
 
 ## Acceptance Criteria
 

@@ -93,6 +93,7 @@ jobs:
 
               const rows = [];
               let ready = true;
+              let hardFailure = false;
 
               for (const workflow of requiredWorkflows) {
                 const runs = data.workflow_runs
@@ -107,6 +108,8 @@ jobs:
                     ? 'not-required'
                     : status === 'completed' && conclusion === 'success'
                       ? 'ready'
+                    : status === 'completed'
+                      ? 'failed'
                       : 'waiting';
 
                 rows.push([
@@ -119,14 +122,18 @@ jobs:
                 if (gateState !== 'ready' && gateState !== 'not-required') {
                   ready = false;
                 }
+
+                if (gateState === 'failed') {
+                  hardFailure = true;
+                }
               }
 
-              return { ready, rows };
+              return { ready, rows, hardFailure };
             }
 
             let gateResult = await evaluateGate();
 
-            for (let attempt = 1; !gateResult.ready && attempt < maxAttempts; attempt += 1) {
+            for (let attempt = 1; !gateResult.ready && !gateResult.hardFailure && attempt < maxAttempts; attempt += 1) {
               core.info(`Deployment sync gate waiting for required workflows on ${headSha}; retrying in ${pollIntervalMs / 1000}s (${attempt}/${maxAttempts - 1}).`);
               await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
               gateResult = await evaluateGate();
@@ -145,6 +152,11 @@ jobs:
               ])
               .addRaw(`SHA: \`${headSha}\` | Branch: \`${headBranch}\``)
               .write();
+
+            if (gateResult.hardFailure) {
+              core.setFailed(`Cloud E2E gate blocked: required deploy workflow(s) failed for SHA ${headSha}.`);
+              return 'false';
+            }
 
             if (!gateResult.ready) {
               core.notice(`Cloud E2E did not observe all required deploy workflows ready for SHA ${headSha} within the wait window. This run will exit in waiting mode.`);
