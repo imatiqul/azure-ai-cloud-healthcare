@@ -23,3 +23,6 @@ services:
   pop-health:
     image:
       tag: f0f3766a037e2f5b2509db7025d885557441ec91
+  notification:
+    image:
+      tag: afb6ed8b89329e6fabe5fa9522de3e7813333917
