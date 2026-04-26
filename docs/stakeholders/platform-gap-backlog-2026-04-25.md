@@ -53,6 +53,8 @@ This backlog captures the highest-impact platform gaps identified during the lat
   - No Azure Container Apps deployments were executed; `post-deploy-smoke` was skipped.
   - Validation run `24947630735` on SHA `a91f7a4` confirmed new fail-fast behavior: `azure-login-preflight` failed immediately, while `test-and-build` was skipped by design.
   - Cloud E2E runs `24947675600` (SHA `e054350`) and `24947693208` (SHA `3972807`) now complete `success` with intentional skips when no deploy evidence exists (`post-deploy-smoke` skipped).
+  - Added gateway route mapping for identity admin audit APIs: `/api/v1/admin/audit/{**catch-all}` now resolves to `identity-service` in source configuration.
+  - Hardened cloud smoke probes for trailing-slash route variants (`denials`, `break-glass`, `practitioners`) and added ML confidence legacy probe fallback to reduce rollout-time false negatives.
   - Until Entra federated credential subject is corrected, Cloud E2E route failures remain a blocked runtime convergence issue (not a resolved test-contract issue).
 
 ## Acceptance Criteria

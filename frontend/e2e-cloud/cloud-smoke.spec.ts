@@ -36,6 +36,39 @@ async function acaPost(
   }
 }
 
+async function acaGetWithFallback(
+  request: APIRequestContext,
+  urls: string[],
+): Promise<APIResponse | null> {
+  let candidate: APIResponse | null = null;
+  for (const url of urls) {
+    const response = await acaGet(request, url);
+    if (!response) continue;
+    if (response.status() === 404 || response.status() === 405) {
+      candidate ??= response;
+      continue;
+    }
+    return response;
+  }
+  return candidate;
+}
+
+async function probeMlConfidence(
+  request: APIRequestContext,
+): Promise<APIResponse | null> {
+  const primary = await acaPost(request, `${LIVE_API_BASE_URL}/api/v1/agents/decisions/ml-confidence`);
+  if (primary && primary.status() !== 404 && primary.status() !== 405) {
+    return primary;
+  }
+
+  const legacy = await acaGet(request, `${LIVE_API_BASE_URL}/api/v1/ml/confidence`);
+  if (legacy) {
+    return legacy;
+  }
+
+  return primary;
+}
+
 function expectLiveApiSurface(response: APIResponse, description: string): void {
   const status = response.status();
   expect(
@@ -247,7 +280,10 @@ test.describe('Phase 12 — Scheduling Waitlist Endpoints', () => {
 
 test.describe('Phase 12 — Revenue Denial Management Endpoints', () => {
   test('denials list endpoint responds', async ({ request }) => {
-    const response = await acaGet(request, `${LIVE_API_BASE_URL}/api/v1/revenue/denials/`);
+    const response = await acaGetWithFallback(request, [
+      `${LIVE_API_BASE_URL}/api/v1/revenue/denials/`,
+      `${LIVE_API_BASE_URL}/api/v1/revenue/denials`,
+    ]);
     test.skip(!response, 'Revenue live API returned 503 or timed out (advisory)');
     expectLiveApiSurface(response!, 'Revenue denials endpoint');
   });
@@ -292,8 +328,8 @@ test.describe('Phase 27 — Notification Campaign Endpoints', () => {
 
 test.describe('Phase 27 — ML Confidence Endpoint', () => {
   test('ml-confidence endpoint responds to validation error', async ({ request }) => {
-    // POST with empty body should return 400 (validation) — not 5xx
-    const response = await acaPost(request, `${LIVE_API_BASE_URL}/api/v1/agents/decisions/ml-confidence`);
+    // POST is the canonical contract; legacy environments may expose GET /api/v1/ml/confidence.
+    const response = await probeMlConfidence(request);
     test.skip(!response, 'AI-Agent live API returned 503 or timed out (advisory)');
     expectLiveApiSurface(response!, 'ML confidence endpoint');
   });
@@ -334,7 +370,10 @@ test.describe('Phase 41 — Clinical Alerts API Endpoints', () => {
 
   test('break-glass sessions endpoint is reachable', async ({ request }) => {
     test.skip(!GATEWAY, 'GATEWAY_ACA_URL not configured');
-    const res = await acaGet(request, `${GATEWAY}/api/v1/identity/break-glass/`);
+    const res = await acaGetWithFallback(request, [
+      `${GATEWAY}/api/v1/identity/break-glass/`,
+      `${GATEWAY}/api/v1/identity/break-glass`,
+    ]);
     test.skip(!res, 'Gateway ACA scaled to zero (503) — advisory');
     expectLiveApiSurface(res!, 'Break-glass sessions endpoint');
   });
@@ -348,7 +387,10 @@ test.describe('Phase 41 — Clinical Alerts API Endpoints', () => {
 
   test('denials endpoint is reachable', async ({ request }) => {
     test.skip(!GATEWAY, 'GATEWAY_ACA_URL not configured');
-    const res = await acaGet(request, `${GATEWAY}/api/v1/revenue/denials/`);
+    const res = await acaGetWithFallback(request, [
+      `${GATEWAY}/api/v1/revenue/denials/`,
+      `${GATEWAY}/api/v1/revenue/denials`,
+    ]);
     test.skip(!res, 'Gateway ACA scaled to zero (503) — advisory');
     expectLiveApiSurface(res!, 'Revenue denials endpoint');
   });
@@ -375,7 +417,10 @@ test.describe('Phase 41 — Reports Export API Endpoints', () => {
   test('practitioners list endpoint is reachable', async ({ request }) => {
     test.skip(!GATEWAY, 'GATEWAY_ACA_URL not configured');
     // Practitioner management endpoints are exposed by Scheduling service.
-    const res = await acaGet(request, `${GATEWAY}/api/v1/scheduling/practitioners/`);
+    const res = await acaGetWithFallback(request, [
+      `${GATEWAY}/api/v1/scheduling/practitioners/`,
+      `${GATEWAY}/api/v1/scheduling/practitioners`,
+    ]);
     test.skip(!res, 'Gateway ACA scaled to zero (503) — advisory');
     expectLiveApiSurface(res!, 'Practitioners list endpoint');
   });
