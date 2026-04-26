@@ -39,7 +39,8 @@ jobs:
               { file: 'release-gate-policy-audit.yml', name: 'Release Gate Policy Audit' },
               { file: 'deployment-health.yml', name: 'Deployment Health Dashboard' },
               { file: 'compliance-check.yml', name: 'Compliance and Security Checks' },
-              { file: 'rollback.yml', name: 'Emergency Rollback' }
+              { file: 'rollback.yml', name: 'Emergency Rollback' },
+              { file: 'dora-metrics.yml', name: 'DORA Metrics' }
             ];
 
             const rows = [];
@@ -90,6 +91,7 @@ jobs:
             }
 
             const cloudE2E = rows.find((row) => row.name === 'Cloud E2E Tests');
+            const doraMetrics = rows.find((row) => row.name === 'DORA Metrics');
             const runtimeConvergence = rows.find((row) => row.name === 'Runtime Convergence Audit');
             const routeProbes = rows.find((row) => row.name === 'Gateway Route Probes');
             const releaseGatePolicy = rows.find((row) => row.name === 'Release Gate Policy Audit');
@@ -137,6 +139,7 @@ jobs:
 
             report += '\n## KPI Snapshot\n\n';
             report += `- Cloud E2E pass trend: ${cloudE2E?.passRate ?? 'n/a'}\n`;
+            report += `- DORA metrics pass trend: ${doraMetrics?.passRate ?? 'n/a'}\n`;
             report += `- Runtime convergence trend: ${runtimeConvergence?.passRate ?? 'n/a'}\n`;
             report += `- Gateway route probe trend: ${routeProbes?.passRate ?? 'n/a'}\n`;
             report += `- Release gate policy trend: ${releaseGatePolicy?.passRate ?? 'n/a'}\n`;

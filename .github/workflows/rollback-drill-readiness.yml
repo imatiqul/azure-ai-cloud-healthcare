@@ -1,0 +1,126 @@
+name: Rollback Drill Readiness
+
+on:
+  schedule:
+    - cron: '30 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      strict_mode:
+        description: 'Fail the run when readiness thresholds are not met'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  evaluate-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Evaluate rollback drill readiness
+        id: readiness
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const { owner, repo } = context.repo;
+            const cadenceDays = 14;
+            const mttrWindowDays = 30;
+            const mttrTargetMinutes = 240;
+            const strictMode = "${{ github.event.inputs.strict_mode || 'true' }}" === 'true';
+
+            const allRuns = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner,
+              repo,
+              workflow_id: 'rollback.yml',
+              branch: 'main',
+              per_page: 100,
+            });
+
+            const completed = allRuns.filter((run) => run.status === 'completed');
+            const successful = completed.filter((run) => run.conclusion === 'success');
+
+            const cadenceCutoff = new Date(Date.now() - cadenceDays * 24 * 60 * 60 * 1000);
+            const mttrCutoff = new Date(Date.now() - mttrWindowDays * 24 * 60 * 60 * 1000);
+
+            const successfulCadenceRuns = successful.filter((run) => new Date(run.updated_at) >= cadenceCutoff);
+            const mttrWindowRuns = successful.filter((run) => new Date(run.updated_at) >= mttrCutoff);
+
+            const durations = mttrWindowRuns
+              .map((run) => {
+                const startIso = run.run_started_at || run.created_at;
+                const endIso = run.updated_at;
+                if (!startIso || !endIso) return null;
+                const start = new Date(startIso);
+                const end = new Date(endIso);
+                const duration = (end - start) / 60000;
+                return Number.isFinite(duration) && duration >= 0 ? duration : null;
+              })
+              .filter((value) => value !== null);
+
+            const avgDuration = durations.length > 0
+              ? durations.reduce((sum, value) => sum + value, 0) / durations.length
+              : null;
+
+            const cadenceOk = successfulCadenceRuns.length > 0;
+            const mttrOk = avgDuration === null ? false : avgDuration <= mttrTargetMinutes;
+
+            const statusLines = [];
+            statusLines.push(`# Rollback Drill Readiness`);
+            statusLines.push('');
+            statusLines.push(`Generated: ${new Date().toISOString()}`);
+            statusLines.push(`Strict mode: ${strictMode}`);
+            statusLines.push('');
+            statusLines.push(`- Successful rollback drills in last ${cadenceDays} days: ${successfulCadenceRuns.length}`);
+            statusLines.push(`- Successful rollback drills in last ${mttrWindowDays} days: ${mttrWindowRuns.length}`);
+            statusLines.push(`- Average rollback duration (successful, ${mttrWindowDays}-day window): ${avgDuration === null ? 'n/a' : `${avgDuration.toFixed(1)} min`}`);
+            statusLines.push(`- MTTR target (${mttrTargetMinutes} min): ${mttrOk ? 'met' : 'not met'}`);
+
+            const mostRecent = successful[0];
+            if (mostRecent) {
+              statusLines.push(`- Latest successful rollback: ${mostRecent.updated_at} (${mostRecent.html_url})`);
+            } else {
+              statusLines.push(`- Latest successful rollback: none`);
+            }
+
+            if (!cadenceOk) {
+              statusLines.push('');
+              statusLines.push(`> ⚠️ No successful rollback drill was detected in the last ${cadenceDays} days.`);
+            }
+
+            if (!mttrOk) {
+              statusLines.push('');
+              statusLines.push(`> ⚠️ MTTR target is not met (or insufficient successful rollback data).`);
+            }
+
+            const report = statusLines.join('\n') + '\n';
+            const outputDir = 'artifacts/rollback-readiness';
+            fs.mkdirSync(outputDir, { recursive: true });
+            const reportPath = `${outputDir}/rollback-readiness-${new Date().toISOString().slice(0, 10)}.md`;
+            fs.writeFileSync(reportPath, report, 'utf8');
+
+            core.setOutput('report_path', reportPath);
+            core.setOutput('report_name', `rollback-readiness-${new Date().toISOString().slice(0, 10)}`);
+
+            await core.summary.addRaw(report, true).write();
+
+            if (strictMode && (!cadenceOk || !mttrOk)) {
+              core.setFailed('Rollback readiness thresholds not met. See summary and artifact for details.');
+            }
+
+      - name: Upload rollback readiness artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.readiness.outputs.report_name }}
+          path: ${{ steps.readiness.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 30

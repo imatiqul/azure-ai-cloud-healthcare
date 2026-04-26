@@ -165,6 +165,42 @@ jobs:
           output_location: ''
           skip_app_build: true
 
+      - name: Generate SWA deploy evidence
+        if: (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        run: |
+          DATE_TAG=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          mkdir -p /tmp/swa-evidence
+
+          cat > /tmp/swa-evidence/deploy-evidence.md << EOF
+          # SWA Deploy Evidence — ${{ matrix.app }}
+
+          | Field | Value |
+          |---|---|
+          | App | ${{ matrix.app }} |
+          | SHA | ${{ github.sha }} |
+          | Run | ["${GITHUB_RUN_ID}"]("${RUN_URL}") |
+          | Generated | "${DATE_TAG}" |
+
+          ## Completed Gates
+
+          - [x] pnpm install (frozen lockfile)
+          - [x] ESLint and TypeScript type-check
+          - [x] Vitest unit tests with coverage
+          - [x] pnpm build (Vite production bundle)
+          - [x] Bundle size budgets (bundlewatch)
+          - [x] Azure Static Web Apps deploy action completed
+          EOF
+
+      - name: Upload SWA deploy evidence
+        if: (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: swa-deploy-evidence-${{ matrix.app }}-${{ github.sha }}
+          path: /tmp/swa-evidence/deploy-evidence.md
+          if-no-files-found: error
+          retention-days: 30
+
       # ── Post-deploy availability check ───────────────────────────────────────
       # Verify that the specific app deployed in this matrix row is externally
       # reachable after SWA propagation. Remote MFEs must serve remoteEntry.js.
@@ -243,5 +279,5 @@ jobs:
             exit 1
           fi
 
-          echo "✅ ${{ matrix.app }} is live at $VERIFY_URL" >> $GITHUB_STEP_SUMMARY
+          echo "✅ ${{ matrix.app }} is live at $VERIFY_URL" >> "$GITHUB_STEP_SUMMARY"
 

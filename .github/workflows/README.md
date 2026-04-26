@@ -42,6 +42,7 @@ This catalog describes all CI/CD and quality workflows in this repository.
 | `release-gate-policy-audit.yml` | `schedule`, `workflow_dispatch` | Audits `main` branch protection and release gate policy compliance from `.github/release-gate-policy.json`. |
 | `weekly-platform-scorecard.yml` | `schedule`, `workflow_dispatch` | Generates weekly workflow pass-rate scorecard with rollback cadence and MTTR KPI snapshot artifact. |
 | `rollback-drill-readiness.yml` | `schedule`, `workflow_dispatch` | Evaluates rollback drill cadence and MTTR readiness thresholds and publishes readiness artifact. |
+| `dora-metrics.yml` | `schedule`, `workflow_dispatch` | Calculates the four DORA metrics (deployment frequency, lead time, change failure rate, MTTR) and publishes artifact. |
 
 ## Artifact Notes
 
@@ -53,6 +54,9 @@ This catalog describes all CI/CD and quality workflows in this repository.
 - `gateway-route-probes.yml` writes route probe outcomes to the job summary and fails when critical routes regress.
 - `release-gate-policy-audit.yml` uploads `release-gate-audit-<date>` with branch protection and post-merge gate compliance results.
 - `rollback-drill-readiness.yml` uploads `rollback-readiness-<date>` with cadence and MTTR readiness evaluation.
+- `dora-metrics.yml` uploads `dora-metrics-<date>` with the four DORA key metrics (90-day retention).
+- `infra-deploy.yml` validate job also uploads `release-evidence-<env>-<sha>` release checklist artifact.
+- `frontend-deploy.yml` uploads `swa-deploy-evidence-<app>-<sha>` per-MFE deploy evidence artifact.
 
 ## Local Validation Tip
 

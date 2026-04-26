@@ -1,0 +1,224 @@
+name: DORA Metrics
+
+# Calculates the four DORA engineering metrics from GitHub Actions run history.
+# Runs weekly (aligned with scorecard) and on-demand.
+on:
+  schedule:
+    - cron: '30 8 * * 1'   # Monday 08:30 UTC — after scorecard at 08:00
+  workflow_dispatch:
+    inputs:
+      window_days:
+        description: 'Lookback window in days'
+        required: false
+        default: '28'
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  compute-dora-metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute DORA metrics
+        id: dora
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+
+            const windowDays = parseInt('${{ github.event.inputs.window_days || 28 }}', 10);
+            const windowMs = windowDays * 24 * 60 * 60 * 1000;
+            const cutoff = new Date(Date.now() - windowMs);
+            const dateTag = new Date().toISOString().slice(0, 10);
+
+            // ── Deployment Frequency ─────────────────────────────────────────
+            // Count successful microservice-deploy and frontend-deploy runs on main
+            // within the window as the proxy for production deployments.
+            const deployWorkflows = ['microservice-deploy.yml', 'frontend-deploy.yml'];
+            let deployCount = 0;
+            for (const wf of deployWorkflows) {
+              const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                owner, repo,
+                workflow_id: wf,
+                branch: 'main',
+                per_page: 100,
+              });
+              deployCount += runs.filter(
+                (r) => r.status === 'completed' &&
+                        r.conclusion === 'success' &&
+                        new Date(r.updated_at) >= cutoff
+              ).length;
+            }
+            const deployFrequencyPerDay = (deployCount / windowDays).toFixed(2);
+            const deployFrequencyPerWeek = (deployCount / (windowDays / 7)).toFixed(1);
+
+            // ── Lead Time for Changes (proxy: PR merge to successful deploy) ──
+            // Use pull_requests events on merged PRs in the window and match
+            // them to the first successful microservice-deploy run on the merge SHA.
+            // Approximate: median time from PR creation to first successful deploy.
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner, repo,
+              state: 'closed',
+              base: 'main',
+              per_page: 100,
+              sort: 'updated',
+              direction: 'desc',
+            });
+
+            const mergedPRs = prs.filter(
+              (pr) => pr.merged_at && new Date(pr.merged_at) >= cutoff
+            );
+
+            const deployRuns = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner, repo,
+              workflow_id: 'microservice-deploy.yml',
+              branch: 'main',
+              per_page: 100,
+            });
+
+            const successfulDeploys = deployRuns.filter(
+              (r) => r.status === 'completed' && r.conclusion === 'success'
+            );
+
+            const leadTimes = [];
+            for (const pr of mergedPRs) {
+              const mergeTime = new Date(pr.merged_at);
+              const headSha = pr.merge_commit_sha;
+              // Find first deploy run at or after merge that matches SHA
+              const matchingDeploy = successfulDeploys
+                .filter((r) => r.head_sha === headSha && new Date(r.updated_at) >= mergeTime)
+                .sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at))[0];
+
+              if (matchingDeploy) {
+                const deployTime = new Date(matchingDeploy.updated_at);
+                leadTimes.push((deployTime - mergeTime) / 60000); // minutes
+              }
+            }
+
+            const medianLeadTimeMinutes = leadTimes.length > 0
+              ? leadTimes.sort((a, b) => a - b)[Math.floor(leadTimes.length / 2)]
+              : null;
+            const medianLeadTimeHours = medianLeadTimeMinutes !== null
+              ? (medianLeadTimeMinutes / 60).toFixed(1)
+              : 'n/a';
+
+            // ── Change Failure Rate ──────────────────────────────────────────
+            // Ratio of rollback workflow runs to total deploy runs in the window.
+            const rollbackRuns = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner, repo,
+              workflow_id: 'rollback.yml',
+              branch: 'main',
+              per_page: 100,
+            });
+            const rollbacksInWindow = rollbackRuns.filter(
+              (r) => r.status === 'completed' && new Date(r.updated_at) >= cutoff
+            ).length;
+
+            const changeFailureRate = deployCount > 0
+              ? ((rollbacksInWindow / deployCount) * 100).toFixed(1)
+              : '0.0';
+
+            // ── MTTR (Mean Time to Restore) ──────────────────────────────────
+            // Approximate: average duration of successful rollback runs in the window.
+            const rollbacksSucceeded = rollbackRuns.filter(
+              (r) => r.status === 'completed' &&
+                      r.conclusion === 'success' &&
+                      new Date(r.updated_at) >= cutoff
+            );
+
+            let avgMttrMinutes = 'n/a';
+            if (rollbacksSucceeded.length > 0) {
+              const totalMs = rollbacksSucceeded.reduce((sum, r) => {
+                const start = new Date(r.created_at);
+                const end = new Date(r.updated_at);
+                return sum + (end - start);
+              }, 0);
+              avgMttrMinutes = (totalMs / rollbacksSucceeded.length / 60000).toFixed(0);
+            }
+
+            // ── DORA Band Classification ─────────────────────────────────────
+            function deployBand(perWeek) {
+              const n = parseFloat(perWeek);
+              if (n >= 7) return 'Elite (multiple times/day)';
+              if (n >= 1) return 'High (weekly to daily)';
+              if (n >= 0.25) return 'Medium (monthly to weekly)';
+              return 'Low (< monthly)';
+            }
+
+            function leadTimeBand(hours) {
+              if (hours === 'n/a') return 'n/a';
+              const h = parseFloat(hours);
+              if (h <= 1) return 'Elite (< 1 hour)';
+              if (h <= 24) return 'High (< 1 day)';
+              if (h <= 168) return 'Medium (< 1 week)';
+              return 'Low (> 1 week)';
+            }
+
+            function cfrBand(pct) {
+              const n = parseFloat(pct);
+              if (n <= 5) return 'Elite (0–5%)';
+              if (n <= 10) return 'High (6–10%)';
+              if (n <= 30) return 'Medium (11–30%)';
+              return 'Low (> 30%)';
+            }
+
+            function mttrBand(minutes) {
+              if (minutes === 'n/a') return 'n/a';
+              const m = parseFloat(minutes);
+              if (m <= 60) return 'Elite (< 1 hour)';
+              if (m <= 1440) return 'High (< 1 day)';
+              if (m <= 10080) return 'Medium (< 1 week)';
+              return 'Low (> 1 week)';
+            }
+
+            // ── Build Report ─────────────────────────────────────────────────
+            const reportLines = [];
+            reportLines.push('# DORA Metrics Report');
+            reportLines.push('');
+            reportLines.push(`Generated: ${new Date().toISOString()}`);
+            reportLines.push(`Lookback window: ${windowDays} days`);
+            reportLines.push('');
+            reportLines.push('## Four Key Metrics');
+            reportLines.push('');
+            reportLines.push('| Metric | Value | Band |');
+            reportLines.push('|---|---|---|');
+            reportLines.push(`| Deployment Frequency | ${deployFrequencyPerWeek}/week (${deployCount} deploys) | ${deployBand(deployFrequencyPerWeek)} |`);
+            reportLines.push(`| Lead Time for Changes | ${medianLeadTimeHours} hours (median) | ${leadTimeBand(medianLeadTimeHours)} |`);
+            reportLines.push(`| Change Failure Rate | ${changeFailureRate}% (${rollbacksInWindow} rollbacks / ${deployCount} deploys) | ${cfrBand(changeFailureRate)} |`);
+            reportLines.push(`| MTTR | ${avgMttrMinutes === 'n/a' ? 'n/a' : avgMttrMinutes + ' min'} (avg rollback duration) | ${mttrBand(avgMttrMinutes)} |`);
+            reportLines.push('');
+            reportLines.push('## Detail');
+            reportLines.push('');
+            reportLines.push(`- PRs merged in window: ${mergedPRs.length}`);
+            reportLines.push(`- PRs with matched deploy runs: ${leadTimes.length}`);
+            reportLines.push(`- Successful rollbacks in window: ${rollbacksSucceeded.length}`);
+
+            const report = reportLines.join('\n') + '\n';
+
+            const outputDir = 'artifacts/dora';
+            fs.mkdirSync(outputDir, { recursive: true });
+            const reportPath = `${outputDir}/dora-metrics-${dateTag}.md`;
+            fs.writeFileSync(reportPath, report, 'utf8');
+
+            core.setOutput('report_path', reportPath);
+            core.setOutput('report_name', `dora-metrics-${dateTag}`);
+            core.setOutput('deploy_frequency_per_week', deployFrequencyPerWeek);
+            core.setOutput('lead_time_hours', medianLeadTimeHours);
+            core.setOutput('change_failure_rate', changeFailureRate);
+            core.setOutput('mttr_minutes', avgMttrMinutes);
+
+            await core.summary.addRaw(report, true).write();
+
+      - name: Upload DORA metrics artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.dora.outputs.report_name }}
+          path: ${{ steps.dora.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 90

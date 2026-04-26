@@ -9,6 +9,7 @@ permissions:
   contents: read
   pull-requests: write
   security-events: write   # for Gitleaks SARIF upload
+  actions: read            # for dependency-review PR comment access
 
 jobs:
   # ── Secret scanning: runs first so leaked credentials block the PR ─────────
@@ -114,3 +115,18 @@ jobs:
           CI_COMMIT_SHA:   ${{ github.event.pull_request.head.sha || github.sha }}
           CI_BRANCH:       ${{ github.head_ref || github.ref_name }}
           CI_BRANCH_BASE:  main
+
+  # ── Dependency Review: block PRs introducing known-vulnerable packages ──────
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: always
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
