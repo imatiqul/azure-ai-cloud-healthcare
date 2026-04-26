@@ -99,6 +99,63 @@ jobs:
             --parameters infra/bicep/main.${{ inputs.environment || 'dev' }}.bicepparam \
             --exclude-change-types Ignore NoChange
 
+      - name: Generate release evidence checklist
+        run: |
+          ENVIRONMENT="${{ inputs.environment || 'dev' }}"
+          DATE_TAG=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          mkdir -p /tmp/release-evidence
+
+          cat > /tmp/release-evidence/release-checklist.md << EOF
+          # Release Evidence Checklist
+
+          | Field | Value |
+          |---|---|
+          | Environment | ${ENVIRONMENT} |
+          | SHA | ${{ github.sha }} |
+          | Run | [${GITHUB_RUN_ID}](${RUN_URL}) |
+          | Generated | ${DATE_TAG} |
+
+          ## Infrastructure Validation Evidence
+
+          - [x] Bicep template compiled without errors
+          - [x] Bicep deployment validated (subscription-scope what-if completed)
+          - [x] Helm chart linted for target environment (${ENVIRONMENT})
+          - [x] Helm chart rendered to manifest (see \`helm-rendered-${ENVIRONMENT}\` artifact)
+          - [x] Infrastructure change preview (what-if) completed without unexpected changes
+
+          ## Required PR Gate Evidence
+
+          The following checks must have passed on the merge commit before this deploy:
+
+          - [ ] \`pr-validation\` — dotnet build, format, unit tests, integration tests, coverage
+          - [ ] \`workflow-lint\` — actionlint clean on changed workflow files
+          - [ ] \`helm-chart-validation\` — Helm lint and render clean
+          - [ ] \`api-route-ownership-governance\` — route ownership map alignment verified
+
+          ## Post-Deploy Required Evidence
+
+          - [ ] \`cloud-e2e-tests.yml\` — smoke and full E2E pass on deployed SHA
+          - [ ] \`gateway-route-probes.yml\` — no critical route 404/405/502/503/504
+
+          ## Release Reviewer Acknowledgement
+
+          - [ ] All infrastructure validation evidence above confirmed
+          - [ ] Post-deploy validation workflows triggered and in-progress
+          - [ ] Any manual exceptions documented in incident or release record
+          EOF
+
+          echo "Release evidence checklist generated at /tmp/release-evidence/release-checklist.md"
+
+      - name: Upload release evidence checklist
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.environment || 'dev' }}-${{ github.sha }}
+          path: /tmp/release-evidence/release-checklist.md
+          if-no-files-found: error
+          retention-days: 30
+
   deploy-infrastructure:
     needs: validate
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

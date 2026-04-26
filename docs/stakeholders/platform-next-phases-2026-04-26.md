@@ -25,6 +25,7 @@ Goal: convert newly added quality checks into mandatory release evidence.
 
 Status:
 - Enforcement audit automation implemented via `.github/workflows/release-gate-policy-audit.yml` using `.github/release-gate-policy.json`.
+- Release evidence checklist artifact generated and uploaded by `.github/workflows/infra-deploy.yml` validate job as `release-evidence-<env>-<sha>`.
 
 Key work:
 - Make `workflow-lint.yml` and `helm-chart-validation.yml` required PR checks.

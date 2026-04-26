@@ -36,7 +36,7 @@ This guide is for leaders coordinating roadmap, delivery quality, and cross-team
 | Route integrity | Gateway route non-regression trend | [gateway-route-probes.yml](../../.github/workflows/gateway-route-probes.yml) |
 | Release gate compliance | Required-check policy and branch-protection compliance trend | [release-gate-policy-audit.yml](../../.github/workflows/release-gate-policy-audit.yml) |
 | Security/compliance | Secret scanning and vulnerability findings | [compliance-check.yml](../../.github/workflows/compliance-check.yml) |
-| Leadership scorecard | Weekly pass-rate and KPI snapshot | [weekly-platform-scorecard.yml](../../.github/workflows/weekly-platform-scorecard.yml) |
+| Leadership scorecard | Weekly pass-rate and KPI snapshot | [weekly-platform-scorecard.yml](../../.github/workflows/weekly-platform-scorecard.yml) — artifact `platform-scorecard-<date>` in Actions |
 | Operational resilience | Rollback drill cadence and MTTR readiness trend | [rollback-drill-readiness.yml](../../.github/workflows/rollback-drill-readiness.yml), [rollback-drill-log.md](rollback-drill-log.md) |
 
 ## Compliance and Governance References
@@ -51,9 +51,11 @@ This guide is for leaders coordinating roadmap, delivery quality, and cross-team
 
 - Cross-team dependencies are explicit and scheduled.
 - Each release candidate has backend + frontend + cloud E2E evidence.
+- Release evidence checklist artifact (`release-evidence-<env>-<sha>`) is present in the infra-deploy run for the target SHA.
 - Security/compliance checks are green or have approved risk acceptance.
 - Rollback path is confirmed for production window.
 - Rollback readiness workflow is green or has an approved mitigation plan.
+- Runtime convergence and route probe audits are passing or exceptions are recorded.
 
 ## Planning Reference
 

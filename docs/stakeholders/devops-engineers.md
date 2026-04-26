@@ -36,7 +36,7 @@ Two deployment tracks coexist in the current codebase:
 | [pr-validation.yml](../../.github/workflows/pr-validation.yml) | CI quality gates on pull requests |
 | [microservice-deploy.yml](../../.github/workflows/microservice-deploy.yml) | Build, scan, publish, and deploy service images |
 | [frontend-deploy.yml](../../.github/workflows/frontend-deploy.yml) | Build and deploy changed MFEs |
-| [infra-deploy.yml](../../.github/workflows/infra-deploy.yml) | Validate and deploy infrastructure baseline |
+| [infra-deploy.yml](../../.github/workflows/infra-deploy.yml) | Validate and deploy infrastructure baseline — uploads `helm-rendered-<env>` and `release-evidence-<env>-<sha>` artifacts |
 | [helm-chart-validation.yml](../../.github/workflows/helm-chart-validation.yml) | Lint and render Helm chart changes on PRs and publish rendered manifests |
 | [workflow-lint.yml](../../.github/workflows/workflow-lint.yml) | Lint changed GitHub Actions workflow files in PRs using actionlint |
 | [api-route-ownership-governance.yml](../../.github/workflows/api-route-ownership-governance.yml) | Enforce gateway route ownership map updates and route-to-cluster alignment on PRs |
