@@ -3,6 +3,7 @@ using HealthQCopilot.Domain.Identity;
 using HealthQCopilot.Identity.Persistence;
 using HealthQCopilot.Infrastructure.Metrics;
 using HealthQCopilot.Infrastructure.Validation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace HealthQCopilot.Identity.Endpoints;
@@ -98,7 +99,7 @@ public static class ConsentEndpoints
         // ── Revoke consent ───────────────────────────────────────────────────
         group.MapDelete("/{id:guid}", async (
             Guid id,
-            RevokeConsentRequest? request,
+            [FromBody] RevokeConsentRequest? request,
             IdentityDbContext db,
             CancellationToken ct) =>
         {
