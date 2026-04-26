@@ -50,6 +50,7 @@ This backlog captures the highest-impact platform gaps identified during the lat
   - Run `24947559015` launched on SHA `910dc9b` with `services=revenue,notification,identity,ai-agent,scheduling` and `skip_format_check=true`.
   - All five targeted service jobs failed at `Azure login (OIDC)` with the same `AADSTS700213` subject mismatch: `repo:imatiqul/azure-ai-cloud-healthcare:ref:refs/heads/main`.
   - No Azure Container Apps deployments were executed; `post-deploy-smoke` was skipped.
+  - Validation run `24947630735` on SHA `a91f7a4` confirmed new fail-fast behavior: `azure-login-preflight` failed immediately, while `test-and-build` was skipped by design.
   - Until Entra federated credential subject is corrected, Cloud E2E route failures remain a blocked runtime convergence issue (not a resolved test-contract issue).
 
 ## Acceptance Criteria
