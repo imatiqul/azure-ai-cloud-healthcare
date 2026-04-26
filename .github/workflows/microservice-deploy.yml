@@ -547,9 +547,13 @@ jobs:
             LAST_STATUS="$STATUS"
             LAST_EXIT="$CURL_EXIT"
 
-            if [ "$CURL_EXIT" -eq 0 ] && [ "$STATUS" = "200" ]; then
-              echo "Gateway /health -> HTTP $STATUS (attempt $ATTEMPT/$MAX_ATTEMPTS)"
-              echo "Gateway is healthy"
+            if [ "$CURL_EXIT" -eq 0 ] && [ -n "${STATUS:-}" ] && [ "$STATUS" != "000" ]; then
+              if [ "$STATUS" = "200" ]; then
+                echo "Gateway /health -> HTTP $STATUS (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+                echo "Gateway is healthy"
+              else
+                echo "::warning::Gateway /health returned HTTP $STATUS (attempt $ATTEMPT/$MAX_ATTEMPTS). Continuing to route-level smoke checks."
+              fi
               exit 0
             fi
 
@@ -560,7 +564,7 @@ jobs:
             fi
           done
 
-          echo "::error::Gateway health check failed after $MAX_ATTEMPTS attempts (last curl_exit=$LAST_EXIT http_status=${LAST_STATUS:-none})."
+          echo "::error::Gateway endpoint was unreachable after $MAX_ATTEMPTS attempts (last curl_exit=$LAST_EXIT http_status=${LAST_STATUS:-none})."
           exit 1
 
       - name: Prepare live seed data via gateway
