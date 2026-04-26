@@ -1,7 +1,8 @@
 name: Cloud E2E Tests
 
 on:
-  # Trigger automatically after both microservice AND frontend deployments succeed on main
+  # Trigger automatically after either deploy workflow completes on main.
+  # The sync gate enforces same-SHA deploy readiness before live smoke can run.
   workflow_run:
     workflows:
       - "Microservice CI/CD"
@@ -23,8 +24,6 @@ on:
 permissions:
   actions: read
   contents: read
-  pull-requests: write   # allow AI triage job to post PR comments
-  issues: write          # allow AI triage job to post issue comments
 
 concurrency:
   group: cloud-e2e-${{ github.event.workflow_run.head_sha || github.sha || github.run_id }}
@@ -64,6 +63,9 @@ jobs:
         with:
           result-encoding: string
           script: |
+            const pollIntervalMs = 30_000;
+            const maxAttempts = 20;
+
             if (context.eventName !== 'workflow_run') {
               await core.summary
                 .addHeading('Deployment Sync Gate')
@@ -80,42 +82,54 @@ jobs:
             const headBranch = context.payload.workflow_run.head_branch;
 
             const { owner, repo } = context.repo;
-            const { data } = await github.rest.actions.listWorkflowRunsForRepo({
-              owner,
-              repo,
-              branch: headBranch,
-              head_sha: headSha,
-              per_page: 100,
-            });
+            async function evaluateGate() {
+              const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+                owner,
+                repo,
+                branch: headBranch,
+                head_sha: headSha,
+                per_page: 100,
+              });
 
-            const rows = [];
-            let ready = true;
+              const rows = [];
+              let ready = true;
 
-            for (const workflow of requiredWorkflows) {
-              const runs = data.workflow_runs
-                .filter((item) => item.name === workflow.name)
-                .sort((left, right) => new Date(right.created_at) - new Date(left.created_at));
+              for (const workflow of requiredWorkflows) {
+                const runs = data.workflow_runs
+                  .filter((item) => item.name === workflow.name)
+                  .sort((left, right) => new Date(right.created_at) - new Date(left.created_at));
 
-              const run = runs[0];
-              const status = run?.status ?? (workflow.optionalIfMissing ? 'not-triggered' : 'missing');
-              const conclusion = run?.conclusion ?? (workflow.optionalIfMissing ? 'not-required' : 'pending');
-              const gateState =
-                !run && workflow.optionalIfMissing
-                  ? 'not-required'
-                  : status === 'completed' && conclusion === 'success'
-                    ? 'ready'
-                    : 'waiting';
+                const run = runs[0];
+                const status = run?.status ?? (workflow.optionalIfMissing ? 'not-triggered' : 'missing');
+                const conclusion = run?.conclusion ?? (workflow.optionalIfMissing ? 'not-required' : 'pending');
+                const gateState =
+                  !run && workflow.optionalIfMissing
+                    ? 'not-required'
+                    : status === 'completed' && conclusion === 'success'
+                      ? 'ready'
+                      : 'waiting';
 
-              rows.push([
-                { data: workflow.name, header: false },
-                { data: status, header: false },
-                { data: conclusion, header: false },
-                { data: gateState, header: false },
-              ]);
+                rows.push([
+                  { data: workflow.name, header: false },
+                  { data: status, header: false },
+                  { data: conclusion, header: false },
+                  { data: gateState, header: false },
+                ]);
 
-              if (gateState !== 'ready' && gateState !== 'not-required') {
-                ready = false;
+                if (gateState !== 'ready' && gateState !== 'not-required') {
+                  ready = false;
+                }
               }
+
+              return { ready, rows };
+            }
+
+            let gateResult = await evaluateGate();
+
+            for (let attempt = 1; !gateResult.ready && attempt < maxAttempts; attempt += 1) {
+              core.info(`Deployment sync gate waiting for required workflows on ${headSha}; retrying in ${pollIntervalMs / 1000}s (${attempt}/${maxAttempts - 1}).`);
+              await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+              gateResult = await evaluateGate();
             }
 
             await core.summary
@@ -127,16 +141,16 @@ jobs:
                   { data: 'Conclusion', header: true },
                   { data: 'Gate', header: true },
                 ],
-                ...rows,
+                ...gateResult.rows,
               ])
               .addRaw(`SHA: \`${headSha}\` | Branch: \`${headBranch}\``)
               .write();
 
-            if (!ready) {
-              core.notice('Cloud E2E triggered before both deploy workflows completed successfully for this SHA. This run will exit in waiting mode.');
+            if (!gateResult.ready) {
+              core.notice(`Cloud E2E did not observe all required deploy workflows ready for SHA ${headSha} within the wait window. This run will exit in waiting mode.`);
             }
 
-            return ready ? 'true' : 'false';
+            return gateResult.ready ? 'true' : 'false';
 
       - name: Write sync summary
         if: always()
@@ -144,7 +158,7 @@ jobs:
           if [ "${{ steps.check.outputs.result }}" = "true" ]; then
             echo "Deployment sync gate passed for this SHA." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Deployment sync gate is waiting for both deploy workflows to succeed for the same SHA." >> "$GITHUB_STEP_SUMMARY"
+            echo "Deployment sync gate did not observe all required deploy workflows ready within the wait window for this SHA." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   prepare-live-data:
@@ -293,7 +307,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Live-seeded validation is limited to health checks and cloud smoke specs; the broader cloud regression coverage runs in the separate Cloud E2E Regression workflow." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Trigger: \`${{ github.event_name }}\` | Branch: \`${{ github.ref_name }}\` | SHA: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Trigger: \`${{ github.event_name }}\` | Branch: \`${{ github.event.workflow_run.head_branch || github.ref_name }}\` | SHA: \`${{ github.event.workflow_run.head_sha || github.sha }}\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload E2E HTML report
         uses: actions/upload-artifact@v4
@@ -319,12 +333,12 @@ jobs:
           curl -s -X POST "$SLACK_WEBHOOK_URL" \
             -H 'Content-Type: application/json' \
             -d "{
-              \"text\": \"❌ *HealthQ Copilot — Cloud E2E Tests FAILED* on \`${{ github.ref_name }}\`\",
+              \"text\": \"❌ *HealthQ Copilot — Cloud E2E Tests FAILED* on \`${{ github.event.workflow_run.head_branch || github.ref_name }}\`\",
               \"attachments\": [{
                 \"color\": \"danger\",
                 \"fields\": [
                   {\"title\": \"Trigger\", \"value\": \"${{ github.event_name }}\", \"short\": true},
-                  {\"title\": \"Commit\", \"value\": \"\`${{ github.sha }}\`\", \"short\": true},
+                  {\"title\": \"Commit\", \"value\": \"\`${{ github.event.workflow_run.head_sha || github.sha }}\`\", \"short\": true},
                   {\"title\": \"Run\", \"value\": \"<$RUN_URL|View report>\", \"short\": false}
                 ]
               }]
@@ -335,8 +349,7 @@ jobs:
   # ── Job 3: AI Triage — analyses failures and posts a plain-English summary ──
   # Uses GitHub Models (gpt-4o-mini) to read the Playwright JSON results and
   # produce actionable diagnosis: which MFEs failed, likely root causes, and
-  # suggested fixes. Posts the analysis as a GitHub Step Summary and, when
-  # triggered from a PR, as a PR comment.
+  # suggested fixes. Posts the analysis as a GitHub Step Summary.
   ai-triage:
     name: AI Failure Triage
     needs: [smoke-gate, full-e2e]
@@ -451,7 +464,7 @@ jobs:
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           echo "## 🤖 AI Failure Triage" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Run:** [#${{ github.run_number }}]($RUN_URL) | **Commit:** \`${{ github.sha }}\` | **Trigger:** \`${{ github.event_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Run:** [#${{ github.run_number }}]($RUN_URL) | **Commit:** \`${{ github.event.workflow_run.head_sha || github.sha }}\` | **Trigger:** \`${{ github.event_name }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$TRIAGE_MODE" = "full-failure" ] && [ "$HAS_RESULTS" = "true" ]; then
@@ -471,26 +484,3 @@ jobs:
           else
             echo "No smoke/full E2E failures detected in this run. AI triage ran in monitoring mode." >> "$GITHUB_STEP_SUMMARY"
           fi
-
-      # Post diagnosis as a PR comment when the workflow is triggered on a PR
-      - name: Post AI diagnosis as PR comment
-        if: github.event_name == 'pull_request' && env.TRIAGE_MODE == 'full-failure' && env.HAS_RESULTS == 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const body = [
-              '## 🤖 AI Failure Triage — Cloud E2E',
-              '',
-              process.env.DIAGNOSIS,
-              '',
-              `---`,
-              `*[View full Playwright report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})*`,
-            ].join('\n');
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body,
-            });
-        env:
-          DIAGNOSIS: ${{ env.DIAGNOSIS }}

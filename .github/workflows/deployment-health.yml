@@ -1,6 +1,6 @@
 name: Deployment Health Dashboard
 
-# Scheduled daily health check + triggered after all deploy workflows complete.
+# Scheduled daily health check + triggered after live Cloud E2E smoke succeeds.
 # Provides a single Job Summary with the status of every ACA service and SWA app.
 on:
   schedule:
@@ -8,8 +8,6 @@ on:
     - cron: '0 6 * * *'
   workflow_run:
     workflows:
-      - "Microservice CI/CD"
-      - "Frontend MFE CI/CD"
       - "Cloud E2E Tests"
     types: [completed]
     branches: [main]
@@ -35,7 +33,7 @@ jobs:
     outputs:
       ready: ${{ steps.check.outputs.result }}
     steps:
-      - name: Verify required upstream workflows for this SHA
+      - name: Verify triggering Cloud E2E run passed live smoke
         id: check
         uses: actions/github-script@v7
         with:
@@ -49,22 +47,10 @@ jobs:
               return 'true';
             }
 
-            const requiredWorkflows = [
-              { name: 'Microservice CI/CD', optionalIfMissing: false },
-              { name: 'Frontend MFE CI/CD', optionalIfMissing: true },
-              { name: 'Cloud E2E Tests', optionalIfMissing: false },
-            ];
-            const headSha = context.payload.workflow_run.head_sha;
-            const headBranch = context.payload.workflow_run.head_branch;
-
             const { owner, repo } = context.repo;
-            const { data } = await github.rest.actions.listWorkflowRunsForRepo({
-              owner,
-              repo,
-              branch: headBranch,
-              head_sha: headSha,
-              per_page: 100,
-            });
+            const workflowRun = context.payload.workflow_run;
+            const headSha = workflowRun.head_sha;
+            const headBranch = workflowRun.head_branch;
 
             async function hasSuccessfulCloudSmoke(runId) {
               const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
@@ -78,57 +64,16 @@ jobs:
               return smokeJob?.conclusion === 'success';
             }
 
-            const rows = [];
-            let ready = true;
+            const smokePassed =
+              workflowRun.name === 'Cloud E2E Tests' &&
+              workflowRun.status === 'completed' &&
+              workflowRun.conclusion === 'success' &&
+              await hasSuccessfulCloudSmoke(workflowRun.id);
 
-            for (const workflow of requiredWorkflows) {
-              const runs = data.workflow_runs
-                .filter((item) => item.name === workflow.name)
-                .sort((left, right) => new Date(right.created_at) - new Date(left.created_at));
-
-              const latestRun = runs[0];
-              let gateRun = latestRun;
-              let gateState = 'waiting';
-              let status = latestRun?.status ?? (workflow.optionalIfMissing ? 'not-triggered' : 'missing');
-              let conclusion = latestRun?.conclusion ?? (workflow.optionalIfMissing ? 'not-required' : 'pending');
-
-              if (!latestRun && workflow.optionalIfMissing) {
-                gateState = 'not-required';
-              } else if (workflow.name === 'Cloud E2E Tests') {
-                for (const candidate of runs) {
-                  if (candidate.status !== 'completed' || candidate.conclusion !== 'success') {
-                    continue;
-                  }
-
-                  if (await hasSuccessfulCloudSmoke(candidate.id)) {
-                    gateRun = candidate;
-                    status = candidate.status;
-                    conclusion = candidate.conclusion;
-                    gateState = 'ready';
-                    break;
-                  }
-                }
-
-                if (gateState !== 'ready' && latestRun) {
-                  gateRun = latestRun;
-                  status = latestRun.status;
-                  conclusion = `${latestRun.conclusion ?? 'pending'} (smoke pending)`;
-                }
-              } else if (latestRun?.status === 'completed' && latestRun?.conclusion === 'success') {
-                gateState = 'ready';
-              }
-
-              rows.push([
-                { data: workflow.name, header: false },
-                { data: status, header: false },
-                { data: conclusion, header: false },
-                { data: gateState, header: false },
-              ]);
-
-              if (gateState !== 'ready' && gateState !== 'not-required') {
-                ready = false;
-              }
-            }
+            const gateState = smokePassed ? 'ready' : 'waiting';
+            const conclusion = smokePassed
+              ? workflowRun.conclusion
+              : `${workflowRun.conclusion ?? 'pending'} (smoke failed or skipped)`;
 
             await core.summary
               .addHeading('Deployment Health Sync Gate')
@@ -139,16 +84,21 @@ jobs:
                   { data: 'Conclusion', header: true },
                   { data: 'Gate', header: true },
                 ],
-                ...rows,
+                [
+                  { data: workflowRun.name, header: false },
+                  { data: workflowRun.status, header: false },
+                  { data: conclusion, header: false },
+                  { data: gateState, header: false },
+                ],
               ])
               .addRaw(`SHA: \`${headSha}\` | Branch: \`${headBranch}\``)
               .write();
 
-            if (!ready) {
-              core.notice('Deployment health triggered before all upstream workflows completed successfully for this SHA. This run will exit in waiting mode.');
+            if (!smokePassed) {
+              core.notice(`Deployment health will skip SHA ${headSha} because the triggering Cloud E2E run did not complete with a successful Smoke Gate.`);
             }
 
-            return ready ? 'true' : 'false';
+            return smokePassed ? 'true' : 'false';
 
   health-dashboard:
     needs: deployment-sync
