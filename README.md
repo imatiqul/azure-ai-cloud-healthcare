@@ -94,8 +94,13 @@ pnpm test:e2e
 | `.github/workflows/infra-deploy.yml` | Bicep validation and infrastructure deployment |
 | `.github/workflows/helm-chart-validation.yml` | PR-scoped Helm chart lint/render validation with manifest artifacts |
 | `.github/workflows/workflow-lint.yml` | PR-scoped GitHub Actions workflow linting for changed workflow files |
+| `.github/workflows/api-route-ownership-governance.yml` | PR-scoped enforcement of gateway route ownership mapping consistency |
 | `.github/workflows/cloud-e2e-tests.yml` | Post-deploy smoke and full cloud E2E validation |
-| `.github/workflows/weekly-platform-scorecard.yml` | Scheduled weekly workflow pass-rate and KPI scorecard generation |
+| `.github/workflows/runtime-convergence-audit.yml` | Scheduled/manual audit of Phase 1 runtime convergence criteria |
+| `.github/workflows/gateway-route-probes.yml` | Post-deploy/scheduled gateway route ownership probes and route integrity validation |
+| `.github/workflows/release-gate-policy-audit.yml` | Scheduled/manual audit of branch-protection required checks and release gate policy compliance |
+| `.github/workflows/weekly-platform-scorecard.yml` | Scheduled weekly workflow pass-rate, rollback cadence, and MTTR KPI scorecard generation |
+| `.github/workflows/rollback-drill-readiness.yml` | Scheduled/manual rollback drill readiness evaluation with cadence and MTTR thresholds |
 | `.github/workflows/rollback.yml` | Manual rollback workflow |
 
 ## Demo Diagrams and Visual Assets

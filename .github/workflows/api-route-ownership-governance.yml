@@ -1,0 +1,131 @@
+name: API Route Ownership Governance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/HealthQCopilot.Gateway/appsettings.json
+      - docs/stakeholders/api-route-ownership-map.md
+      - .github/workflows/api-route-ownership-governance.yml
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  verify-route-ownership-map:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enforce gateway route ownership map updates
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.setFailed('This workflow supports pull_request events only.');
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const routeConfigPath = 'src/HealthQCopilot.Gateway/appsettings.json';
+            const ownershipMapPath = 'docs/stakeholders/api-route-ownership-map.md';
+
+            const changedFiles = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+
+            const changed = new Set(changedFiles.map((file) => file.filename));
+            const routeConfigChanged = changed.has(routeConfigPath);
+            const ownershipMapChanged = changed.has(ownershipMapPath);
+
+            const failures = [];
+            const notices = [];
+
+            if (routeConfigChanged && !ownershipMapChanged) {
+              failures.push(
+                `Gateway route config changed (${routeConfigPath}) but ownership map was not updated (${ownershipMapPath}).`
+              );
+            }
+
+            const appsettingsRaw = fs.readFileSync(routeConfigPath, 'utf8');
+            const appsettings = JSON.parse(appsettingsRaw);
+            const routes = Object.entries(appsettings?.ReverseProxy?.Routes || {})
+              .map(([routeId, route]) => ({
+                routeId,
+                path: route?.Match?.Path || '',
+                clusterId: route?.ClusterId || '',
+              }))
+              .filter((route) => route.path);
+
+            const ownershipMap = fs.readFileSync(ownershipMapPath, 'utf8');
+            const ownershipMapRows = ownershipMap
+              .split('\n')
+              .map((line) => line.trim())
+              .filter((line) => line.startsWith('|') && !line.startsWith('|---'));
+
+            const missingRoutes = [];
+            const mismatchedClusters = [];
+
+            for (const route of routes) {
+              const row = ownershipMapRows.find((line) => line.includes(`| ${route.path} |`));
+              if (!row) {
+                missingRoutes.push(route.path);
+                continue;
+              }
+
+              if (!row.includes(`| ${route.clusterId} |`)) {
+                mismatchedClusters.push({
+                  path: route.path,
+                  expectedCluster: route.clusterId,
+                });
+              }
+            }
+
+            if (missingRoutes.length > 0) {
+              failures.push(`Ownership map is missing ${missingRoutes.length} route path(s): ${missingRoutes.join(', ')}`);
+            }
+
+            if (mismatchedClusters.length > 0) {
+              failures.push(
+                `Ownership map cluster mismatch for ${mismatchedClusters.length} route(s): ` +
+                mismatchedClusters
+                  .map((item) => `${item.path} -> expected ${item.expectedCluster}`)
+                  .join('; ')
+              );
+            }
+
+            if (ownershipMapChanged && !routeConfigChanged) {
+              notices.push('Ownership map changed without gateway route config change. Ensure documentation-only update is intentional.');
+            }
+
+            const summaryRows = [
+              ['Check', 'Result'],
+              ['Gateway route config changed', routeConfigChanged ? 'yes' : 'no'],
+              ['Ownership map changed', ownershipMapChanged ? 'yes' : 'no'],
+              ['Configured gateway routes', `${routes.length}`],
+              ['Missing map rows', `${missingRoutes.length}`],
+              ['Cluster mismatches', `${mismatchedClusters.length}`],
+            ];
+
+            await core.summary
+              .addHeading('API Route Ownership Governance')
+              .addTable(summaryRows.map((row, index) => row.map((value) => ({ data: value, header: index === 0 }))))
+              .write();
+
+            for (const notice of notices) {
+              core.notice(notice);
+            }
+
+            if (failures.length > 0) {
+              for (const failure of failures) {
+                core.error(failure);
+              }
+              core.setFailed('API route ownership governance checks failed.');
+            }

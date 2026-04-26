@@ -30,3 +30,6 @@ Source of truth:
 2. If a route prefix moves between services, include migration notes in PR description.
 3. For route additions/removals, re-run cloud smoke probes and verify no 404/405 regressions.
 4. For `infra/helm` or workflow changes, include corresponding CI evidence artifacts.
+
+Automated enforcement:
+- `.github/workflows/api-route-ownership-governance.yml` validates this map against `src/HealthQCopilot.Gateway/appsettings.json` on PRs and fails when route rows or cluster ownership drift.

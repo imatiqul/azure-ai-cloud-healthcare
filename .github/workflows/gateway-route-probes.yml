@@ -1,0 +1,118 @@
+name: Gateway Route Probes
+
+on:
+  workflow_run:
+    workflows:
+      - "Microservice CI/CD"
+      - "Frontend MFE CI/CD"
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '30 7 * * *'
+  workflow_dispatch:
+    inputs:
+      live_api_base_url:
+        description: 'Optional gateway base URL override'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gateway-route-probes-${{ github.event.workflow_run.head_sha || github.sha || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  DEFAULT_GATEWAY_URL: https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io
+
+jobs:
+  deployment-sync:
+    name: Gateway Route Probe Sync Gate
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.result }}
+    steps:
+      - name: Verify trigger readiness
+        id: check
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            if (context.eventName !== 'workflow_run') {
+              await core.summary
+                .addHeading('Gateway Route Probe Sync Gate')
+                .addRaw('Manual or scheduled run detected — no upstream workflow sync required.')
+                .write();
+              return 'true';
+            }
+
+            const workflowRun = context.payload.workflow_run;
+            const ready = workflowRun.conclusion === 'success';
+
+            await core.summary
+              .addHeading('Gateway Route Probe Sync Gate')
+              .addTable([
+                [
+                  { data: 'Workflow', header: true },
+                  { data: 'Status', header: true },
+                  { data: 'Conclusion', header: true },
+                  { data: 'Gate', header: true },
+                ],
+                [
+                  { data: workflowRun.name, header: false },
+                  { data: workflowRun.status, header: false },
+                  { data: workflowRun.conclusion ?? 'none', header: false },
+                  { data: ready ? 'ready' : 'waiting', header: false },
+                ],
+              ])
+              .addRaw(`SHA: \`${workflowRun.head_sha}\` | Branch: \`${workflowRun.head_branch}\``)
+              .write();
+
+            if (!ready) {
+              core.notice(`Gateway route probes skipped because triggering workflow ${workflowRun.name} was not successful.`);
+            }
+
+            return ready ? 'true' : 'false';
+
+  route-probes:
+    name: Gateway Route Probes
+    needs: deployment-sync
+    if: needs.deployment-sync.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Resolve gateway URL
+        id: resolve-url
+        run: |
+          INPUT_URL="${{ github.event.inputs.live_api_base_url }}"
+          if [ -n "$INPUT_URL" ]; then
+            BASE_URL="$INPUT_URL"
+          else
+            BASE_URL="${{ env.DEFAULT_GATEWAY_URL }}"
+          fi
+
+          BASE_URL="${BASE_URL%/}"
+          echo "live_api_base_url=$BASE_URL" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Gateway Route Probes"
+            echo ""
+            echo "- Base URL: $BASE_URL"
+            echo "- Trigger: ${{ github.event_name }}"
+            echo "- SHA: ${{ github.event.workflow_run.head_sha || github.sha }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prepare live seed data via gateway
+        run: bash .github/scripts/prepare-live-seed-data.sh
+        env:
+          LIVE_API_BASE_URL: ${{ steps.resolve-url.outputs.live_api_base_url }}
+
+      - name: Run route ownership probes
+        run: bash .github/scripts/post-rollback-route-probes.sh
+        env:
+          LIVE_API_BASE_URL: ${{ steps.resolve-url.outputs.live_api_base_url }}

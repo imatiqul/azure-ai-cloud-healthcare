@@ -1,0 +1,14 @@
+{
+  "branch": "main",
+  "requiredPullRequestChecks": [
+    "pr-validation",
+    "workflow-lint",
+    "helm-chart-validation",
+    "api-route-ownership-governance"
+  ],
+  "recommendedPostMergeChecks": [
+    "cloud-e2e-tests.yml",
+    "gateway-route-probes.yml"
+  ],
+  "postMergeSuccessWindowDays": 14
+}

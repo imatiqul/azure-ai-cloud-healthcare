@@ -24,6 +24,9 @@ jobs:
 
             const { owner, repo } = context.repo;
             const sampleSize = 10;
+            const rollbackCadenceWindowDays = 30;
+            const rollbackCadenceAlertDays = 14;
+            const mttrTargetMinutes = 240;
 
             const workflows = [
               { file: 'microservice-deploy.yml', name: 'Microservice CI/CD' },
@@ -31,11 +34,16 @@ jobs:
               { file: 'infra-deploy.yml', name: 'Infrastructure Deploy' },
               { file: 'cloud-e2e-tests.yml', name: 'Cloud E2E Tests' },
               { file: 'cloud-e2e-regression.yml', name: 'Cloud E2E Regression' },
+              { file: 'runtime-convergence-audit.yml', name: 'Runtime Convergence Audit' },
+              { file: 'gateway-route-probes.yml', name: 'Gateway Route Probes' },
+              { file: 'release-gate-policy-audit.yml', name: 'Release Gate Policy Audit' },
               { file: 'deployment-health.yml', name: 'Deployment Health Dashboard' },
-              { file: 'compliance-check.yml', name: 'Compliance and Security Checks' }
+              { file: 'compliance-check.yml', name: 'Compliance and Security Checks' },
+              { file: 'rollback.yml', name: 'Emergency Rollback' }
             ];
 
             const rows = [];
+            const workflowRunCache = new Map();
 
             for (const workflow of workflows) {
               const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
@@ -45,6 +53,8 @@ jobs:
                 branch: 'main',
                 per_page: 100,
               });
+
+              workflowRunCache.set(workflow.file, runs);
 
               const completed = runs
                 .filter((run) => run.status === 'completed')
@@ -80,13 +90,65 @@ jobs:
             }
 
             const cloudE2E = rows.find((row) => row.name === 'Cloud E2E Tests');
+            const runtimeConvergence = rows.find((row) => row.name === 'Runtime Convergence Audit');
+            const routeProbes = rows.find((row) => row.name === 'Gateway Route Probes');
+            const releaseGatePolicy = rows.find((row) => row.name === 'Release Gate Policy Audit');
             const deployHealth = rows.find((row) => row.name === 'Deployment Health Dashboard');
             const compliance = rows.find((row) => row.name === 'Compliance and Security Checks');
+            const rollbackRuns = (workflowRunCache.get('rollback.yml') || [])
+              .filter((run) => run.status === 'completed');
+            const successfulRollbackRuns = rollbackRuns
+              .filter((run) => run.conclusion === 'success');
+
+            const rollbackCadenceCutoff = new Date(Date.now() - rollbackCadenceWindowDays * 24 * 60 * 60 * 1000);
+            const rollbackAlertCutoff = new Date(Date.now() - rollbackCadenceAlertDays * 24 * 60 * 60 * 1000);
+
+            const successfulInCadenceWindow = successfulRollbackRuns
+              .filter((run) => new Date(run.updated_at) >= rollbackCadenceCutoff);
+            const successfulInAlertWindow = successfulRollbackRuns
+              .filter((run) => new Date(run.updated_at) >= rollbackAlertCutoff);
+
+            const rollbackDurationsMinutes = successfulRollbackRuns
+              .map((run) => {
+                const startIso = run.run_started_at || run.created_at;
+                const endIso = run.updated_at;
+                if (!startIso || !endIso) return null;
+                const start = new Date(startIso);
+                const end = new Date(endIso);
+                const duration = (end - start) / 60000;
+                return Number.isFinite(duration) && duration >= 0 ? duration : null;
+              })
+              .filter((value) => value !== null);
+
+            const avgRollbackDurationMinutes = rollbackDurationsMinutes.length === 0
+              ? null
+              : rollbackDurationsMinutes.reduce((sum, value) => sum + value, 0) / rollbackDurationsMinutes.length;
+
+            const mttrStatus = avgRollbackDurationMinutes === null
+              ? 'n/a'
+              : avgRollbackDurationMinutes <= mttrTargetMinutes
+                ? `on target (<= ${mttrTargetMinutes} min)`
+                : `off target (> ${mttrTargetMinutes} min)`;
+
+            const lastSuccessfulRollback = successfulRollbackRuns[0];
+            const lastSuccessfulRollbackSummary = lastSuccessfulRollback
+              ? `[${lastSuccessfulRollback.updated_at}](${lastSuccessfulRollback.html_url})`
+              : 'none';
 
             report += '\n## KPI Snapshot\n\n';
             report += `- Cloud E2E pass trend: ${cloudE2E?.passRate ?? 'n/a'}\n`;
+            report += `- Runtime convergence trend: ${runtimeConvergence?.passRate ?? 'n/a'}\n`;
+            report += `- Gateway route probe trend: ${routeProbes?.passRate ?? 'n/a'}\n`;
+            report += `- Release gate policy trend: ${releaseGatePolicy?.passRate ?? 'n/a'}\n`;
             report += `- Deployment health trend: ${deployHealth?.passRate ?? 'n/a'}\n`;
             report += `- Compliance checks trend: ${compliance?.passRate ?? 'n/a'}\n`;
+            report += `- Rollback drill completion (${rollbackCadenceWindowDays} days): ${successfulInCadenceWindow.length} successful run(s)\n`;
+            report += `- Rollback recovery duration (avg successful run): ${avgRollbackDurationMinutes === null ? 'n/a' : `${avgRollbackDurationMinutes.toFixed(1)} min`} (${mttrStatus})\n`;
+            report += `- Last successful rollback run: ${lastSuccessfulRollbackSummary}\n`;
+
+            if (successfulInAlertWindow.length === 0) {
+              report += `\n> ⚠️ No successful rollback drill detected in the last ${rollbackCadenceAlertDays} days.\n`;
+            }
 
             const outputDir = 'artifacts/scorecards';
             fs.mkdirSync(outputDir, { recursive: true });

@@ -39,6 +39,8 @@ Two deployment tracks coexist in the current codebase:
 | [infra-deploy.yml](../../.github/workflows/infra-deploy.yml) | Validate and deploy infrastructure baseline |
 | [helm-chart-validation.yml](../../.github/workflows/helm-chart-validation.yml) | Lint and render Helm chart changes on PRs and publish rendered manifests |
 | [workflow-lint.yml](../../.github/workflows/workflow-lint.yml) | Lint changed GitHub Actions workflow files in PRs using actionlint |
+| [api-route-ownership-governance.yml](../../.github/workflows/api-route-ownership-governance.yml) | Enforce gateway route ownership map updates and route-to-cluster alignment on PRs |
+| [release-gate-policy-audit.yml](../../.github/workflows/release-gate-policy-audit.yml) | Audit branch protection required checks and release gate policy compliance |
 | [deployment-health.yml](../../.github/workflows/deployment-health.yml) | Health checks after deployment |
 | [rollback.yml](../../.github/workflows/rollback.yml) | Controlled rollback execution |
 

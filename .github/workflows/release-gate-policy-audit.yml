@@ -1,0 +1,192 @@
+name: Release Gate Policy Audit
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'
+  workflow_dispatch:
+    inputs:
+      strict_mode:
+        description: 'Fail the run when policy gaps are detected'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  audit-release-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Audit branch protection and release gates
+        id: audit
+        uses: actions/github-script@v7
+        env:
+          BRANCH_PROTECTION_AUDIT_TOKEN: ${{ secrets.BRANCH_PROTECTION_AUDIT_TOKEN }}
+        with:
+          script: |
+            const fs = require('fs');
+
+            const strictMode = "${{ github.event.inputs.strict_mode || 'false' }}" === 'true';
+            const policyPath = '.github/release-gate-policy.json';
+            const { owner, repo } = context.repo;
+
+            if (!fs.existsSync(policyPath)) {
+              core.setFailed(`Policy file not found: ${policyPath}`);
+              return;
+            }
+
+            const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
+            const branch = policy.branch || 'main';
+            const requiredChecks = policy.requiredPullRequestChecks || [];
+            const recommendedWorkflows = policy.recommendedPostMergeChecks || [];
+            const successWindowDays = policy.postMergeSuccessWindowDays || 14;
+
+            const adminToken = process.env.BRANCH_PROTECTION_AUDIT_TOKEN || process.env.GITHUB_TOKEN;
+            const adminClient = github.getOctokit(adminToken);
+
+            let configuredContexts = [];
+            let protectionStatus = 'ok';
+            let protectionError = '';
+
+            try {
+              const protection = await adminClient.rest.repos.getBranchProtection({ owner, repo, branch });
+              configuredContexts = protection.data?.required_status_checks?.contexts || [];
+            } catch (error) {
+              protectionStatus = 'error';
+              protectionError = error?.message || 'unknown error';
+            }
+
+            const missingRequiredChecks = [];
+            for (const token of requiredChecks) {
+              const found = configuredContexts.some((contextName) =>
+                contextName.toLowerCase().includes(String(token).toLowerCase())
+              );
+              if (!found) {
+                missingRequiredChecks.push(token);
+              }
+            }
+
+            const cutoff = new Date(Date.now() - successWindowDays * 24 * 60 * 60 * 1000);
+            const recommendedResults = [];
+
+            for (const workflowFile of recommendedWorkflows) {
+              let recentCompleted = 0;
+              let recentSuccess = 0;
+
+              try {
+                const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                  owner,
+                  repo,
+                  workflow_id: workflowFile,
+                  branch,
+                  per_page: 100,
+                });
+
+                const recentRuns = runs.filter((run) =>
+                  run.status === 'completed' && new Date(run.updated_at) >= cutoff
+                );
+
+                recentCompleted = recentRuns.length;
+                recentSuccess = recentRuns.filter((run) => run.conclusion === 'success').length;
+              } catch (error) {
+                recommendedResults.push({
+                  workflow: workflowFile,
+                  completed: 0,
+                  success: 0,
+                  status: `error: ${error?.message || 'unknown error'}`,
+                });
+                continue;
+              }
+
+              const status = recentSuccess > 0
+                ? 'ok'
+                : `no successful run in last ${successWindowDays} days`;
+
+              recommendedResults.push({
+                workflow: workflowFile,
+                completed: recentCompleted,
+                success: recentSuccess,
+                status,
+              });
+            }
+
+            const failedRecommendations = recommendedResults
+              .filter((item) => item.status !== 'ok')
+              .map((item) => `${item.workflow}: ${item.status}`);
+
+            const reportLines = [];
+            reportLines.push('# Release Gate Policy Audit');
+            reportLines.push('');
+            reportLines.push(`Generated: ${new Date().toISOString()}`);
+            reportLines.push(`Branch: ${branch}`);
+            reportLines.push(`Strict mode: ${strictMode}`);
+            reportLines.push('');
+            reportLines.push('## Branch Protection Required Checks');
+            reportLines.push('');
+            reportLines.push(`- Branch protection status: ${protectionStatus}`);
+            reportLines.push(`- Configured required contexts: ${configuredContexts.length}`);
+            reportLines.push(`- Missing required check tokens: ${missingRequiredChecks.length}`);
+            if (missingRequiredChecks.length > 0) {
+              reportLines.push(`- Missing tokens: ${missingRequiredChecks.join(', ')}`);
+            }
+            if (protectionError) {
+              reportLines.push(`- Branch protection error: ${protectionError}`);
+            }
+            reportLines.push('');
+            reportLines.push('## Recommended Post-Merge Gates');
+            reportLines.push('');
+
+            for (const result of recommendedResults) {
+              reportLines.push(`- ${result.workflow}: ${result.success}/${result.completed} successful completed runs in ${successWindowDays}-day window (${result.status})`);
+            }
+
+            const report = reportLines.join('\n') + '\n';
+            const outputDir = 'artifacts/release-gate-audit';
+            fs.mkdirSync(outputDir, { recursive: true });
+            const dateTag = new Date().toISOString().slice(0, 10);
+            const reportPath = `${outputDir}/release-gate-audit-${dateTag}.md`;
+            fs.writeFileSync(reportPath, report, 'utf8');
+
+            core.setOutput('report_path', reportPath);
+            core.setOutput('report_name', `release-gate-audit-${dateTag}`);
+
+            await core.summary
+              .addRaw(report, true)
+              .write();
+
+            const policyFailures = [];
+            if (protectionStatus !== 'ok') {
+              policyFailures.push('Unable to read branch protection configuration.');
+            }
+            if (missingRequiredChecks.length > 0) {
+              policyFailures.push(`Missing required branch-protection checks: ${missingRequiredChecks.join(', ')}`);
+            }
+            if (failedRecommendations.length > 0) {
+              policyFailures.push(`Recommended post-merge gates not meeting success window: ${failedRecommendations.join(' | ')}`);
+            }
+
+            if (policyFailures.length > 0) {
+              for (const message of policyFailures) {
+                core.warning(message);
+              }
+            }
+
+            if (strictMode && policyFailures.length > 0) {
+              core.setFailed('Release gate policy audit detected enforcement gaps.');
+            }
+
+      - name: Upload release gate audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.audit.outputs.report_name }}
+          path: ${{ steps.audit.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 30

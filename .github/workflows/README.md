@@ -15,6 +15,7 @@ This catalog describes all CI/CD and quality workflows in this repository.
 | `pr-validation.yml` | `pull_request` on `main` | Baseline PR gate for .NET and frontend quality checks. |
 | `workflow-lint.yml` | `pull_request` for `.github/workflows/**` | Lints changed GitHub Actions workflow files with `actionlint` in Docker. |
 | `helm-chart-validation.yml` | `pull_request` for `infra/helm/**` and related workflow files | Lints and renders Helm chart for dev and production values; uploads rendered manifests. |
+| `api-route-ownership-governance.yml` | `pull_request` for gateway route config/map paths | Enforces route ownership map updates and route-to-cluster alignment with gateway config. |
 | `chromatic.yml` | `pull_request` and `push` with frontend/design-system path filters | Visual regression checks for Storybook/design system surfaces. |
 | `lighthouse-ci.yml` | `pull_request` for frontend paths | Core Web Vitals and Lighthouse quality checks. |
 | `e2e-tests.yml` | `pull_request` and `push` for frontend paths | Frontend E2E test validation in CI. |
@@ -34,9 +35,13 @@ This catalog describes all CI/CD and quality workflows in this repository.
 |---|---|---|
 | `cloud-e2e-tests.yml` | `workflow_run` after deploy workflows, `schedule`, `workflow_dispatch` | Live cloud smoke and full E2E validation gates. |
 | `cloud-e2e-regression.yml` | `workflow_run` after `cloud-e2e-tests.yml`, `workflow_dispatch` | Extended cloud regression validation and coverage checks. |
+| `runtime-convergence-audit.yml` | `schedule`, `workflow_dispatch` | Audits Phase 1 runtime convergence criteria (consecutive cloud E2E success + route probe health). |
+| `gateway-route-probes.yml` | `workflow_run` after deploy workflows, `schedule`, `workflow_dispatch` | Gateway route ownership probes and non-404/non-405 route integrity checks. |
 | `deployment-health.yml` | `workflow_run` after `cloud-e2e-tests.yml`, `schedule`, `workflow_dispatch` | Deployment-health aggregation and post-deploy checks. |
 | `compliance-check.yml` | `schedule`, `workflow_dispatch` | Security and compliance scanning/reporting checks. |
-| `weekly-platform-scorecard.yml` | `schedule`, `workflow_dispatch` | Generates weekly workflow pass-rate scorecard and KPI snapshot artifact. |
+| `release-gate-policy-audit.yml` | `schedule`, `workflow_dispatch` | Audits `main` branch protection and release gate policy compliance from `.github/release-gate-policy.json`. |
+| `weekly-platform-scorecard.yml` | `schedule`, `workflow_dispatch` | Generates weekly workflow pass-rate scorecard with rollback cadence and MTTR KPI snapshot artifact. |
+| `rollback-drill-readiness.yml` | `schedule`, `workflow_dispatch` | Evaluates rollback drill cadence and MTTR readiness thresholds and publishes readiness artifact. |
 
 ## Artifact Notes
 
@@ -44,6 +49,10 @@ This catalog describes all CI/CD and quality workflows in this repository.
   - `artifacts/helm/healthq-copilot-dev.yaml`
   - `artifacts/helm/healthq-copilot-prod.yaml`
 - `infra-deploy.yml` validate job uploads `helm-rendered-<env>` from `/tmp/healthq-copilot.rendered.yaml`.
+- `runtime-convergence-audit.yml` uploads `runtime-convergence-<date>` with Phase 1 exit-criteria audit outcomes.
+- `gateway-route-probes.yml` writes route probe outcomes to the job summary and fails when critical routes regress.
+- `release-gate-policy-audit.yml` uploads `release-gate-audit-<date>` with branch protection and post-merge gate compliance results.
+- `rollback-drill-readiness.yml` uploads `rollback-readiness-<date>` with cadence and MTTR readiness evaluation.
 
 ## Local Validation Tip
 

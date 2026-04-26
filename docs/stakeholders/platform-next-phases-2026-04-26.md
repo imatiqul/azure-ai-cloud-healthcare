@@ -6,6 +6,9 @@ This roadmap defines the next execution phases after foundational scaffolding, C
 
 Goal: make cloud runtime state match source-of-truth route and deployment configuration.
 
+Status:
+- Runtime convergence audit automation implemented via `.github/workflows/runtime-convergence-audit.yml` with checks for consecutive Cloud E2E success and gateway route probe health.
+
 Key work:
 - Correct Azure OIDC federation subject for GitHub Actions deploy identity.
 - Run targeted redeploy for runtime-drift services (`identity`, `ai-agent`, `scheduling`, `notification`, `revenue`).
@@ -19,6 +22,9 @@ Exit criteria:
 ## Phase 2 - Release Gate Enforcement (Week 1)
 
 Goal: convert newly added quality checks into mandatory release evidence.
+
+Status:
+- Enforcement audit automation implemented via `.github/workflows/release-gate-policy-audit.yml` using `.github/release-gate-policy.json`.
 
 Key work:
 - Make `workflow-lint.yml` and `helm-chart-validation.yml` required PR checks.
@@ -35,6 +41,7 @@ Goal: publish evidence-driven reliability signals for leadership and release man
 
 Status:
 - Initial automation implemented via `.github/workflows/weekly-platform-scorecard.yml` (scheduled + manual scorecard generation).
+- Route integrity trend automation implemented via `.github/workflows/gateway-route-probes.yml` and surfaced in weekly scorecard KPIs.
 
 Key work:
 - Generate weekly summary from workflow outcomes (deploy, smoke, full E2E, compliance).
@@ -51,6 +58,7 @@ Goal: reduce route drift and ownership ambiguity.
 
 Status:
 - Initial controls implemented: canonical route map (`docs/stakeholders/api-route-ownership-map.md`) and PR contract checklist (`.github/pull_request_template.md`).
+- Enforcement automation implemented: `.github/workflows/api-route-ownership-governance.yml` now blocks gateway route config changes when ownership map updates or route-to-cluster alignment checks are missing.
 
 Key work:
 - Publish canonical API route ownership map by bounded context.
@@ -67,6 +75,7 @@ Goal: improve incident response speed and rollback confidence.
 
 Status:
 - Initial controls implemented: operational hardening runbook (`docs/stakeholders/operational-hardening-runbook.md`), rollback drill log (`docs/stakeholders/rollback-drill-log.md`), and post-rollback route probe gate in `.github/workflows/rollback.yml`.
+- Readiness automation implemented: rollback cadence/MTTR monitoring in `.github/workflows/weekly-platform-scorecard.yml` and thresholded readiness checks in `.github/workflows/rollback-drill-readiness.yml`.
 
 Key work:
 - Standardize rollback drills for top-risk services.

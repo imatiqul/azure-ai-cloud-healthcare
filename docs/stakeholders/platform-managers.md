@@ -32,9 +32,12 @@ This guide is for leaders coordinating roadmap, delivery quality, and cross-team
 | Delivery | Lead time and failed deployment rate | GitHub Actions run history |
 | Quality | PR validation failures by category | [pr-validation.yml](../../.github/workflows/pr-validation.yml) |
 | Runtime confidence | Post-deploy smoke/full E2E pass trend | [cloud-e2e-tests.yml](../../.github/workflows/cloud-e2e-tests.yml) |
+| Runtime convergence | Phase 1 exit-criteria compliance trend | [runtime-convergence-audit.yml](../../.github/workflows/runtime-convergence-audit.yml) |
+| Route integrity | Gateway route non-regression trend | [gateway-route-probes.yml](../../.github/workflows/gateway-route-probes.yml) |
+| Release gate compliance | Required-check policy and branch-protection compliance trend | [release-gate-policy-audit.yml](../../.github/workflows/release-gate-policy-audit.yml) |
 | Security/compliance | Secret scanning and vulnerability findings | [compliance-check.yml](../../.github/workflows/compliance-check.yml) |
 | Leadership scorecard | Weekly pass-rate and KPI snapshot | [weekly-platform-scorecard.yml](../../.github/workflows/weekly-platform-scorecard.yml) |
-| Operational resilience | Rollback drill completion and MTTR trend | [rollback-drill-log.md](rollback-drill-log.md) |
+| Operational resilience | Rollback drill cadence and MTTR readiness trend | [rollback-drill-readiness.yml](../../.github/workflows/rollback-drill-readiness.yml), [rollback-drill-log.md](rollback-drill-log.md) |
 
 ## Compliance and Governance References
 
@@ -50,6 +53,7 @@ This guide is for leaders coordinating roadmap, delivery quality, and cross-team
 - Each release candidate has backend + frontend + cloud E2E evidence.
 - Security/compliance checks are green or have approved risk acceptance.
 - Rollback path is confirmed for production window.
+- Rollback readiness workflow is green or has an approved mitigation plan.
 
 ## Planning Reference
 

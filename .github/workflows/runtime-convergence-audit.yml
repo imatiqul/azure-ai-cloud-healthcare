@@ -1,0 +1,118 @@
+name: Runtime Convergence Audit
+
+on:
+  schedule:
+    - cron: '45 8 * * *'
+  workflow_dispatch:
+    inputs:
+      strict_mode:
+        description: 'Fail when runtime convergence criteria are not met'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  audit-runtime-convergence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Evaluate runtime convergence criteria
+        id: convergence
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const strictMode = "${{ github.event.inputs.strict_mode || 'false' }}" === 'true';
+            const branch = 'main';
+            const consecutiveRequired = 2;
+            const routeProbeWindowDays = 7;
+            const { owner, repo } = context.repo;
+
+            const cloudRunsRaw = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner,
+              repo,
+              workflow_id: 'cloud-e2e-tests.yml',
+              branch,
+              per_page: 100,
+            });
+
+            const cloudCompleted = cloudRunsRaw.filter((run) => run.status === 'completed');
+            const latestCloudRuns = cloudCompleted.slice(0, consecutiveRequired);
+            const cloudConsecutiveSuccess =
+              latestCloudRuns.length === consecutiveRequired &&
+              latestCloudRuns.every((run) => run.conclusion === 'success');
+
+            const routeRunsRaw = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner,
+              repo,
+              workflow_id: 'gateway-route-probes.yml',
+              branch,
+              per_page: 100,
+            });
+
+            const routeCutoff = new Date(Date.now() - routeProbeWindowDays * 24 * 60 * 60 * 1000);
+            const routeCompletedWindow = routeRunsRaw
+              .filter((run) => run.status === 'completed' && new Date(run.updated_at) >= routeCutoff);
+            const routeProbeHealthy =
+              routeCompletedWindow.length > 0 &&
+              routeCompletedWindow.every((run) => run.conclusion === 'success');
+
+            const reportLines = [];
+            reportLines.push('# Runtime Convergence Audit');
+            reportLines.push('');
+            reportLines.push(`Generated: ${new Date().toISOString()}`);
+            reportLines.push(`Strict mode: ${strictMode}`);
+            reportLines.push('');
+            reportLines.push('## Phase 1 Exit Criteria Checks');
+            reportLines.push('');
+            reportLines.push(`- Cloud E2E consecutive-success requirement (${consecutiveRequired} runs): ${cloudConsecutiveSuccess ? 'met' : 'not met'}`);
+
+            for (const run of latestCloudRuns) {
+              reportLines.push(`  - Cloud E2E run ${run.id}: ${run.conclusion} (${run.html_url})`);
+            }
+            if (latestCloudRuns.length < consecutiveRequired) {
+              reportLines.push(`  - Only ${latestCloudRuns.length} completed Cloud E2E run(s) available.`);
+            }
+
+            reportLines.push(`- Route probe health requirement (no failed runs in last ${routeProbeWindowDays} days): ${routeProbeHealthy ? 'met' : 'not met'}`);
+            reportLines.push(`  - Completed route-probe runs in window: ${routeCompletedWindow.length}`);
+
+            for (const run of routeCompletedWindow.slice(0, 10)) {
+              reportLines.push(`  - Route probe run ${run.id}: ${run.conclusion} (${run.html_url})`);
+            }
+
+            const report = reportLines.join('\n') + '\n';
+            const outputDir = 'artifacts/runtime-convergence';
+            fs.mkdirSync(outputDir, { recursive: true });
+            const dateTag = new Date().toISOString().slice(0, 10);
+            const reportPath = `${outputDir}/runtime-convergence-${dateTag}.md`;
+            fs.writeFileSync(reportPath, report, 'utf8');
+
+            core.setOutput('report_path', reportPath);
+            core.setOutput('report_name', `runtime-convergence-${dateTag}`);
+
+            await core.summary
+              .addRaw(report, true)
+              .write();
+
+            if (strictMode && (!cloudConsecutiveSuccess || !routeProbeHealthy)) {
+              core.setFailed('Runtime convergence criteria are not met.');
+            }
+
+      - name: Upload runtime convergence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.convergence.outputs.report_name }}
+          path: ${{ steps.convergence.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 30
