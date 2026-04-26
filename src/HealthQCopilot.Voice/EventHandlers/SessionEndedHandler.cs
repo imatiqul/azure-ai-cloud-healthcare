@@ -44,8 +44,8 @@ public sealed class SessionEndedHandler(
             topicName: "session.ended",
             data: new
             {
-                SessionId  = evt.SessionId,
-                Duration   = evt.Duration,
+                SessionId = evt.SessionId,
+                Duration = evt.Duration,
                 OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);

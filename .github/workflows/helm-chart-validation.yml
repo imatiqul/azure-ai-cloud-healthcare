@@ -1,0 +1,78 @@
+name: Helm Chart Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/helm/**'
+      - '.github/workflows/helm-chart-validation.yml'
+      - '.github/workflows/infra-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+
+      - name: Validate chart structure
+        run: |
+          test -f infra/helm/Chart.yaml
+          test -f infra/helm/values.yaml
+          test -f infra/helm/values.dev.yaml
+          test -f infra/helm/values.production.yaml
+          mkdir -p artifacts/helm
+
+      - name: Lint and render chart for dev
+        run: |
+          helm lint infra/helm \
+            -f infra/helm/values.yaml \
+            -f infra/helm/values.dev.yaml
+
+          helm template healthq-copilot-dev infra/helm \
+            -f infra/helm/values.yaml \
+            -f infra/helm/values.dev.yaml \
+            > artifacts/helm/healthq-copilot-dev.yaml
+
+          test -s artifacts/helm/healthq-copilot-dev.yaml
+
+      - name: Lint and render chart for production
+        run: |
+          helm lint infra/helm \
+            -f infra/helm/values.yaml \
+            -f infra/helm/values.production.yaml
+
+          helm template healthq-copilot-prod infra/helm \
+            -f infra/helm/values.yaml \
+            -f infra/helm/values.production.yaml \
+            > artifacts/helm/healthq-copilot-prod.yaml
+
+          test -s artifacts/helm/healthq-copilot-prod.yaml
+
+      - name: Publish rendered manifests
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-rendered-manifests
+          path: artifacts/helm/*.yaml
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Add validation summary
+        run: |
+          DEV_BYTES=$(wc -c < artifacts/helm/healthq-copilot-dev.yaml)
+          PROD_BYTES=$(wc -c < artifacts/helm/healthq-copilot-prod.yaml)
+          {
+            echo "## Helm Chart Validation"
+            echo ""
+            echo "- Dev manifest: artifacts/helm/healthq-copilot-dev.yaml (${DEV_BYTES} bytes)"
+            echo "- Production manifest: artifacts/helm/healthq-copilot-prod.yaml (${PROD_BYTES} bytes)"
+            echo "- Artifact: helm-rendered-manifests"
+          } >> "$GITHUB_STEP_SUMMARY"

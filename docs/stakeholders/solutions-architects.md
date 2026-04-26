@@ -41,6 +41,8 @@ The repository currently contains both:
 - Application CI/CD track for service and frontend deployment workflows:
   - [microservice-deploy.yml](../../.github/workflows/microservice-deploy.yml)
   - [frontend-deploy.yml](../../.github/workflows/frontend-deploy.yml)
+  - [helm-chart-validation.yml](../../.github/workflows/helm-chart-validation.yml)
+  - [workflow-lint.yml](../../.github/workflows/workflow-lint.yml)
   - [cloud-e2e-tests.yml](../../.github/workflows/cloud-e2e-tests.yml)
 
 - Kubernetes/GitOps baseline assets for platform-level topology:
@@ -58,6 +60,8 @@ The repository currently contains both:
 | Security | PR security scanning, secret scanning, infra security controls |
 | Compliance | Dedicated mappings in [docs/compliance](../compliance) |
 | Release safety | Post-deploy smoke and cloud E2E gates |
+
+Route ownership reference: [API Route Ownership Map](api-route-ownership-map.md)
 
 ## Architecture Review Checklist
 

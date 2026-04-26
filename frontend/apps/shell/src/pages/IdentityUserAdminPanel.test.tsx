@@ -148,7 +148,7 @@ describe('IdentityUserAdminPanel', () => {
     });
   });
 
-  it('shows error alert on HTTP 403', async () => {
+  it('falls back to demo users on HTTP 403', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: false,
       status: 403,
@@ -156,7 +156,8 @@ describe('IdentityUserAdminPanel', () => {
     });
     render(<IdentityUserAdminPanel />);
     await waitFor(() => {
-      expect(screen.getByText(/http 403/i)).toBeTruthy();
+      expect(screen.getByText('Platform Administrator')).toBeTruthy();
     });
+    expect(screen.queryByText(/http 403/i)).toBeNull();
   });
 });

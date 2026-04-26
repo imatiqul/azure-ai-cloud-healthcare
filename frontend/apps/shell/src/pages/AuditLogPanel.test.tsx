@@ -98,14 +98,15 @@ describe('AuditLogPanel', () => {
     });
   });
 
-  it('shows error alert on fetch failure', async () => {
+  it('falls back to demo summary on fetch failure', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: false,
       status: 500,
     });
     render(<AuditLogPanel />);
     await waitFor(() => {
-      expect(screen.getByText(/http 500/i)).toBeTruthy();
+      expect(screen.getByText('usr-dr-patel')).toBeTruthy();
+      expect(screen.getByText(/last 30 days \(demo\)/i)).toBeTruthy();
     });
   });
 });

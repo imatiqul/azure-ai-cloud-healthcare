@@ -17,6 +17,8 @@ This guide is for engineers responsible for runtime health, incident triage, and
 | Service deploy workflow | [.github/workflows/microservice-deploy.yml](../../.github/workflows/microservice-deploy.yml) | Image rollout and container app updates |
 | Frontend deploy workflow | [.github/workflows/frontend-deploy.yml](../../.github/workflows/frontend-deploy.yml) | MFE rollout to Static Web Apps |
 | Rollback workflow | [.github/workflows/rollback.yml](../../.github/workflows/rollback.yml) | Recovery path for bad releases |
+| Operational hardening runbook | [operational-hardening-runbook.md](operational-hardening-runbook.md) | Incident playbooks and rollback drill execution standard |
+| Rollback drill log | [rollback-drill-log.md](rollback-drill-log.md) | Drill evidence and MTTR tracking |
 | GitOps resources | [infra/argocd](../../infra/argocd), [infra/helm](../../infra/helm) | Desired-state and rollout policy artifacts |
 
 ## Daily Operations Routine
@@ -25,6 +27,7 @@ This guide is for engineers responsible for runtime health, incident triage, and
 2. Check whether cloud smoke/full E2E passed after the latest deploy workflows.
 3. Track repeated failures for a specific service, MFE, or route.
 4. Confirm no pending rollback actions from unresolved incidents.
+5. Review new entries and open follow-ups in [rollback-drill-log.md](rollback-drill-log.md).
 
 ## Release Window Readiness
 
@@ -34,6 +37,7 @@ Before a production release:
 2. Confirm cloud smoke gate is green for the candidate commit.
 3. Confirm rollback workflow can be executed by on-call responders.
 4. Confirm deployment owners and incident commander are assigned.
+5. Confirm latest rollback drill evidence includes route smoke probe results.
 
 ## Incident Triage Entry Points
 
@@ -48,3 +52,4 @@ Before a production release:
 - Alert-worthy regressions are linked to run IDs and owning team.
 - Rollback decisions are documented with clear trigger criteria.
 - Recovery outcomes are captured in release notes or incident timeline.
+- Post-rollback route probe gate passes for critical API prefixes.

@@ -17,6 +17,8 @@ Use this hub to jump directly to the guide that matches your role.
 | Solutions architect | [Solutions Architect Guide](solutions-architects.md) | Architecture decisions, boundaries, deployment topology |
 
 Platform execution backlog: [Platform Gap Backlog — April 25, 2026](platform-gap-backlog-2026-04-25.md)
+Execution roadmap: [Platform Next Phases — April 26, 2026](platform-next-phases-2026-04-26.md)
+Operational hardening runbook: [Operational Hardening Runbook](operational-hardening-runbook.md)
 
 ## Fast Entry Paths
 
@@ -34,4 +36,4 @@ Platform execution backlog: [Platform Gap Backlog — April 25, 2026](platform-g
 
 - [Root README](../../README.md)
 - [Compliance Documentation](../compliance)
-- [Workflow Catalog](../../.github/workflows)
+- [Workflow Catalog](../../.github/workflows/README.md)

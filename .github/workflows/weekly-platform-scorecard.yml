@@ -1,0 +1,109 @@
+name: Weekly Platform Scorecard
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  generate-scorecard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate scorecard from workflow outcomes
+        id: scorecard
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const { owner, repo } = context.repo;
+            const sampleSize = 10;
+
+            const workflows = [
+              { file: 'microservice-deploy.yml', name: 'Microservice CI/CD' },
+              { file: 'frontend-deploy.yml', name: 'Frontend MFE CI/CD' },
+              { file: 'infra-deploy.yml', name: 'Infrastructure Deploy' },
+              { file: 'cloud-e2e-tests.yml', name: 'Cloud E2E Tests' },
+              { file: 'cloud-e2e-regression.yml', name: 'Cloud E2E Regression' },
+              { file: 'deployment-health.yml', name: 'Deployment Health Dashboard' },
+              { file: 'compliance-check.yml', name: 'Compliance and Security Checks' }
+            ];
+
+            const rows = [];
+
+            for (const workflow of workflows) {
+              const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                owner,
+                repo,
+                workflow_id: workflow.file,
+                branch: 'main',
+                per_page: 100,
+              });
+
+              const completed = runs
+                .filter((run) => run.status === 'completed')
+                .slice(0, sampleSize);
+
+              const total = completed.length;
+              const successes = completed.filter((run) => run.conclusion === 'success').length;
+              const passRate = total === 0 ? 'n/a' : `${((successes / total) * 100).toFixed(1)}% (${successes}/${total})`;
+              const lastRun = completed[0];
+
+              rows.push({
+                name: workflow.name,
+                passRate,
+                lastConclusion: lastRun?.conclusion ?? 'none',
+                lastRunUrl: lastRun?.html_url ?? '',
+                lastRunAt: lastRun?.updated_at ?? '',
+              });
+            }
+
+            const generatedAt = new Date().toISOString();
+            const dateTag = generatedAt.slice(0, 10);
+
+            let report = '# Platform Weekly Scorecard\n\n';
+            report += `Generated: ${generatedAt}\n\n`;
+            report += `Sample window: last ${sampleSize} completed runs per workflow on main.\n\n`;
+            report += '| Workflow | Pass Rate | Last Conclusion | Last Updated | Last Run |\n';
+            report += '|---|---:|---|---|---|\n';
+
+            for (const row of rows) {
+              const runLink = row.lastRunUrl ? `[run](${row.lastRunUrl})` : '-';
+              const lastUpdated = row.lastRunAt ? row.lastRunAt : '-';
+              report += `| ${row.name} | ${row.passRate} | ${row.lastConclusion} | ${lastUpdated} | ${runLink} |\n`;
+            }
+
+            const cloudE2E = rows.find((row) => row.name === 'Cloud E2E Tests');
+            const deployHealth = rows.find((row) => row.name === 'Deployment Health Dashboard');
+            const compliance = rows.find((row) => row.name === 'Compliance and Security Checks');
+
+            report += '\n## KPI Snapshot\n\n';
+            report += `- Cloud E2E pass trend: ${cloudE2E?.passRate ?? 'n/a'}\n`;
+            report += `- Deployment health trend: ${deployHealth?.passRate ?? 'n/a'}\n`;
+            report += `- Compliance checks trend: ${compliance?.passRate ?? 'n/a'}\n`;
+
+            const outputDir = 'artifacts/scorecards';
+            fs.mkdirSync(outputDir, { recursive: true });
+            const reportPath = `${outputDir}/platform-scorecard-${dateTag}.md`;
+            fs.writeFileSync(reportPath, report, 'utf8');
+
+            core.setOutput('report_path', reportPath);
+            core.setOutput('report_name', `platform-scorecard-${dateTag}`);
+
+            await core.summary
+              .addRaw(report, true)
+              .write();
+
+      - name: Upload scorecard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.scorecard.outputs.report_name }}
+          path: ${{ steps.scorecard.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 30

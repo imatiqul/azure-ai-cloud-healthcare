@@ -4,6 +4,7 @@ using HealthQCopilot.Domain.Agents;
 using HealthQCopilot.Infrastructure.RealTime;
 using HealthQCopilot.Infrastructure.Validation;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace HealthQCopilot.Agents.Endpoints;
 
@@ -17,70 +18,105 @@ public static class WorkflowOperationalEndpoints
 
         group.MapGet("/summary", async (
             AgentDbContext db,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
-            var workflows = db.TriageWorkflows.AsNoTracking();
-            var reviewDurations = await workflows
-                .Where(item => item.ApprovedAt != null)
-                .Select(item => new { item.CreatedAt, item.ApprovedAt })
-                .ToListAsync(ct);
+            try
+            {
+                var workflows = db.TriageWorkflows.AsNoTracking();
+                var reviewDurations = await workflows
+                    .Where(item => item.ApprovedAt != null)
+                    .Select(item => new { item.CreatedAt, item.ApprovedAt })
+                    .ToListAsync(ct);
 
-            var completedWorkflowCount = await workflows.CountAsync(item => item.Status == WorkflowStatus.Completed, ct);
-            var automationCompleteCount = await workflows.CountAsync(item =>
-                item.Status == WorkflowStatus.Completed
-                && item.EncounterStatus == WorkflowStepStatus.Completed
-                && item.RevenueStatus == WorkflowStepStatus.Completed,
-                ct);
+                var completedWorkflowCount = await workflows.CountAsync(item => item.Status == WorkflowStatus.Completed, ct);
+                var automationCompleteCount = await workflows.CountAsync(item =>
+                    item.Status == WorkflowStatus.Completed
+                    && item.EncounterStatus == WorkflowStepStatus.Completed
+                    && item.RevenueStatus == WorkflowStepStatus.Completed,
+                    ct);
 
-            return Results.Ok(new WorkflowSummaryMetricsResponse(
-                Total: await workflows.CountAsync(ct),
-                AwaitingHumanReview: await workflows.CountAsync(item => item.Status == WorkflowStatus.AwaitingHumanReview, ct),
-                AttentionRequired: await workflows.CountAsync(item => item.RequiresAttention, ct),
-                BookedToday: await workflows.CountAsync(item => item.BookedAt != null && item.BookedAt >= DateTime.UtcNow.Date, ct),
-                WaitlistFallbacks: await workflows.CountAsync(item => item.WaitlistQueuedAt != null && item.WaitlistQueuedAt >= DateTime.UtcNow.Date.AddDays(-7), ct),
-                ReviewOverdue: await workflows.CountAsync(item => item.Status == WorkflowStatus.AwaitingHumanReview && item.HumanReviewDueAt != null && item.HumanReviewDueAt < DateTime.UtcNow, ct),
-                AverageReviewMinutes: reviewDurations.Count == 0
-                    ? null
-                    : Math.Round(reviewDurations.Average(item => (item.ApprovedAt!.Value - item.CreatedAt).TotalMinutes), 1),
-                AutomationCompletionRate: completedWorkflowCount == 0
-                    ? null
-                    : Math.Round((double)automationCompleteCount / completedWorkflowCount, 3),
-                AutoBooked: await workflows.CountAsync(item => item.BookedAt != null && item.ApprovedAt == null, ct),
-                ManualBooked: await workflows.CountAsync(item => item.BookedAt != null && item.ApprovedAt != null, ct)
-            ));
+                return Results.Ok(new WorkflowSummaryMetricsResponse(
+                    Total: await workflows.CountAsync(ct),
+                    AwaitingHumanReview: await workflows.CountAsync(item => item.Status == WorkflowStatus.AwaitingHumanReview, ct),
+                    AttentionRequired: await workflows.CountAsync(item => item.RequiresAttention, ct),
+                    BookedToday: await workflows.CountAsync(item => item.BookedAt != null && item.BookedAt >= DateTime.UtcNow.Date, ct),
+                    WaitlistFallbacks: await workflows.CountAsync(item => item.WaitlistQueuedAt != null && item.WaitlistQueuedAt >= DateTime.UtcNow.Date.AddDays(-7), ct),
+                    ReviewOverdue: await workflows.CountAsync(item => item.Status == WorkflowStatus.AwaitingHumanReview && item.HumanReviewDueAt != null && item.HumanReviewDueAt < DateTime.UtcNow, ct),
+                    AverageReviewMinutes: reviewDurations.Count == 0
+                        ? null
+                        : Math.Round(reviewDurations.Average(item => (item.ApprovedAt!.Value - item.CreatedAt).TotalMinutes), 1),
+                    AutomationCompletionRate: completedWorkflowCount == 0
+                        ? null
+                        : Math.Round((double)automationCompleteCount / completedWorkflowCount, 3),
+                    AutoBooked: await workflows.CountAsync(item => item.BookedAt != null && item.ApprovedAt == null, ct),
+                    ManualBooked: await workflows.CountAsync(item => item.BookedAt != null && item.ApprovedAt != null, ct)
+                ));
+            }
+            catch (Exception ex) when (IsWorkflowCompatibilityError(ex))
+            {
+                loggerFactory.CreateLogger(nameof(WorkflowOperationalEndpoints))
+                    .LogWarning(ex, "Workflow summary query failed due to schema compatibility mismatch. Returning empty summary.");
+
+                return Results.Ok(new WorkflowSummaryMetricsResponse(
+                    Total: 0,
+                    AwaitingHumanReview: 0,
+                    AttentionRequired: 0,
+                    BookedToday: 0,
+                    WaitlistFallbacks: 0,
+                    ReviewOverdue: 0,
+                    AverageReviewMinutes: null,
+                    AutomationCompletionRate: null,
+                    AutoBooked: 0,
+                    ManualBooked: 0
+                ));
+            }
         });
 
-        group.MapGet("/", async (
+        async Task<IResult> GetWorkflowOperationsList(
             AgentDbContext db,
             string? status,
             bool? attentionOnly,
             int? top,
-            CancellationToken ct) =>
+            ILoggerFactory loggerFactory,
+            CancellationToken ct)
         {
-            var query = db.TriageWorkflows.AsNoTracking().AsQueryable();
+            try
+            {
+                var query = db.TriageWorkflows.AsNoTracking().AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<WorkflowStatus>(status, true, out var workflowStatus))
-                query = query.Where(item => item.Status == workflowStatus);
+                if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<WorkflowStatus>(status, true, out var workflowStatus))
+                    query = query.Where(item => item.Status == workflowStatus);
 
-            if (attentionOnly == true)
-                query = query.Where(item => item.RequiresAttention);
+                if (attentionOnly == true)
+                    query = query.Where(item => item.RequiresAttention);
 
-            var take = Math.Clamp(top ?? 50, 1, 200);
-            var workflows = await query
-                .OrderByDescending(item => item.LastActivityAt)
-                .Take(take)
-                .ToListAsync(ct);
+                var take = Math.Clamp(top ?? 50, 1, 200);
+                var workflows = await query
+                    .OrderByDescending(item => item.LastActivityAt)
+                    .Take(take)
+                    .ToListAsync(ct);
 
-            var workflowIds = workflows.Select(item => item.Id).ToList();
-            var escalations = workflowIds.Count == 0
-                ? new Dictionary<Guid, EscalationQueueItem>()
-                : await db.EscalationQueue.AsNoTracking()
-                    .Where(item => workflowIds.Contains(item.WorkflowId))
-                    .ToDictionaryAsync(item => item.WorkflowId, ct);
+                var workflowIds = workflows.Select(item => item.Id).ToList();
+                var escalations = workflowIds.Count == 0
+                    ? new Dictionary<Guid, EscalationQueueItem>()
+                    : await db.EscalationQueue.AsNoTracking()
+                        .Where(item => workflowIds.Contains(item.WorkflowId))
+                        .ToDictionaryAsync(item => item.WorkflowId, ct);
 
-            return Results.Ok(workflows.Select(item =>
-                ToWorkflowSummary(item, escalations.GetValueOrDefault(item.Id))));
-        });
+                return Results.Ok(workflows.Select(item =>
+                    ToWorkflowSummary(item, escalations.GetValueOrDefault(item.Id))));
+            }
+            catch (Exception ex) when (IsWorkflowCompatibilityError(ex))
+            {
+                loggerFactory.CreateLogger(nameof(WorkflowOperationalEndpoints))
+                    .LogWarning(ex, "Workflow list query failed due to schema compatibility mismatch. Returning empty workflow list.");
+                return Results.Ok(Array.Empty<WorkflowSummaryResponse>());
+            }
+        }
+
+        group.MapGet("/", GetWorkflowOperationsList);
+        group.MapGet("/operations", GetWorkflowOperationsList);
 
         group.MapGet("/{id:guid}", async (
             Guid id,
@@ -257,11 +293,11 @@ public static class WorkflowOperationalEndpoints
 
             var action = step.ToLowerInvariant() switch
             {
-                "encounter"    => "RetryEncounter",
-                "revenue"      => "RetryRevenue",
+                "encounter" => "RetryEncounter",
+                "revenue" => "RetryRevenue",
                 "notification" => "RetryNotification",
-                "scheduling"   => "RetryScheduling",
-                _              => null,
+                "scheduling" => "RetryScheduling",
+                _ => null,
             };
 
             if (action is null)
@@ -323,6 +359,17 @@ public static class WorkflowOperationalEndpoints
         });
 
         return app;
+    }
+
+    private static bool IsWorkflowCompatibilityError(Exception ex)
+    {
+        if (ex is InvalidCastException)
+            return true;
+
+        if (ex is PostgresException pgEx)
+            return pgEx.SqlState is "42P01" or "42703" or "42804";
+
+        return ex.InnerException is not null && IsWorkflowCompatibilityError(ex.InnerException);
     }
 
     public static WorkflowSummaryResponse ToWorkflowSummary(TriageWorkflow workflow, EscalationQueueItem? escalation = null)

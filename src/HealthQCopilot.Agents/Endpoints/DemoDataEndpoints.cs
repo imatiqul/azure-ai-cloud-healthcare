@@ -375,16 +375,16 @@ public static class DemoDataEndpoints
             {
                 "patients" => new
                 {
-                    group           = "patients",
-                    groupName       = "Patients",
-                    proofPoints     = new[]
+                    group = "patients",
+                    groupName = "Patients",
+                    proofPoints = new[]
                     {
                         new { stat = "<3 min",  label = "Digital Registration" },
                         new { stat = "73%",     label = "Patient Engagement Rate" },
                         new { stat = "34%",     label = "No-show Reduction" },
                         new { stat = "24/7",    label = "Portal Access" },
                     },
-                    highlights      = new[]
+                    highlights = new[]
                     {
                         "Self-registration reduces front-desk workload by 68%",
                         "AI reminders achieve 73% open rate vs. 22% industry avg",
@@ -393,16 +393,16 @@ public static class DemoDataEndpoints
                 },
                 "practitioners" => new
                 {
-                    group           = "practitioners",
-                    groupName       = "Practitioners",
-                    proofPoints     = new[]
+                    group = "practitioners",
+                    groupName = "Practitioners",
+                    proofPoints = new[]
                     {
                         new { stat = "~60s",   label = "SOAP Note from Voice" },
                         new { stat = "94%",    label = "AI Triage Accuracy" },
                         new { stat = "20 min", label = "Saved Per Encounter" },
                         new { stat = "100%",   label = "Explainable Reasoning" },
                     },
-                    highlights      = new[]
+                    highlights = new[]
                     {
                         "Voice AI handles 6 minutes of speech → complete SOAP note in seconds",
                         "AI triage accuracy 94% vs. ~82% industry average",
@@ -411,16 +411,16 @@ public static class DemoDataEndpoints
                 },
                 "clinics" => new
                 {
-                    group           = "clinics",
-                    groupName       = "Clinic Operations",
-                    proofPoints     = new[]
+                    group = "clinics",
+                    groupName = "Clinic Operations",
+                    proofPoints = new[]
                     {
                         new { stat = "91%",    label = "Slot Utilisation" },
                         new { stat = "68%",    label = "Claim Recovery Rate" },
                         new { stat = "3–4%",   label = "Denial Rate (vs 9% avg)" },
                         new { stat = "40–60%", label = "Coding FTE Reduction" },
                     },
-                    highlights      = new[]
+                    highlights = new[]
                     {
                         "Smart scheduling pushes utilisation from 74% → 91%",
                         "AI prior auth tracker eliminates surprise denials before submission",
@@ -429,16 +429,16 @@ public static class DemoDataEndpoints
                 },
                 "leadership" => new
                 {
-                    group           = "leadership",
-                    groupName       = "Clinical Leadership",
-                    proofPoints     = new[]
+                    group = "leadership",
+                    groupName = "Clinical Leadership",
+                    proofPoints = new[]
                     {
                         new { stat = "40%",  label = "Readmission Drop" },
                         new { stat = "16",   label = "Active Risk Patients" },
                         new { stat = "28",   label = "Open Care Gaps" },
                         new { stat = "94%",  label = "AI Model Accuracy" },
                     },
-                    highlights      = new[]
+                    highlights = new[]
                     {
                         "ML risk model monitors 100% of panel continuously — not just at visits",
                         "HEDIS quality measure improvement unlocks value-based care bonuses",
@@ -447,16 +447,16 @@ public static class DemoDataEndpoints
                 },
                 _ => new // default / full platform
                 {
-                    group           = "full",
-                    groupName       = "Full Platform",
-                    proofPoints     = new[]
+                    group = "full",
+                    groupName = "Full Platform",
+                    proofPoints = new[]
                     {
                         new { stat = "94%",    label = "AI Triage Accuracy" },
                         new { stat = "34%",    label = "No-show Reduction" },
                         new { stat = "68%",    label = "Claim Recovery Rate" },
                         new { stat = "~60s",   label = "SOAP Note in Seconds" },
                     },
-                    highlights      = new[]
+                    highlights = new[]
                     {
                         "8 integrated clinical AI modules — one platform, zero tab-switching",
                         "End-to-end: voice intake → AI triage → scheduling → billing → population health",

@@ -56,14 +56,12 @@ export default function ModelEvaluationPanel() {
     setHistoryError('');
     try {
       const res = await fetch(`${API_BASE}/api/v1/agents/governance/evaluate/history?top=10`, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) {
-        setHistoryError(`Failed to load evaluation history — HTTP ${res.status}`);
-        return;
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as EvalRun[];
-      setHistory(data);
+      setHistory(Array.isArray(data) && data.length > 0 ? data : DEMO_EVAL_HISTORY);
     } catch {
       setHistory(DEMO_EVAL_HISTORY);
+      setHistoryError('');
     } finally {
       setLoadingHistory(false);
     }

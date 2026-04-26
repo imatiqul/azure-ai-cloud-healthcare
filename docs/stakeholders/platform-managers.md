@@ -33,6 +33,8 @@ This guide is for leaders coordinating roadmap, delivery quality, and cross-team
 | Quality | PR validation failures by category | [pr-validation.yml](../../.github/workflows/pr-validation.yml) |
 | Runtime confidence | Post-deploy smoke/full E2E pass trend | [cloud-e2e-tests.yml](../../.github/workflows/cloud-e2e-tests.yml) |
 | Security/compliance | Secret scanning and vulnerability findings | [compliance-check.yml](../../.github/workflows/compliance-check.yml) |
+| Leadership scorecard | Weekly pass-rate and KPI snapshot | [weekly-platform-scorecard.yml](../../.github/workflows/weekly-platform-scorecard.yml) |
+| Operational resilience | Rollback drill completion and MTTR trend | [rollback-drill-log.md](rollback-drill-log.md) |
 
 ## Compliance and Governance References
 
@@ -48,3 +50,9 @@ This guide is for leaders coordinating roadmap, delivery quality, and cross-team
 - Each release candidate has backend + frontend + cloud E2E evidence.
 - Security/compliance checks are green or have approved risk acceptance.
 - Rollback path is confirmed for production window.
+
+## Planning Reference
+
+- [Platform Gap Backlog — April 25, 2026](platform-gap-backlog-2026-04-25.md)
+- [Platform Next Phases — April 26, 2026](platform-next-phases-2026-04-26.md)
+- [Operational Hardening Runbook](operational-hardening-runbook.md)

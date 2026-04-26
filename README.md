@@ -92,7 +92,10 @@ pnpm test:e2e
 | `.github/workflows/microservice-deploy.yml` | Service build, security scan, image push, and deploy |
 | `.github/workflows/frontend-deploy.yml` | MFE build and Azure Static Web Apps deployment |
 | `.github/workflows/infra-deploy.yml` | Bicep validation and infrastructure deployment |
+| `.github/workflows/helm-chart-validation.yml` | PR-scoped Helm chart lint/render validation with manifest artifacts |
+| `.github/workflows/workflow-lint.yml` | PR-scoped GitHub Actions workflow linting for changed workflow files |
 | `.github/workflows/cloud-e2e-tests.yml` | Post-deploy smoke and full cloud E2E validation |
+| `.github/workflows/weekly-platform-scorecard.yml` | Scheduled weekly workflow pass-rate and KPI scorecard generation |
 | `.github/workflows/rollback.yml` | Manual rollback workflow |
 
 ## Demo Diagrams and Visual Assets
@@ -108,7 +111,7 @@ pnpm test:e2e
 - [Diagrams Index](docs/diagrams/README.md)
 - [Helm Notes](infra/helm/README.md)
 - [Compliance Documentation](docs/compliance)
-- [Workflow Catalog](.github/workflows)
+- [Workflow Catalog](.github/workflows/README.md)
 
 ## License
 

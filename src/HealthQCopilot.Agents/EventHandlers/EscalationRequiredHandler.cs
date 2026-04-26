@@ -33,8 +33,8 @@ public sealed class EscalationRequiredHandler(
             data: new
             {
                 WorkflowId = evt.WorkflowId,
-                SessionId  = evt.SessionId,
-                Level      = evt.Level.ToString(),
+                SessionId = evt.SessionId,
+                Level = evt.Level.ToString(),
                 OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);

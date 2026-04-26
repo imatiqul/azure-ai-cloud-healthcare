@@ -54,10 +54,10 @@ public class BookingOrchestrationSagaTests
     private static BookingOrchestrationSaga BuildSaga(IHttpClientFactory factory) =>
         new(factory, Substitute.For<ILogger<BookingOrchestrationSaga>>());
 
-    private static readonly Guid _bookingId  = Guid.NewGuid();
-    private static readonly Guid _slotId     = Guid.NewGuid();
+    private static readonly Guid _bookingId = Guid.NewGuid();
+    private static readonly Guid _slotId = Guid.NewGuid();
     private static readonly string _patientId = "patient-001";
-    private static readonly string _practId   = "dr-smith";
+    private static readonly string _practId = "dr-smith";
     private static readonly DateTime _apptTime = DateTime.UtcNow.AddDays(1);
 
     // ── Happy-path tests ──────────────────────────────────────────────────────
@@ -109,7 +109,7 @@ public class BookingOrchestrationSagaTests
                 req.RequestUri!.AbsolutePath.Contains("/reserve")
                     ? new HttpResponseMessage(HttpStatusCode.Conflict)
                     : OkJson(new { Id = _bookingId }),
-            ["fhir-service"]        = (_, _) => OkJson(new { Id = "fhir-123" }),
+            ["fhir-service"] = (_, _) => OkJson(new { Id = "fhir-123" }),
             ["notification-service"] = (_, _) => Ok()
         });
         var saga = BuildSaga(factory);
@@ -143,7 +143,7 @@ public class BookingOrchestrationSagaTests
                 }
                 return NotFound();
             },
-            ["fhir-service"]        = (_, _) => OkJson(new { Id = "fhir-123" }),
+            ["fhir-service"] = (_, _) => OkJson(new { Id = "fhir-123" }),
             ["notification-service"] = (_, _) => Ok()
         });
         var saga = BuildSaga(factory);

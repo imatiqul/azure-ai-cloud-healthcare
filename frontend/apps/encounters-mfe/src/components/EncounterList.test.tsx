@@ -62,7 +62,7 @@ describe('EncounterList', () => {
     expect(screen.getByText('Annual checkup')).toBeInTheDocument();
   });
 
-  it('shows an error message on fetch failure', async () => {
+  it('falls back to demo encounters on fetch failure', async () => {
     const user = userEvent.setup({ delay: null });
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500 })) as unknown as typeof fetch;
 
@@ -71,8 +71,9 @@ describe('EncounterList', () => {
     await user.click(screen.getByRole('button', { name: /load/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/http 500/i)).toBeInTheDocument();
+      expect(screen.getByText('in-progress')).toBeInTheDocument();
     });
+    expect(screen.queryByText(/http 500/i)).not.toBeInTheDocument();
   });
 
   it('opens the create encounter modal', async () => {

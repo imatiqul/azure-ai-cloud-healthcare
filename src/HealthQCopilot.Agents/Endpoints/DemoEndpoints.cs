@@ -171,7 +171,7 @@ public static class DemoEndpoints
         ILogger<DemoEndpointsLog> logger,
         CancellationToken ct)
     {
-        var client  = http.CreateClient("internal");
+        var client = http.CreateClient("internal");
         var baseUrl = config["ServiceUrls:BFF"] ?? string.Empty;
 
         async Task<T> SafeGet<T>(string path, T fallback)
@@ -189,28 +189,28 @@ public static class DemoEndpoints
             }
         }
 
-        var agentsTask  = SafeGet("/api/v1/agents/stats",           new { pendingTriage = 8,   awaitingReview = 3,  completed = 47 });
-        var schedTask   = SafeGet("/api/v1/scheduling/stats",        new { availableToday = 23, bookedToday = 41 });
-        var popTask     = SafeGet("/api/v1/population-health/stats", new { highRiskPatients = 127, openCareGaps = 84 });
-        var revenueTask = SafeGet("/api/v1/revenue/stats",           new { codingQueue = 31,   priorAuthsPending = 12 });
+        var agentsTask = SafeGet("/api/v1/agents/stats", new { pendingTriage = 8, awaitingReview = 3, completed = 47 });
+        var schedTask = SafeGet("/api/v1/scheduling/stats", new { availableToday = 23, bookedToday = 41 });
+        var popTask = SafeGet("/api/v1/population-health/stats", new { highRiskPatients = 127, openCareGaps = 84 });
+        var revenueTask = SafeGet("/api/v1/revenue/stats", new { codingQueue = 31, priorAuthsPending = 12 });
 
         await Task.WhenAll(agentsTask, schedTask, popTask, revenueTask);
 
-        var agents  = await agentsTask;
-        var sched   = await schedTask;
-        var pop     = await popTask;
+        var agents = await agentsTask;
+        var sched = await schedTask;
+        var pop = await popTask;
         var revenue = await revenueTask;
 
         return new DemoLiveInsights(
-            PendingTriage:     agents.pendingTriage + agents.awaitingReview,
-            HighRiskPatients:  pop.highRiskPatients,
-            OpenCareGaps:      pop.openCareGaps,
-            CodingQueue:       revenue.codingQueue,
+            PendingTriage: agents.pendingTriage + agents.awaitingReview,
+            HighRiskPatients: pop.highRiskPatients,
+            OpenCareGaps: pop.openCareGaps,
+            CodingQueue: revenue.codingQueue,
             PriorAuthsPending: revenue.priorAuthsPending,
-            AvailableSlots:    sched.availableToday,
-            BookedToday:       sched.bookedToday,
-            TriageAiAccuracy:  0.94,
-            FetchedAt:         DateTimeOffset.UtcNow);
+            AvailableSlots: sched.availableToday,
+            BookedToday: sched.bookedToday,
+            TriageAiAccuracy: 0.94,
+            FetchedAt: DateTimeOffset.UtcNow);
     }
 }
 
@@ -221,13 +221,13 @@ public record DemoSceneEventRequest(string WorkflowId, string SceneId, int TimeS
 
 /// <summary>Phase 61 — live KPI snapshot returned by GET /api/v1/agents/demo/live-insights</summary>
 public record DemoLiveInsights(
-    int    PendingTriage,
-    int    HighRiskPatients,
-    int    OpenCareGaps,
-    int    CodingQueue,
-    int    PriorAuthsPending,
-    int    AvailableSlots,
-    int    BookedToday,
+    int PendingTriage,
+    int HighRiskPatients,
+    int OpenCareGaps,
+    int CodingQueue,
+    int PriorAuthsPending,
+    int AvailableSlots,
+    int BookedToday,
     double TriageAiAccuracy,
     DateTimeOffset FetchedAt
 );

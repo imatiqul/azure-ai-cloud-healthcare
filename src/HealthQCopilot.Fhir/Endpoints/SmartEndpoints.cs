@@ -111,9 +111,8 @@ public static class SmartEndpoints
 
         // ── FHIR CapabilityStatement with SMART extensions ────────────────────
         // Returns R4 CapabilityStatement advertising SMART on FHIR support.
-        app.MapGet("/api/v1/fhir/metadata", (IConfiguration config, HttpContext http) =>
+        static IResult BuildFhirMetadata(HttpContext http)
         {
-            var serverBase = $"{http.Request.Scheme}://{http.Request.Host}/api/v1/fhir";
             var smartUri = $"{http.Request.Scheme}://{http.Request.Host}/.well-known/smart-configuration";
 
             return Results.Json(new
@@ -157,9 +156,16 @@ public static class SmartEndpoints
                     }
                 }
             });
-        })
+        }
+
+        app.MapGet("/api/v1/fhir/metadata", (HttpContext http) => BuildFhirMetadata(http))
         .WithTags("SMART on FHIR")
         .WithName("FhirMetadata")
+        .AllowAnonymous();
+
+        app.MapGet("/fhir/metadata", (HttpContext http) => BuildFhirMetadata(http))
+        .WithTags("SMART on FHIR")
+        .WithName("FhirMetadataLegacy")
         .AllowAnonymous();
 
         return app;

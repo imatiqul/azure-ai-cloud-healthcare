@@ -43,13 +43,9 @@ export function RiskPanel() {
     try {
       const query = filter ? `?riskLevel=${filter}&top=20` : '?top=20';
       const res = await fetch(`${API_BASE}/api/v1/population-health/risks${query}`, { signal: AbortSignal.timeout(10_000) });
-      if (res.ok) {
-        const data = await res.json();
-        setRisks(data);
-      } else if (res.status === 404) {
-        const demo = filter ? DEMO_RISKS.filter(r => r.level === filter) : DEMO_RISKS;
-        setRisks(demo);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setRisks(Array.isArray(data) ? data : []);
     } catch {
       const demo = filter ? DEMO_RISKS.filter(r => r.level === filter) : DEMO_RISKS;
       setRisks(demo);

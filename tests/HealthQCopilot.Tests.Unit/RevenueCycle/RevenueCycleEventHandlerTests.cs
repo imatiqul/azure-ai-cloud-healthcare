@@ -80,7 +80,7 @@ public class PriorAuthDeniedHandlerTests
     {
         // Ensures downstream subscribers use a single topic with Outcome discriminator
         var approvedHandler = new PriorAuthApprovedHandler(_dapr, Substitute.For<ILogger<PriorAuthApprovedHandler>>());
-        var deniedHandler   = new PriorAuthDeniedHandler(_dapr, Substitute.For<ILogger<PriorAuthDeniedHandler>>());
+        var deniedHandler = new PriorAuthDeniedHandler(_dapr, Substitute.For<ILogger<PriorAuthDeniedHandler>>());
 
         await approvedHandler.Handle(
             new DomainEventNotification<PriorAuthApproved>(new PriorAuthApproved(Guid.NewGuid(), "p1")),

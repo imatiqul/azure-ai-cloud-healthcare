@@ -38,9 +38,9 @@ public sealed class TriageCompletedHandler(
             data: new
             {
                 WorkflowId = evt.WorkflowId,
-                SessionId  = evt.SessionId,
-                Level      = evt.Level.ToString(),
-                Reasoning  = evt.Reasoning,
+                SessionId = evt.SessionId,
+                Level = evt.Level.ToString(),
+                Reasoning = evt.Reasoning,
                 OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);

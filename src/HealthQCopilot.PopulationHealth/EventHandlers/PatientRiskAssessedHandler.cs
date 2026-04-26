@@ -31,12 +31,12 @@ public sealed class PatientRiskAssessedHandler(
             topicName: "patient-risk.assessed",
             data: new
             {
-                RiskId       = evt.RiskId,
-                PatientId    = evt.PatientId,
-                Level        = evt.Level.ToString(),
-                RiskScore    = evt.RiskScore,
+                RiskId = evt.RiskId,
+                PatientId = evt.PatientId,
+                Level = evt.Level.ToString(),
+                RiskScore = evt.RiskScore,
                 ModelVersion = evt.ModelVersion,
-                OccurredAt   = evt.OccurredAt
+                OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);
 

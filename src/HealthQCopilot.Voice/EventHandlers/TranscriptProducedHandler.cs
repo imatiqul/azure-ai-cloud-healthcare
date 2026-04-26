@@ -43,9 +43,9 @@ public sealed class TranscriptProducedHandler(
             topicName: "transcript.produced",
             data: new
             {
-                SessionId      = evt.SessionId,
+                SessionId = evt.SessionId,
                 TranscriptText = evt.TranscriptText,
-                OccurredAt     = evt.OccurredAt
+                OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);
 

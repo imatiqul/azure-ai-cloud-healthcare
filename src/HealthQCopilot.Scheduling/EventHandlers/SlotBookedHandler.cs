@@ -45,11 +45,11 @@ public sealed class SlotBookedHandler(
             topicName: "slot.booked",
             data: new
             {
-                SlotId         = evt.SlotId,
-                PatientId      = evt.PatientId,
+                SlotId = evt.SlotId,
+                PatientId = evt.PatientId,
                 PractitionerId = evt.PractitionerId,
                 AppointmentTime = evt.AppointmentTime,
-                OccurredAt     = evt.OccurredAt,
+                OccurredAt = evt.OccurredAt,
             },
             cancellationToken: ct);
 

@@ -19,7 +19,7 @@ This folder turns the Azure AI Cloud Healthcare codebase into a virtual instruct
 | Stakeholder guides | [../stakeholders/README.md](../stakeholders/README.md) | Role-specific technical depth and code map |
 | Diagrams | [../diagrams/README.md](../diagrams/README.md) | Instructor visuals and workflow explanations |
 | Runtime topology | [../../src/HealthQCopilot.AppHost](../../src/HealthQCopilot.AppHost) | Local distributed application orchestration |
-| Delivery workflows | [../../.github/workflows](../../.github/workflows) | CI/CD, cloud E2E, release safety, and compliance coverage |
+| Delivery workflows | [../../.github/workflows/README.md](../../.github/workflows/README.md) | CI/CD, cloud E2E, release safety, and compliance coverage |
 
 ## Suggested Use
 

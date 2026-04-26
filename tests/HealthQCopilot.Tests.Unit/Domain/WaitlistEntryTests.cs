@@ -14,7 +14,7 @@ public class WaitlistEntryTests
             patientId,
             practitionerId,
             preferredFrom: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1)),
-            preferredTo:   DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14)),
+            preferredTo: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14)),
             priority: priority);
 
     // ── Create ────────────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ public class WaitlistEntryTests
         var act = () => WaitlistEntry.Create(
             "p", "dr",
             preferredFrom: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(10)),
-            preferredTo:   DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1)));
+            preferredTo: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1)));
 
         act.Should().Throw<ArgumentException>()
             .WithMessage("*preferredTo*");

@@ -30,12 +30,12 @@ public sealed class BookingCreatedHandler(
             topicName: "booking.created",
             data: new
             {
-                BookingId       = evt.BookingId,
-                SlotId          = evt.SlotId,
-                PatientId       = evt.PatientId,
-                PractitionerId  = evt.PractitionerId,
+                BookingId = evt.BookingId,
+                SlotId = evt.SlotId,
+                PatientId = evt.PatientId,
+                PractitionerId = evt.PractitionerId,
                 AppointmentTime = evt.AppointmentTime,
-                OccurredAt      = evt.OccurredAt,
+                OccurredAt = evt.OccurredAt,
             },
             cancellationToken: ct);
 

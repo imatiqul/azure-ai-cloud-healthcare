@@ -31,12 +31,12 @@ public sealed class BreakGlassAccessGrantedHandler(
             topicName: "breakglass.granted",
             data: new
             {
-                AccessId              = evt.AccessId,
-                RequestedByUserId     = evt.RequestedByUserId,
-                TargetPatientId       = evt.TargetPatientId,
+                AccessId = evt.AccessId,
+                RequestedByUserId = evt.RequestedByUserId,
+                TargetPatientId = evt.TargetPatientId,
                 ClinicalJustification = evt.ClinicalJustification,
-                ExpiresAt             = evt.ExpiresAt,
-                OccurredAt            = evt.OccurredAt
+                ExpiresAt = evt.ExpiresAt,
+                OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);
 
@@ -66,11 +66,11 @@ public sealed class BreakGlassAccessRevokedHandler(
             topicName: "breakglass.revoked",
             data: new
             {
-                AccessId          = evt.AccessId,
+                AccessId = evt.AccessId,
                 RequestedByUserId = evt.RequestedByUserId,
-                TargetPatientId   = evt.TargetPatientId,
-                RevokedByUserId   = evt.RevokedByUserId,
-                OccurredAt        = evt.OccurredAt
+                TargetPatientId = evt.TargetPatientId,
+                RevokedByUserId = evt.RevokedByUserId,
+                OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);
 

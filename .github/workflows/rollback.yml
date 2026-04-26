@@ -69,30 +69,32 @@ jobs:
           else
             SERVICES='["${{ inputs.service }}"]'
           fi
-          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
 
           # Determine the target SHA
           if [ -n "${{ inputs.target_sha }}" ]; then
-            echo "target_sha=${{ inputs.target_sha }}" >> $GITHUB_OUTPUT
+            echo "target_sha=${{ inputs.target_sha }}" >> "$GITHUB_OUTPUT"
           else
             # Resolve the previous commit SHA on main
             PREV_SHA=$(git log --format="%H" -n 2 HEAD | tail -n 1)
-            echo "target_sha=$PREV_SHA" >> $GITHUB_OUTPUT
+            echo "target_sha=$PREV_SHA" >> "$GITHUB_OUTPUT"
             echo "No SHA specified — resolving to previous commit: $PREV_SHA"
           fi
 
       - name: Log rollback intent (HIPAA audit)
         run: |
-          echo "## 🔄 Rollback Initiated" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Initiated By | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Service(s) | ${{ inputs.service }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Target SHA | ${{ steps.resolve.outputs.target_sha }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Environment | ${{ inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Reason | ${{ inputs.reason }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Timestamp | $(date -u '+%Y-%m-%dT%H:%M:%SZ') |" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## 🔄 Rollback Initiated"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Initiated By | @${{ github.actor }} |"
+            echo "| Service(s) | ${{ inputs.service }} |"
+            echo "| Target SHA | ${{ steps.resolve.outputs.target_sha }} |"
+            echo "| Environment | ${{ inputs.environment }} |"
+            echo "| Reason | ${{ inputs.reason }} |"
+            echo "| Timestamp | $(date -u '+%Y-%m-%dT%H:%M:%SZ') |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # ── Rollback: restore the previous image for each affected service ──────────
   rollback:
@@ -231,7 +233,7 @@ jobs:
             exit 1
           fi
 
-          echo "url=https://$GATEWAY_FQDN" >> $GITHUB_OUTPUT
+          echo "url=https://$GATEWAY_FQDN" >> "$GITHUB_OUTPUT"
           echo "Resolved gateway URL: https://$GATEWAY_FQDN"
 
       - name: Probe gateway health
@@ -247,6 +249,11 @@ jobs:
 
       - name: Prepare live seed data via gateway
         run: bash .github/scripts/prepare-live-seed-data.sh
+        env:
+          LIVE_API_BASE_URL: ${{ steps.gateway-url.outputs.url }}
+
+      - name: Run post-rollback route smoke probes
+        run: bash .github/scripts/post-rollback-route-probes.sh
         env:
           LIVE_API_BASE_URL: ${{ steps.gateway-url.outputs.url }}
 
@@ -269,17 +276,19 @@ jobs:
             STATUS_TEXT="FAILED — manual intervention may be required"
           fi
 
-          echo "## $STATUS_EMOJI Rollback $STATUS_TEXT" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Service(s) | ${{ inputs.service }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Target SHA | ${{ needs.preflight.outputs.target_sha }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Environment | ${{ inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Rollback Execution | $ROLLBACK_OUTCOME |" >> $GITHUB_STEP_SUMMARY
-          echo "| Live Verification | $LIVE_VERIFY_OUTCOME |" >> $GITHUB_STEP_SUMMARY
-          echo "| Initiated By | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Reason | ${{ inputs.reason }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Completed At | $(date -u '+%Y-%m-%dT%H:%M:%SZ') |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "> **HIPAA §164.312(b):** This rollback has been logged with operator identity, reason, and timestamp for audit purposes." >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## $STATUS_EMOJI Rollback $STATUS_TEXT"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Service(s) | ${{ inputs.service }} |"
+            echo "| Target SHA | ${{ needs.preflight.outputs.target_sha }} |"
+            echo "| Environment | ${{ inputs.environment }} |"
+            echo "| Rollback Execution | $ROLLBACK_OUTCOME |"
+            echo "| Live Verification | $LIVE_VERIFY_OUTCOME |"
+            echo "| Initiated By | @${{ github.actor }} |"
+            echo "| Reason | ${{ inputs.reason }} |"
+            echo "| Completed At | $(date -u '+%Y-%m-%dT%H:%M:%SZ') |"
+            echo ""
+            echo "> **HIPAA §164.312(b):** This rollback has been logged with operator identity, reason, and timestamp for audit purposes."
+          } >> "$GITHUB_STEP_SUMMARY"

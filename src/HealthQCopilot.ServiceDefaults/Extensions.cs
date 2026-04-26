@@ -107,13 +107,16 @@ public static class Extensions
         var checks = builder.Services.AddHealthChecks()
             .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
 
-        // ── Dapr sidecar readiness ───────────────────────────────────────────
-        var daprHttpPort = builder.Configuration["DAPR_HTTP_PORT"] ?? "3500";
-        checks.AddUrlGroup(
-            new Uri($"http://localhost:{daprHttpPort}/v1.0/healthz"),
-            name: "dapr-sidecar",
-            tags: ["ready"],
-            timeout: TimeSpan.FromSeconds(3));
+        // ── Dapr sidecar readiness (only when explicitly configured) ────────
+        var daprHttpPort = builder.Configuration["DAPR_HTTP_PORT"];
+        if (!string.IsNullOrWhiteSpace(daprHttpPort))
+        {
+            checks.AddUrlGroup(
+                new Uri($"http://localhost:{daprHttpPort}/v1.0/healthz"),
+                name: "dapr-sidecar",
+                tags: ["ready"],
+                timeout: TimeSpan.FromSeconds(3));
+        }
 
         // ── Qdrant vector store ──────────────────────────────────────────────
         var qdrantEndpoint = builder.Configuration["Qdrant:Endpoint"];

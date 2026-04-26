@@ -82,11 +82,12 @@ export default function ClinicianFeedbackDashboard() {
         `${API_BASE}/api/v1/agents/feedback/summary?since=${since.toISOString()}`,
         { signal: AbortSignal.timeout(10_000) },
       );
-      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: FeedbackSummary = await res.json();
       setSummary(data);
     } catch {
       setSummary(DEMO_FEEDBACK_SUMMARY);
+      setError(null);
     } finally {
       setLoading(false);
     }

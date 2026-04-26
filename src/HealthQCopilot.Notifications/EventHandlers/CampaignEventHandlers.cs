@@ -32,11 +32,11 @@ public sealed class CampaignActivatedHandler(
             topicName: "campaign.activated",
             data: new
             {
-                CampaignId  = evt.CampaignId,
-                Name        = evt.Name,
-                Type        = evt.Type.ToString(),
+                CampaignId = evt.CampaignId,
+                Name = evt.Name,
+                Type = evt.Type.ToString(),
                 ScheduledAt = evt.ScheduledAt,
-                OccurredAt  = evt.OccurredAt
+                OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);
 
@@ -67,7 +67,7 @@ public sealed class CampaignCompletedHandler(
             data: new
             {
                 CampaignId = evt.CampaignId,
-                Name       = evt.Name,
+                Name = evt.Name,
                 OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);
@@ -99,7 +99,7 @@ public sealed class CampaignCancelledHandler(
             data: new
             {
                 CampaignId = evt.CampaignId,
-                Name       = evt.Name,
+                Name = evt.Name,
                 OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);

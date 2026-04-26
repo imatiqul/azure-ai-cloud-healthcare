@@ -25,6 +25,7 @@ Two deployment tracks coexist in the current codebase:
 | Module library | [infra/bicep/modules](../../infra/bicep/modules) | Network, compute, data, monitoring, identities |
 | Helm packaging | [infra/helm](../../infra/helm) | Workload templates and values sets |
 | GitOps app definitions | [infra/argocd](../../infra/argocd) | ArgoCD app and rollout resources |
+| API route ownership map | [api-route-ownership-map.md](api-route-ownership-map.md) | Canonical gateway route-to-service ownership reference |
 | Local dependency topology | [docker-compose.yml](../../docker-compose.yml) | Local infra bootstrap for developers |
 | Secret consumers | [.github/workflows](../../.github/workflows) | Workflow-level secret references and required keys |
 
@@ -36,6 +37,8 @@ Two deployment tracks coexist in the current codebase:
 | [microservice-deploy.yml](../../.github/workflows/microservice-deploy.yml) | Build, scan, publish, and deploy service images |
 | [frontend-deploy.yml](../../.github/workflows/frontend-deploy.yml) | Build and deploy changed MFEs |
 | [infra-deploy.yml](../../.github/workflows/infra-deploy.yml) | Validate and deploy infrastructure baseline |
+| [helm-chart-validation.yml](../../.github/workflows/helm-chart-validation.yml) | Lint and render Helm chart changes on PRs and publish rendered manifests |
+| [workflow-lint.yml](../../.github/workflows/workflow-lint.yml) | Lint changed GitHub Actions workflow files in PRs using actionlint |
 | [deployment-health.yml](../../.github/workflows/deployment-health.yml) | Health checks after deployment |
 | [rollback.yml](../../.github/workflows/rollback.yml) | Controlled rollback execution |
 

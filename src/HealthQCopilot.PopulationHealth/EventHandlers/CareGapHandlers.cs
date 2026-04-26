@@ -30,11 +30,11 @@ public sealed class CareGapIdentifiedHandler(
             topicName: "care-gap.identified",
             data: new
             {
-                CareGapId   = evt.CareGapId,
-                PatientId   = evt.PatientId,
-                MeasureId   = evt.MeasureId,
+                CareGapId = evt.CareGapId,
+                PatientId = evt.PatientId,
+                MeasureId = evt.MeasureId,
                 Description = evt.Description,
-                OccurredAt  = evt.OccurredAt
+                OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);
 
@@ -65,9 +65,9 @@ public sealed class CareGapAddressedHandler(
             topicName: "care-gap.addressed",
             data: new
             {
-                CareGapId  = evt.CareGapId,
-                PatientId  = evt.PatientId,
-                MeasureId  = evt.MeasureId,
+                CareGapId = evt.CareGapId,
+                PatientId = evt.PatientId,
+                MeasureId = evt.MeasureId,
                 OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);
@@ -99,9 +99,9 @@ public sealed class CareGapClosedHandler(
             topicName: "care-gap.closed",
             data: new
             {
-                CareGapId  = evt.CareGapId,
-                PatientId  = evt.PatientId,
-                MeasureId  = evt.MeasureId,
+                CareGapId = evt.CareGapId,
+                PatientId = evt.PatientId,
+                MeasureId = evt.MeasureId,
                 OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);

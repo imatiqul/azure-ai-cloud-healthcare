@@ -95,22 +95,23 @@ describe('ModelGovernanceDashboard', () => {
     await waitFor(() => expect(screen.getByText('Model Registry')).toBeInTheDocument());
   });
 
-  it('shows empty state when no entries', async () => {
+  it('falls back to demo entries when API returns an empty list', async () => {
     global.fetch = vi.fn(() =>
       Promise.resolve({ ok: true, json: () => Promise.resolve([]) })
     ) as unknown as typeof fetch;
     render(<ModelGovernanceDashboard />);
     await waitFor(() =>
-      expect(screen.getByText(/No model registry entries found/i)).toBeInTheDocument()
+      expect(screen.getAllByText('ClinicalTriage').length).toBeGreaterThan(0)
     );
   });
 
-  it('shows error on HTTP failure', async () => {
+  it('falls back to demo entries on HTTP failure', async () => {
     global.fetch = vi.fn(() =>
       Promise.resolve({ ok: false, status: 500 })
     ) as unknown as typeof fetch;
     render(<ModelGovernanceDashboard />);
-    await waitFor(() => expect(screen.getByText(/HTTP 500/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('ClinicalTriage').length).toBeGreaterThan(0));
+    expect(screen.queryByText(/HTTP 500/)).not.toBeInTheDocument();
   });
 
   it('re-fetches on refresh button click', async () => {

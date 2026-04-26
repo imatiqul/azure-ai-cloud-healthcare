@@ -5,6 +5,7 @@ using HealthQCopilot.Agents.Infrastructure;
 using HealthQCopilot.Agents.Services;
 using HealthQCopilot.Domain.Agents;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace HealthQCopilot.Agents.Endpoints;
 
@@ -73,30 +74,40 @@ public static class ModelGovernanceEndpoints
             string? modelName,
             int? top,
             AgentDbContext db,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
-            var query = db.ModelRegistryEntries.AsQueryable();
-            if (!string.IsNullOrEmpty(modelName))
-                query = query.Where(e => e.ModelName == modelName);
+            try
+            {
+                var query = db.ModelRegistryEntries.AsQueryable();
+                if (!string.IsNullOrEmpty(modelName))
+                    query = query.Where(e => e.ModelName == modelName);
 
-            var entries = await query
-                .OrderByDescending(e => e.DeployedAt)
-                .Take(top ?? 50)
-                .Select(e => new
-                {
-                    e.Id,
-                    e.ModelName,
-                    e.ModelVersion,
-                    e.DeploymentName,
-                    e.SkVersion,
-                    e.PromptHash,
-                    e.LastEvalScore,
-                    e.DeployedAt,
-                    e.IsActive,
-                })
-                .ToListAsync(ct);
+                var entries = await query
+                    .OrderByDescending(e => e.DeployedAt)
+                    .Take(top ?? 50)
+                    .Select(e => new
+                    {
+                        e.Id,
+                        e.ModelName,
+                        e.ModelVersion,
+                        e.DeploymentName,
+                        e.SkVersion,
+                        e.PromptHash,
+                        e.LastEvalScore,
+                        e.DeployedAt,
+                        e.IsActive,
+                    })
+                    .ToListAsync(ct);
 
-            return Results.Ok(entries);
+                return Results.Ok(entries);
+            }
+            catch (Exception ex) when (IsGovernanceCompatibilityError(ex))
+            {
+                loggerFactory.CreateLogger(nameof(ModelGovernanceEndpoints))
+                    .LogWarning(ex, "Model governance history unavailable due to schema compatibility mismatch. Returning empty history.");
+                return Results.Ok(Array.Empty<object>());
+            }
         })
         .WithSummary("List model registry history");
 
@@ -176,28 +187,38 @@ public static class ModelGovernanceEndpoints
             Guid? modelRegistryEntryId,
             int? top,
             AgentDbContext db,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
-            var query = db.PromptEvaluationRuns.AsQueryable();
-            if (modelRegistryEntryId.HasValue)
-                query = query.Where(r => r.ModelRegistryEntryId == modelRegistryEntryId.Value);
+            try
+            {
+                var query = db.PromptEvaluationRuns.AsQueryable();
+                if (modelRegistryEntryId.HasValue)
+                    query = query.Where(r => r.ModelRegistryEntryId == modelRegistryEntryId.Value);
 
-            var runs = await query
-                .OrderByDescending(r => r.EvaluatedAt)
-                .Take(top ?? 20)
-                .Select(r => new
-                {
-                    r.Id,
-                    r.ModelRegistryEntryId,
-                    r.Score,
-                    r.TotalCases,
-                    r.PassedCases,
-                    r.PassedThreshold,
-                    r.EvaluatedAt,
-                })
-                .ToListAsync(ct);
+                var runs = await query
+                    .OrderByDescending(r => r.EvaluatedAt)
+                    .Take(top ?? 20)
+                    .Select(r => new
+                    {
+                        r.Id,
+                        r.ModelRegistryEntryId,
+                        r.Score,
+                        r.TotalCases,
+                        r.PassedCases,
+                        r.PassedThreshold,
+                        r.EvaluatedAt,
+                    })
+                    .ToListAsync(ct);
 
-            return Results.Ok(runs);
+                return Results.Ok(runs);
+            }
+            catch (Exception ex) when (IsGovernanceCompatibilityError(ex))
+            {
+                loggerFactory.CreateLogger(nameof(ModelGovernanceEndpoints))
+                    .LogWarning(ex, "Prompt evaluation history unavailable due to schema compatibility mismatch. Returning empty history.");
+                return Results.Ok(Array.Empty<object>());
+            }
         })
         .WithSummary("List historical prompt evaluation runs");
 
@@ -214,6 +235,17 @@ public static class ModelGovernanceEndpoints
         .WithSummary("Compute SHA-256 hash of a system prompt for registry tracking");
 
         return app;
+    }
+
+    private static bool IsGovernanceCompatibilityError(Exception ex)
+    {
+        if (ex is InvalidCastException)
+            return true;
+
+        if (ex is PostgresException pgEx)
+            return pgEx.SqlState is "42P01" or "42703" or "42804";
+
+        return ex.InnerException is not null && IsGovernanceCompatibilityError(ex.InnerException);
     }
 }
 

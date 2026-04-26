@@ -17,7 +17,7 @@ public class PractitionerTests
         Practitioner.Create(
             practitionerId, name, specialty, email,
             start ?? new TimeOnly(8, 0),
-            end   ?? new TimeOnly(17, 0),
+            end ?? new TimeOnly(17, 0),
             timeZoneId);
 
     // ── Create ────────────────────────────────────────────────────────────────

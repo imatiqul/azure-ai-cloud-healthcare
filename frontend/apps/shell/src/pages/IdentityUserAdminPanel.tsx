@@ -86,13 +86,14 @@ export default function IdentityUserAdminPanel() {
     setError(null);
     try {
       const res = await fetch(`${API_BASE}/api/v1/identity/users?page=1&pageSize=50`, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) { setError(`HTTP ${res.status}`); setLoading(false); return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: UsersResponse = await res.json();
       setUsers(data.users);
       setTotal(data.total);
     } catch {
       setUsers(DEMO_USERS);
       setTotal(DEMO_USERS.length);
+      setError(null);
     } finally {
       setLoading(false);
     }

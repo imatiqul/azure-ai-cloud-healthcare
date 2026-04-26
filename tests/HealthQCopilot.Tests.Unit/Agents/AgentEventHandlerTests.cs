@@ -64,8 +64,8 @@ public class TriageCompletedHandlerTests
         var dispatcher = Substitute.For<IWorkflowDispatcher>();
 
         var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        var scope        = Substitute.For<IServiceScope>();
-        var sp           = Substitute.For<IServiceProvider>();
+        var scope = Substitute.For<IServiceScope>();
+        var sp = Substitute.For<IServiceProvider>();
         scope.ServiceProvider.Returns(sp);
         scopeFactory.CreateScope().Returns(scope);
 

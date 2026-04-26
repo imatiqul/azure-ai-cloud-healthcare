@@ -45,8 +45,8 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
         var response = await _client.PostAsJsonAsync("/api/v1/agents/demo/start", new
         {
             clientName = "Integration Test User",
-            company    = "TestCo",
-            email      = "it@testco.com",
+            company = "TestCo",
+            email = "it@testco.com",
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -55,7 +55,7 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
         doc.RootElement.TryGetProperty("sessionId", out var sid).Should().BeTrue("response must include sessionId");
         sid.GetGuid().Should().NotBeEmpty();
         doc.RootElement.TryGetProperty("currentStep", out _).Should().BeTrue("response must include currentStep");
-        doc.RootElement.TryGetProperty("narration",   out _).Should().BeTrue("response must include narration");
+        doc.RootElement.TryGetProperty("narration", out _).Should().BeTrue("response must include narration");
     }
 
     [Theory]
@@ -68,9 +68,9 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
     {
         var response = await _client.PostAsJsonAsync("/api/v1/agents/demo/start", new
         {
-            clientName    = $"Test — {audienceGroup}",
-            company       = "AudienceCo",
-            email         = $"{audienceGroup}@demo.test",
+            clientName = $"Test — {audienceGroup}",
+            company = "AudienceCo",
+            email = $"{audienceGroup}@demo.test",
             audienceGroup,
         });
 
@@ -109,7 +109,7 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         doc.RootElement.TryGetProperty("currentStep", out _).Should().BeTrue();
-        doc.RootElement.TryGetProperty("narration",   out _).Should().BeTrue();
+        doc.RootElement.TryGetProperty("narration", out _).Should().BeTrue();
     }
 
     [Fact]
@@ -154,9 +154,9 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
         var response = await _client.PostAsJsonAsync(
             $"/api/v1/agents/demo/{sessionId}/feedback", new
             {
-                step    = "Welcome",
-                rating  = 4,
-                tags    = new[] { "Clear", "Engaging" },
+                step = "Welcome",
+                rating = 4,
+                tags = new[] { "Clear", "Engaging" },
                 comment = "Great intro",
             });
 
@@ -171,9 +171,9 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
         var response = await _client.PostAsJsonAsync(
             $"/api/v1/agents/demo/{sessionId}/feedback", new
             {
-                step   = "NonExistentStep",
+                step = "NonExistentStep",
                 rating = 3,
-                tags   = Array.Empty<string>(),
+                tags = Array.Empty<string>(),
             });
 
         ((int)response.StatusCode).Should().BeOneOf(400, 422);
@@ -199,10 +199,10 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
         var response = await _client.PostAsJsonAsync(
             $"/api/v1/agents/demo/{sessionId}/complete", new
             {
-                npsScore          = 9,
+                npsScore = 9,
                 featurePriorities = new[] { "Voice AI", "AI Triage" },
-                comment           = "Impressive demo",
-                audienceGroup     = "practitioners",           // Phase 71
+                comment = "Impressive demo",
+                audienceGroup = "practitioners",           // Phase 71
             });
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -226,9 +226,9 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
         var response = await _client.PostAsJsonAsync(
             $"/api/v1/agents/demo/{sessionId}/complete", new
             {
-                npsScore          = 7,
+                npsScore = 7,
                 featurePriorities = new[] { "Smart Scheduling" },
-                comment           = (string?)null,
+                comment = (string?)null,
                 // audienceGroup intentionally omitted — should default gracefully
             });
 
@@ -249,7 +249,7 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         doc.RootElement.TryGetProperty("sessionId", out _).Should().BeTrue();
-        doc.RootElement.TryGetProperty("status",    out _).Should().BeTrue();
+        doc.RootElement.TryGetProperty("status", out _).Should().BeTrue();
     }
 
     [Fact]
@@ -277,10 +277,10 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
             $"audience KPI endpoint should return 200 for group '{group}'");
 
         var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        doc.RootElement.TryGetProperty("group",       out var g).Should().BeTrue("must return 'group' field");
-        doc.RootElement.TryGetProperty("groupName",   out _).Should().BeTrue("must return 'groupName' field");
+        doc.RootElement.TryGetProperty("group", out var g).Should().BeTrue("must return 'group' field");
+        doc.RootElement.TryGetProperty("groupName", out _).Should().BeTrue("must return 'groupName' field");
         doc.RootElement.TryGetProperty("proofPoints", out var pp).Should().BeTrue("must return 'proofPoints' array");
-        doc.RootElement.TryGetProperty("highlights",  out var hl).Should().BeTrue("must return 'highlights' array");
+        doc.RootElement.TryGetProperty("highlights", out var hl).Should().BeTrue("must return 'highlights' array");
 
         g.GetString().Should().Be(group);
         pp.ValueKind.Should().Be(JsonValueKind.Array);
@@ -289,7 +289,7 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
         // Each proof point must have stat + label
         foreach (var point in pp.EnumerateArray())
         {
-            point.TryGetProperty("stat",  out _).Should().BeTrue("proof point must have 'stat'");
+            point.TryGetProperty("stat", out _).Should().BeTrue("proof point must have 'stat'");
             point.TryGetProperty("label", out _).Should().BeTrue("proof point must have 'label'");
         }
 
@@ -337,8 +337,8 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
 
         // Spot-check first entry has required fields
         var first = doc.RootElement[0];
-        first.TryGetProperty("service",   out _).Should().BeTrue();
-        first.TryGetProperty("status",    out _).Should().BeTrue();
+        first.TryGetProperty("service", out _).Should().BeTrue();
+        first.TryGetProperty("status", out _).Should().BeTrue();
         first.TryGetProperty("latencyMs", out _).Should().BeTrue();
     }
 
@@ -351,8 +351,8 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
         var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         doc.RootElement.ValueKind.Should().Be(JsonValueKind.Object);
         // Sanity-check a few well-known fields
-        doc.RootElement.TryGetProperty("triageAccuracy",    out _).Should().BeTrue("triageAccuracy must be present");
-        doc.RootElement.TryGetProperty("noShowReduction",   out _).Should().BeTrue("noShowReduction must be present");
+        doc.RootElement.TryGetProperty("triageAccuracy", out _).Should().BeTrue("triageAccuracy must be present");
+        doc.RootElement.TryGetProperty("noShowReduction", out _).Should().BeTrue("noShowReduction must be present");
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -367,14 +367,14 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
     {
         var body = new Dictionary<string, object?>
         {
-            ["sessionId"]     = Guid.NewGuid().ToString(),
-            ["workflowId"]    = "voice-intake",
-            ["sceneIndex"]    = 0,
-            ["eventType"]     = "scene_start",
-            ["durationSec"]   = 30,
+            ["sessionId"] = Guid.NewGuid().ToString(),
+            ["workflowId"] = "voice-intake",
+            ["sceneIndex"] = 0,
+            ["eventType"] = "scene_start",
+            ["durationSec"] = 30,
             ["audienceGroup"] = audienceGroup,    // Phase 71 — may be null
-            ["clientName"]    = "IT User",
-            ["company"]       = "TestOrg",
+            ["clientName"] = "IT User",
+            ["company"] = "TestOrg",
         };
 
         var response = await _client.PostAsJsonAsync("/api/v1/demo/scene-event", body);
@@ -391,9 +391,9 @@ public class DemoEndpointTests : IClassFixture<PostgresFixture>
     {
         var response = await _client.PostAsJsonAsync("/api/v1/agents/demo/start", new
         {
-            clientName    = "Integration Helper",
-            company       = "HelperCo",
-            email         = "helper@helperco.test",
+            clientName = "Integration Helper",
+            company = "HelperCo",
+            email = "helper@helperco.test",
             audienceGroup,
         });
 

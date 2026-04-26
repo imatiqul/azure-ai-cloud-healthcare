@@ -132,11 +132,12 @@ describe('ClinicianFeedbackDashboard', () => {
     });
   });
 
-  it('shows error alert on fetch failure', async () => {
+  it('falls back to demo summary on fetch failure', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: false, status: 503 });
     render(<ClinicianFeedbackDashboard />);
     await waitFor(() => {
-      expect(screen.getByText(/HTTP 503/)).toBeInTheDocument();
+      expect(screen.getByText('Total: 284')).toBeInTheDocument();
     });
+    expect(screen.queryByText(/HTTP 503/)).not.toBeInTheDocument();
   });
 });

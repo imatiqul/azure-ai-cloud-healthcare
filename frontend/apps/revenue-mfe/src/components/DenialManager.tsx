@@ -85,16 +85,14 @@ export function DenialManager() {
         fetch(`${API_BASE}/api/v1/revenue/denials?status=Open`),
         fetch(`${API_BASE}/api/v1/revenue/denials/analytics`),
       ]);
-      if (denialsRes.ok) {
-        setDenials(await denialsRes.json());
-      } else if (denialsRes.status === 404) {
-        setDenials(DEMO_DENIALS);
-      }
-      if (analyticsRes.ok) {
-        setAnalytics(await analyticsRes.json());
-      } else if (analyticsRes.status === 404) {
-        setAnalytics(DEMO_ANALYTICS);
-      }
+      if (!denialsRes.ok || !analyticsRes.ok)
+        throw new Error(`Revenue APIs unavailable (${denialsRes.status}/${analyticsRes.status})`);
+
+      const denialsData = await denialsRes.json();
+      const analyticsData = await analyticsRes.json();
+
+      setDenials(Array.isArray(denialsData) ? denialsData : DEMO_DENIALS);
+      setAnalytics(analyticsData ?? DEMO_ANALYTICS);
     } catch {
       setDenials(DEMO_DENIALS);
       setAnalytics(DEMO_ANALYTICS);

@@ -32,11 +32,11 @@ public sealed class ConsentGrantedHandler(
             topicName: "consent.granted",
             data: new
             {
-                ConsentId     = evt.ConsentId,
+                ConsentId = evt.ConsentId,
                 PatientUserId = evt.PatientUserId,
-                Purpose       = evt.Purpose,
-                Scope         = evt.Scope,
-                OccurredAt    = evt.OccurredAt
+                Purpose = evt.Purpose,
+                Scope = evt.Scope,
+                OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);
 
@@ -71,11 +71,11 @@ public sealed class ConsentRevokedHandler(
             topicName: "consent.revoked",
             data: new
             {
-                ConsentId     = evt.ConsentId,
+                ConsentId = evt.ConsentId,
                 PatientUserId = evt.PatientUserId,
-                Purpose       = evt.Purpose,
-                Reason        = evt.Reason,
-                OccurredAt    = evt.OccurredAt
+                Purpose = evt.Purpose,
+                Reason = evt.Reason,
+                OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);
 

@@ -31,10 +31,10 @@ public sealed class DocumentProcessedHandler(
             topicName: "document.processed",
             data: new
             {
-                JobId                     = evt.JobId,
-                PatientId                 = evt.PatientId,
-                FhirDocumentReferenceId   = evt.FhirDocumentReferenceId,
-                OccurredAt                = evt.OccurredAt
+                JobId = evt.JobId,
+                PatientId = evt.PatientId,
+                FhirDocumentReferenceId = evt.FhirDocumentReferenceId,
+                OccurredAt = evt.OccurredAt
             },
             cancellationToken: ct);
 
