@@ -59,7 +59,7 @@ jobs:
     steps:
       - name: Verify required deploy workflows for this SHA
         id: check
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           result-encoding: string
           script: |
@@ -219,7 +219,7 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
@@ -245,15 +245,15 @@ jobs:
     outputs:
       smoke_passed: ${{ steps.smoke.outcome == 'success' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: pnpm
@@ -312,15 +312,15 @@ jobs:
       needs.smoke-gate.result == 'success' &&
       github.event.inputs.smoke_only != 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: pnpm
@@ -358,7 +358,7 @@ jobs:
           echo "Trigger: \`${{ github.event_name }}\` | Branch: \`${{ github.event.workflow_run.head_branch || github.ref_name }}\` | SHA: \`${{ github.event.workflow_run.head_sha || github.sha }}\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload E2E HTML report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: cloud-e2e-report-${{ github.run_number }}
@@ -366,7 +366,7 @@ jobs:
           retention-days: 30
 
       - name: Upload E2E JSON results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: cloud-e2e-results-json-${{ github.run_number }}
@@ -428,7 +428,7 @@ jobs:
       - name: Download E2E JSON results
         if: env.TRIAGE_MODE == 'full-failure'
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: cloud-e2e-results-json-${{ github.run_number }}
           path: ./results

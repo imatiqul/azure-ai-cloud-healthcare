@@ -36,16 +36,16 @@ jobs:
       CHROMATIC_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Chromatic requires full git history for baseline comparison
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '9'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: pnpm
