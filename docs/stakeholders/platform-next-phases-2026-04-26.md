@@ -202,10 +202,64 @@ Exit criteria:
 - No Node 20 references remain in any workflow file.
 - All GitHub-owned actions are on their latest known major version.
 
+## Phase 12 - API Contract Drift Detection (Week 10 to Week 11)
+
+Goal: prevent breaking API changes from reaching production consumers without a formal major-version bump and consumer notification.
+
+Status:
+- Automation implemented via `.github/workflows/api-contract-drift.yml` comparing OpenAPI/Swagger spec files between PR base and head, failing on removed operations.
+
+Key work:
+- Generate OpenAPI spec files for all 10 services from Swagger endpoints and commit to `docs/api/`.
+- Integrate spec export into the `microservice-deploy.yml` post-build step.
+- Define the consumer notification SOP for breaking API changes.
+- Add API contract drift as a required check for production-bound merges in `release-gate-policy.json`.
+
+Exit criteria:
+- All 10 service spec files present in `docs/api/` on main.
+- PR with removed API operations is blocked by contract drift check.
+- Consumer notification process is documented for breaking changes.
+
+## Phase 13 - Credential Hygiene Audit (Week 11 to Week 12)
+
+Goal: prevent hardcoded credentials and PHI-adjacent secrets from entering source control (HIPAA § 164.312(a)(2)(iv) compliance).
+
+Status:
+- Automation implemented via `.github/workflows/credential-hygiene.yml` scanning all source files with 12+ high-confidence and 3 medium-confidence credential patterns as a PR gate and weekly scan.
+
+Key work:
+- Remediate any existing HIGH findings surfaced by the initial scan run.
+- Enable GitHub Secret Scanning and push protection on the repository.
+- Document the approved secret storage standard: Azure Key Vault for runtime secrets, GitHub Secrets for CI secrets.
+- Add credential hygiene as a required PR check.
+
+Exit criteria:
+- Credential hygiene audit passes with zero HIGH findings on main.
+- GitHub Secret Scanning and push protection enabled.
+- Secret storage standard documented and linked from the security runbook.
+
+## Phase 14 - Service Health Endpoint Governance (Week 12 to Week 13)
+
+Goal: ensure all 10 microservices expose standardized health endpoints and that Kubernetes probes are configured to use them, preventing silent pod failures from routing live traffic.
+
+Status:
+- Automation implemented via `.github/workflows/service-health-governance.yml` auditing Helm Deployment templates for liveness/readiness probes and verifying health check registration in each service's Program.cs.
+
+Key work:
+- Add `livenessProbe` and `readinessProbe` to all Deployment/StatefulSet Helm templates using `httpGet` on `/healthz`.
+- Ensure all 10 services call `services.AddHealthChecks()` and `app.MapHealthChecks("/healthz")` in `Program.cs`.
+- Configure YARP `ActiveHealthCheck` in gateway `appsettings.json` for all upstream clusters.
+- Add `startupProbe` for slow-starting services (`fhir`, `ai-agent`) with an appropriate `initialDelaySeconds`.
+
+Exit criteria:
+- Service health governance audit passes for two consecutive weeks.
+- All 10 services have liveness and readiness probes in Helm templates.
+- YARP gateway uses active health checks for all upstream clusters.
+
 ## Ownership Model
 
 - DevOps: deployment identity, workflow gates, AKS/infra execution, promotion pipeline, dependency freshness remediation.
-- Backend + QA: route contract correctness, probe alignment, CodeQL triage, chaos readiness probe coverage.
+- Backend + QA: route contract correctness, probe alignment, CodeQL triage, chaos readiness probe coverage, health endpoint implementation, API spec generation.
 - Platform manager: scorecard cadence, release evidence governance, SLO review, cost budget approvals.
-- Solutions architect: ownership boundaries, contract governance controls, OpenSSF Scorecard remediation, cost exception register.
-- Security: CodeQL finding triage, GHAS configuration, supply-chain policy.
+- Solutions architect: ownership boundaries, contract governance controls, OpenSSF Scorecard remediation, cost exception register, API contract versioning policy.
+- Security: CodeQL finding triage, GHAS configuration, supply-chain policy, credential hygiene remediation, secret storage standards.

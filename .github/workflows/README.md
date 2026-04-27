@@ -49,6 +49,9 @@ This catalog describes all CI/CD and quality workflows in this repository.
 | `chaos-readiness.yml` | `schedule`, `pull_request`, `workflow_dispatch` | Audits Helm values for readiness/liveness probes, resource requests/limits, and replica redundancy across all 10 services. |
 | `cost-governance.yml` | `schedule`, `pull_request`, `workflow_dispatch` | Audits service resource requests/limits against approved budget thresholds; flags over-budget or misconfigured values. |
 | `dependency-freshness.yml` | `schedule`, `pull_request`, `workflow_dispatch` | Scans all workflow files for floating mutable-branch action pins (supply-chain risk), stale major versions, and deprecated Node runtime references. |
+| `api-contract-drift.yml` | `schedule`, `pull_request`, `workflow_dispatch` | Detects breaking OpenAPI/Swagger spec changes (removed operations) in PRs; governs spec file presence for all 10 services. |
+| `credential-hygiene.yml` | `schedule`, `pull_request`, `workflow_dispatch` | Scans all source files for hardcoded credential patterns (connection strings, private keys, API keys, FHIR secrets). HIPAA-critical control. |
+| `service-health-governance.yml` | `schedule`, `pull_request`, `workflow_dispatch` | Audits Helm Deployment templates for livenessProbe/readinessProbe and verifies health check endpoint registration in each service's Program.cs. |
 
 ## Artifact Notes
 
@@ -66,6 +69,9 @@ This catalog describes all CI/CD and quality workflows in this repository.
 - `chaos-readiness.yml` uploads `chaos-readiness-<date>` with per-service probe and resource resilience audit results (60-day retention).
 - `cost-governance.yml` uploads `cost-governance-<date>` with per-service resource budget compliance table (90-day retention).
 - `dependency-freshness.yml` uploads `dependency-freshness-<date>` with floating pin, stale version, and Node deprecation findings (90-day retention).
+- `api-contract-drift.yml` uploads `api-contract-drift-<date>` with spec coverage and PR breaking-change analysis (90-day retention).
+- `credential-hygiene.yml` uploads `credential-hygiene-<date>` with HIGH and MEDIUM credential pattern findings (60-day retention).
+- `service-health-governance.yml` uploads `service-health-governance-<date>` with per-service probe and health endpoint compliance table (60-day retention).
 - `infra-deploy.yml` validate job also uploads `release-evidence-<env>-<sha>` release checklist artifact.
 - `frontend-deploy.yml` uploads `swa-deploy-evidence-<app>-<sha>` per-MFE deploy evidence artifact.
 

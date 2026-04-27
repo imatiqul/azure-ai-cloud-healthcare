@@ -46,7 +46,10 @@ jobs:
               { file: 'security-scorecard.yml', name: 'Security Posture Scorecard' },
               { file: 'chaos-readiness.yml', name: 'Chaos Readiness Audit' },
               { file: 'cost-governance.yml', name: 'Cost Governance Audit' },
-              { file: 'dependency-freshness.yml', name: 'Dependency Freshness Audit' }
+              { file: 'dependency-freshness.yml', name: 'Dependency Freshness Audit' },
+              { file: 'api-contract-drift.yml', name: 'API Contract Drift Detection' },
+              { file: 'credential-hygiene.yml', name: 'Credential Hygiene Audit' },
+              { file: 'service-health-governance.yml', name: 'Service Health Governance' }
             ];
 
             const rows = [];
@@ -104,6 +107,9 @@ jobs:
             const chaosReadiness = rows.find((row) => row.name === 'Chaos Readiness Audit');
             const costGovernance = rows.find((row) => row.name === 'Cost Governance Audit');
             const depFreshness = rows.find((row) => row.name === 'Dependency Freshness Audit');
+            const apiContractDrift = rows.find((row) => row.name === 'API Contract Drift Detection');
+            const credentialHygiene = rows.find((row) => row.name === 'Credential Hygiene Audit');
+            const serviceHealthGov = rows.find((row) => row.name === 'Service Health Governance');
             const runtimeConvergence = rows.find((row) => row.name === 'Runtime Convergence Audit');
             const routeProbes = rows.find((row) => row.name === 'Gateway Route Probes');
             const releaseGatePolicy = rows.find((row) => row.name === 'Release Gate Policy Audit');
@@ -158,6 +164,9 @@ jobs:
             report += `- Chaos readiness audit pass trend: ${chaosReadiness?.passRate ?? 'n/a'}\n`;
             report += `- Cost governance audit pass trend: ${costGovernance?.passRate ?? 'n/a'}\n`;
             report += `- Dependency freshness audit pass trend: ${depFreshness?.passRate ?? 'n/a'}\n`;
+            report += `- API contract drift pass trend: ${apiContractDrift?.passRate ?? 'n/a'}\n`;
+            report += `- Credential hygiene audit pass trend: ${credentialHygiene?.passRate ?? 'n/a'}\n`;
+            report += `- Service health governance pass trend: ${serviceHealthGov?.passRate ?? 'n/a'}\n`;
             report += `- Runtime convergence trend: ${runtimeConvergence?.passRate ?? 'n/a'}\n`;
             report += `- Gateway route probe trend: ${routeProbes?.passRate ?? 'n/a'}\n`;
             report += `- Release gate policy trend: ${releaseGatePolicy?.passRate ?? 'n/a'}\n`;

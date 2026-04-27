@@ -1,0 +1,280 @@
+name: API Contract Drift Detection
+
+# Detects breaking changes in OpenAPI/Swagger spec files committed to docs/api/.
+# On pull_request: compares changed specs between base and head — fails on removed
+#   operations (paths/methods), warns on additions.
+# On schedule/dispatch: governs that all 10 service spec files are present.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/api/**'
+      - 'src/**/*openapi*'
+      - 'src/**/*swagger*'
+      - 'src/**/*contract*'
+  schedule:
+    - cron: '0 7 * * 5'    # Friday 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  api-contract-drift:
+    name: API Contract Drift Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect API contract drift
+        id: drift
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Expected spec file per service — generated from Swagger endpoint and
+            // committed to docs/api/ as part of each service's release process.
+            const EXPECTED_SPECS = [
+              'docs/api/voice-service.json',
+              'docs/api/ai-agent-service.json',
+              'docs/api/fhir-service.json',
+              'docs/api/identity-service.json',
+              'docs/api/ocr-service.json',
+              'docs/api/scheduling-service.json',
+              'docs/api/notification-service.json',
+              'docs/api/pop-health-service.json',
+              'docs/api/revenue-service.json',
+              'docs/api/gateway.json',
+            ];
+
+            // ── Governance: verify all spec files are present ─────────────
+            const presentSpecs = [];
+            const missingSpecs = [];
+            for (const specPath of EXPECTED_SPECS) {
+              if (fs.existsSync(specPath)) {
+                presentSpecs.push(specPath);
+              } else {
+                missingSpecs.push(specPath);
+              }
+            }
+
+            // ── PR drift analysis ─────────────────────────────────────────
+            const isPR = context.eventName === 'pull_request';
+            const breakingChanges = [];
+            const informational = [];
+            const changedSpecFiles = [];
+
+            if (isPR) {
+              // Get PR file list
+              const changedFiles = await github.paginate(github.rest.pulls.listFiles, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                per_page: 100,
+              });
+
+              for (const file of changedFiles) {
+                const f = file.filename;
+                const isSpec = /\.(json|ya?ml)$/i.test(f) &&
+                  /(openapi|swagger|contract|api[-_]spec)/i.test(path.basename(f));
+                if (isSpec) {
+                  changedSpecFiles.push({ filename: f, status: file.status });
+                }
+              }
+
+              // Diff each changed JSON spec
+              for (const { filename, status } of changedSpecFiles) {
+                if (status === 'removed') {
+                  breakingChanges.push({
+                    file: filename,
+                    severity: 'BREAKING',
+                    description: 'Entire API spec file removed — all operations are gone.',
+                  });
+                  continue;
+                }
+
+                if (!fs.existsSync(filename)) continue;
+
+                let headSpec;
+                try {
+                  const raw = fs.readFileSync(filename, 'utf8');
+                  headSpec = filename.endsWith('.json') ? JSON.parse(raw) : null;
+                } catch {
+                  informational.push({ file: filename, description: 'Could not parse spec; review manually.' });
+                  continue;
+                }
+
+                if (!headSpec) {
+                  informational.push({ file: filename, description: 'YAML spec detected; deep drift analysis requires js-yaml (not pre-installed). Review manually.' });
+                  continue;
+                }
+
+                // Fetch base version from GitHub API
+                let baseSpec = null;
+                try {
+                  const baseSha = context.payload.pull_request.base.sha;
+                  const resp = await github.rest.repos.getContent({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    path: filename,
+                    ref: baseSha,
+                  });
+                  const decoded = Buffer.from(resp.data.content, 'base64').toString('utf8');
+                  baseSpec = JSON.parse(decoded);
+                } catch {
+                  informational.push({ file: filename, description: 'Base version not found or not parseable; cannot compare.' });
+                  continue;
+                }
+
+                // Extract path+method pairs (OpenAPI 3.x / Swagger 2.x)
+                const extractOps = (spec) => {
+                  const ops = new Set();
+                  const paths = spec.paths || {};
+                  const methods = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'];
+                  for (const [p, pathItem] of Object.entries(paths)) {
+                    for (const method of methods) {
+                      if (pathItem && pathItem[method]) {
+                        ops.add(`${method.toUpperCase()} ${p}`);
+                      }
+                    }
+                  }
+                  return ops;
+                };
+
+                const baseOps = extractOps(baseSpec);
+                const headOps = extractOps(headSpec);
+
+                // Removed operations are breaking
+                for (const op of baseOps) {
+                  if (!headOps.has(op)) {
+                    breakingChanges.push({
+                      file: filename,
+                      severity: 'BREAKING',
+                      description: `Removed operation: \`${op}\``,
+                    });
+                  }
+                }
+
+                // Added operations are informational (non-breaking)
+                for (const op of headOps) {
+                  if (!baseOps.has(op)) {
+                    informational.push({
+                      file: filename,
+                      description: `Added operation: \`${op}\` (non-breaking, additive change)`,
+                    });
+                  }
+                }
+              }
+            }
+
+            // ── Build report ──────────────────────────────────────────────
+            const dateTag = new Date().toISOString().slice(0, 10);
+            const hasBreaking = breakingChanges.length > 0;
+
+            const lines = [
+              '# API Contract Drift Detection',
+              '',
+              `Generated: ${new Date().toISOString()}`,
+              `Event: ${context.eventName}`,
+              `Status: **${!hasBreaking ? '✅ PASS' : '❌ FAIL — breaking API changes detected'}**`,
+              '',
+            ];
+
+            // Spec file coverage
+            lines.push('## Service OpenAPI Spec Coverage');
+            lines.push('');
+            lines.push(`Present: ${presentSpecs.length} / ${EXPECTED_SPECS.length}`);
+            lines.push('');
+            if (missingSpecs.length > 0) {
+              lines.push('⚠️ Missing spec files:');
+              lines.push('');
+              for (const s of missingSpecs) {
+                lines.push(`- \`${s}\``);
+              }
+              lines.push('');
+              lines.push('> Spec files are generated from each service Swagger endpoint and committed to `docs/api/` as part of the release process.');
+              lines.push('');
+            } else {
+              lines.push('✅ All 10 service OpenAPI spec files are present in `docs/api/`.');
+              lines.push('');
+            }
+
+            // PR drift results
+            if (isPR) {
+              lines.push(`## PR Drift Analysis (${changedSpecFiles.length} spec file(s) changed)`);
+              lines.push('');
+
+              if (changedSpecFiles.length === 0) {
+                lines.push('ℹ️ No OpenAPI/Swagger spec files changed in this PR.');
+                lines.push('');
+              } else {
+                lines.push('| File | Status |');
+                lines.push('|---|---|');
+                for (const f of changedSpecFiles) {
+                  lines.push(`| \`${f.filename}\` | ${f.status} |`);
+                }
+                lines.push('');
+              }
+
+              if (hasBreaking) {
+                lines.push('## ❌ Breaking Changes');
+                lines.push('');
+                lines.push('| File | Severity | Description |');
+                lines.push('|---|---|---|');
+                for (const b of breakingChanges) {
+                  lines.push(`| \`${b.file}\` | **${b.severity}** | ${b.description} |`);
+                }
+                lines.push('');
+                lines.push('> Breaking API changes require a major version bump and all known consumers to be notified before merging.');
+                lines.push('');
+              } else if (changedSpecFiles.length > 0) {
+                lines.push('## Contract Changes');
+                lines.push('');
+                lines.push('✅ No breaking changes detected. All removed operations verified not present.');
+                lines.push('');
+              }
+
+              if (informational.length > 0) {
+                lines.push('## ℹ️ Informational');
+                lines.push('');
+                for (const i of informational) {
+                  lines.push(`- **\`${i.file}\`**: ${i.description}`);
+                }
+                lines.push('');
+              }
+            } else {
+              lines.push('## Drift Analysis');
+              lines.push('');
+              lines.push('ℹ️ Breaking-change diff runs on pull_request events. This scheduled run checks spec file coverage only.');
+              lines.push('');
+            }
+
+            const report = lines.join('\n') + '\n';
+
+            const outputDir = 'artifacts/api-contract';
+            fs.mkdirSync(outputDir, { recursive: true });
+            const reportPath = `${outputDir}/api-contract-drift-${dateTag}.md`;
+            fs.writeFileSync(reportPath, report, 'utf8');
+
+            core.setOutput('report_path', reportPath);
+            core.setOutput('report_name', `api-contract-drift-${dateTag}`);
+
+            await core.summary.addRaw(report, true).write();
+
+            if (hasBreaking) {
+              core.setFailed(`API Contract Drift: ${breakingChanges.length} breaking change(s) detected. Removed operations must not be merged without a major version bump.`);
+            }
+
+      - name: Upload contract drift artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.drift.outputs.report_name }}
+          path: ${{ steps.drift.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 90

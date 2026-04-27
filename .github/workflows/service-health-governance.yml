@@ -1,0 +1,283 @@
+name: Service Health Endpoint Governance
+
+# Audits that all 10 backend microservices have:
+#   1. livenessProbe and readinessProbe defined in Helm Deployment templates.
+#   2. Health check endpoint registration in each service's Program.cs/Startup.cs
+#      (AddHealthChecks + MapHealthChecks / UseHealthChecks).
+#   3. YARP gateway active-health-check config references /healthz or /health paths.
+#
+# Kubernetes will not route traffic to pods lacking readinessProbe, and will not
+# restart hung pods lacking livenessProbe. Missing probe configuration is a
+# production availability risk.
+on:
+  schedule:
+    - cron: '0 7 * * 6'    # Saturday 07:00 UTC
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/helm/**'
+      - 'src/**/Program.cs'
+      - 'src/**/Startup.cs'
+      - 'src/**/*HealthCheck*'
+      - 'src/**/*Health*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  service-health-governance:
+    name: Service Health Endpoint Governance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Audit service health endpoint governance
+        id: audit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const SERVICES = [
+              'voice',
+              'ai-agent',
+              'fhir',
+              'identity',
+              'ocr',
+              'scheduling',
+              'notification',
+              'pop-health',
+              'revenue',
+              'gateway',
+            ];
+
+            // Known source directory names per service (candidates to search)
+            const SERVICE_SOURCE_MAP = {
+              'voice':        ['HealthQCopilot.VoiceService', 'VoiceService'],
+              'ai-agent':     ['HealthQCopilot.AgentService', 'AgentService', 'AiAgentService'],
+              'fhir':         ['HealthQCopilot.FhirService', 'FhirService'],
+              'identity':     ['HealthQCopilot.IdentityService', 'IdentityService'],
+              'ocr':          ['HealthQCopilot.OcrService', 'OcrService'],
+              'scheduling':   ['HealthQCopilot.SchedulingService', 'SchedulingService'],
+              'notification': ['HealthQCopilot.NotificationService', 'NotificationService'],
+              'pop-health':   ['HealthQCopilot.PopHealthService', 'PopHealthService', 'PopulationHealthService'],
+              'revenue':      ['HealthQCopilot.RevenueService', 'RevenueService'],
+              'gateway':      ['HealthQCopilot.Gateway', 'Gateway'],
+            };
+
+            // .NET health check registration patterns
+            const HEALTH_REGISTRATION_PATTERNS = [
+              /AddHealthChecks\s*\(/,
+              /MapHealthChecks\s*\(/,
+              /UseHealthChecks\s*\(/,
+              /app\.MapGet\s*\(\s*["']\/health/i,
+              /app\.MapGet\s*\(\s*["']\/healthz/i,
+              /app\.MapGet\s*\(\s*["']\/ready/i,
+            ];
+
+            // ── Read Helm templates ───────────────────────────────────────
+            let templatesContent = '';
+            const templateDir = 'infra/helm/templates';
+            try {
+              const templateFiles = fs.readdirSync(templateDir)
+                .filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'));
+              for (const tf of templateFiles) {
+                templatesContent += '\n' + fs.readFileSync(path.join(templateDir, tf), 'utf8');
+              }
+            } catch {
+              core.warning('infra/helm/templates/ not found — Helm probe audit skipped.');
+            }
+
+            const helmHasLiveness  = /livenessProbe\s*:/i.test(templatesContent);
+            const helmHasReadiness = /readinessProbe\s*:/i.test(templatesContent);
+            const helmHasStartup   = /startupProbe\s*:/i.test(templatesContent);
+
+            // ── Per-service source scan ───────────────────────────────────
+            const serviceResults = {};
+
+            const searchDir = (dir, patterns) => {
+              let found = false;
+              const files = [];
+              const walk = (d) => {
+                let entries;
+                try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+                for (const e of entries) {
+                  const fp = path.join(d, e.name);
+                  if (e.isDirectory()) { walk(fp); return; }
+                  const isHealthFile = e.name === 'Program.cs' || e.name === 'Startup.cs' ||
+                    /[Hh]ealth[Cc]heck/.test(e.name) || /[Hh]ealth[Ee]ndpoint/.test(e.name);
+                  if (!isHealthFile) continue;
+                  let content;
+                  try { content = fs.readFileSync(fp, 'utf8'); } catch { continue; }
+                  if (patterns.some((p) => p.test(content))) {
+                    found = true;
+                    files.push(path.relative('.', fp).replace(/\\/g, '/'));
+                  }
+                }
+              };
+              walk(dir);
+              return { found, files };
+            };
+
+            for (const service of SERVICES) {
+              let sourceHealthCheck = false;
+              const sourceFiles = [];
+
+              const candidateDirs = SERVICE_SOURCE_MAP[service] || [];
+              for (const dir of candidateDirs) {
+                const fullDir = path.join('src', dir);
+                if (!fs.existsSync(fullDir)) continue;
+                const { found, files } = searchDir(fullDir, HEALTH_REGISTRATION_PATTERNS);
+                if (found) {
+                  sourceHealthCheck = true;
+                  sourceFiles.push(...files);
+                }
+              }
+
+              serviceResults[service] = {
+                sourceHealthCheck,
+                sourceFiles,
+              };
+            }
+
+            // ── YARP gateway health probe config ──────────────────────────
+            const GATEWAY_CONFIG_PATHS = [
+              'src/HealthQCopilot.Gateway/appsettings.json',
+              'src/HealthQCopilot.Gateway/appsettings.Production.json',
+              'src/HealthQCopilot.Gateway/yarp.json',
+              'src/HealthQCopilot.Gateway/ReverseProxy.json',
+            ];
+
+            let gatewayHealthProbeFound = false;
+            for (const gp of GATEWAY_CONFIG_PATHS) {
+              if (fs.existsSync(gp)) {
+                const content = fs.readFileSync(gp, 'utf8');
+                if (/ActiveHealthCheck|\/healthz|\/health|\/ready/i.test(content)) {
+                  gatewayHealthProbeFound = true;
+                  break;
+                }
+              }
+            }
+
+            // ── Collate findings ──────────────────────────────────────────
+            const helmFindings = [];
+            if (!helmHasLiveness) {
+              helmFindings.push('`livenessProbe:` not found in any Helm template — pods will never be restarted when hung.');
+            }
+            if (!helmHasReadiness) {
+              helmFindings.push('`readinessProbe:` not found in any Helm template — traffic may route to unhealthy pods.');
+            }
+
+            const sourceWarnings = SERVICES
+              .filter((s) => !serviceResults[s].sourceHealthCheck)
+              .map((s) => ({ service: s, description: 'Health check endpoint registration not detected in Program.cs / Startup.cs.' }));
+
+            const hasCritical = helmFindings.length > 0;
+
+            // ── Build report ──────────────────────────────────────────────
+            const dateTag = new Date().toISOString().slice(0, 10);
+
+            const lines = [
+              '# Service Health Endpoint Governance',
+              '',
+              `Generated: ${new Date().toISOString()}`,
+              `Services audited: ${SERVICES.length}`,
+              `Status: **${!hasCritical ? '✅ PASS' : '❌ FAIL — Helm probe configuration gaps detected'}**`,
+              '',
+            ];
+
+            // Helm summary
+            lines.push('## Helm Probe Summary');
+            lines.push('');
+            lines.push(`| Probe Type | Status |`);
+            lines.push(`|---|:---:|`);
+            lines.push(`| \`livenessProbe\` in templates | ${helmHasLiveness ? '✅' : '❌'} |`);
+            lines.push(`| \`readinessProbe\` in templates | ${helmHasReadiness ? '✅' : '❌'} |`);
+            lines.push(`| \`startupProbe\` in templates | ${helmHasStartup ? '✅' : 'ℹ️ optional'} |`);
+            lines.push('');
+
+            if (helmFindings.length > 0) {
+              lines.push('## ❌ Helm Probe Gaps (blocking)');
+              lines.push('');
+              for (const f of helmFindings) {
+                lines.push(`- ${f}`);
+              }
+              lines.push('');
+              lines.push('> Add `livenessProbe` and `readinessProbe` to all Deployment kind templates in `infra/helm/templates/`.');
+              lines.push('> Use `httpGet` with `/healthz` path and the service port for consistent behavior across all services.');
+              lines.push('');
+            } else {
+              lines.push('## Helm Probe Coverage');
+              lines.push('');
+              lines.push('✅ Both `livenessProbe` and `readinessProbe` are present in Helm Deployment templates.');
+              lines.push('');
+            }
+
+            // Per-service source table
+            lines.push('## Source Health Endpoint Registration');
+            lines.push('');
+            lines.push('| Service | Health Registration Detected | Files |');
+            lines.push('|---|:---:|---|');
+            for (const service of SERVICES) {
+              const r = serviceResults[service];
+              const status = r.sourceHealthCheck ? '✅' : '⚠️';
+              const fileList = r.sourceFiles.length > 0 ? r.sourceFiles.map((f) => `\`${f}\``).join(', ') : '—';
+              lines.push(`| \`${service}\` | ${status} | ${fileList} |`);
+            }
+            lines.push('');
+
+            if (sourceWarnings.length > 0) {
+              lines.push('## ⚠️ Source Health Advisory');
+              lines.push('');
+              for (const w of sourceWarnings) {
+                lines.push(`- **\`${w.service}\`**: ${w.description}`);
+              }
+              lines.push('');
+              lines.push('> Each .NET service should call `services.AddHealthChecks()` and `app.MapHealthChecks("/healthz")` in `Program.cs`.');
+              lines.push('> This enables Kubernetes readiness/liveness probe HTTP checks to function correctly.');
+              lines.push('');
+            } else {
+              lines.push('✅ All services have detectable health check registrations in source.');
+              lines.push('');
+            }
+
+            // Gateway config
+            lines.push('## YARP Gateway Active Health Config');
+            lines.push('');
+            if (gatewayHealthProbeFound) {
+              lines.push('✅ YARP gateway config references `/healthz` or `ActiveHealthCheck` probe configuration.');
+            } else {
+              lines.push('⚠️ YARP gateway config does not reference active health probe paths.');
+              lines.push('');
+              lines.push('> Add `ActiveHealthCheck` configuration to each cluster in `appsettings.json` to enable YARP active health polling.');
+              lines.push('> Example: `"ActiveHealthCheck": { "Enabled": true, "Interval": "00:00:10", "Path": "/healthz" }`');
+            }
+            lines.push('');
+
+            const report = lines.join('\n') + '\n';
+
+            const outputDir = 'artifacts/health-governance';
+            fs.mkdirSync(outputDir, { recursive: true });
+            const reportPath = `${outputDir}/service-health-governance-${dateTag}.md`;
+            fs.writeFileSync(reportPath, report, 'utf8');
+
+            core.setOutput('report_path', reportPath);
+            core.setOutput('report_name', `service-health-governance-${dateTag}`);
+
+            await core.summary.addRaw(report, true).write();
+
+            if (hasCritical) {
+              core.setFailed(`Service health governance: Helm probe configuration gap(s) found — missing liveness or readiness probes in templates.`);
+            }
+
+      - name: Upload health governance artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.audit.outputs.report_name }}
+          path: ${{ steps.audit.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 60
