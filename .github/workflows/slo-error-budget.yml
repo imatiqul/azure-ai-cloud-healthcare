@@ -1,0 +1,176 @@
+name: SLO Error Budget
+
+# Computes availability SLI from Cloud E2E and Gateway Route Probe run history
+# over a rolling 28-day window and reports the error budget burn rate.
+#
+# SLO target: 99.5% availability (2.1 hours/month budget).
+# Error budget = 0.5% of runs may fail before SLO breach.
+# Alert threshold: < 20% budget remaining.
+#
+# Runs weekly aligned after the platform scorecard, and on-demand.
+on:
+  schedule:
+    - cron: '0 9 * * 1'    # Monday 09:00 UTC — after scorecard (08:00) and DORA (08:30)
+  workflow_dispatch:
+    inputs:
+      window_days:
+        description: 'SLI lookback window in days'
+        required: false
+        default: '28'
+        type: string
+      slo_target_pct:
+        description: 'SLO availability target (e.g. 99.5)'
+        required: false
+        default: '99.5'
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  compute-slo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute SLI and error budget
+        id: slo
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+
+            const windowDays = parseInt('${{ github.event.inputs.window_days || 28 }}', 10);
+            const sloTarget = parseFloat('${{ github.event.inputs.slo_target_pct || 99.5 }}');
+            const alertThresholdPct = 20;   // alert when budget < 20% remaining
+            const windowMs = windowDays * 24 * 60 * 60 * 1000;
+            const cutoff = new Date(Date.now() - windowMs);
+            const dateTag = new Date().toISOString().slice(0, 10);
+
+            // SLI sources: Cloud E2E Tests and Gateway Route Probes
+            // A "good event" = completed run with conclusion === 'success'
+            const sliWorkflows = [
+              { file: 'cloud-e2e-tests.yml', name: 'Cloud E2E Tests' },
+              { file: 'gateway-route-probes.yml', name: 'Gateway Route Probes' },
+            ];
+
+            const metrics = [];
+            let totalGood = 0;
+            let totalEvents = 0;
+
+            for (const wf of sliWorkflows) {
+              const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                owner, repo,
+                workflow_id: wf.file,
+                branch: 'main',
+                per_page: 100,
+              });
+
+              const inWindow = runs.filter(
+                (r) => r.status === 'completed' && new Date(r.updated_at) >= cutoff
+              );
+
+              const good = inWindow.filter((r) => r.conclusion === 'success').length;
+              const total = inWindow.length;
+              const sliPct = total === 0 ? null : (good / total) * 100;
+
+              metrics.push({ name: wf.name, good, total, sliPct });
+              totalGood += good;
+              totalEvents += total;
+            }
+
+            // ── Aggregate SLI ────────────────────────────────────────────────
+            const aggregateSli = totalEvents === 0 ? null : (totalGood / totalEvents) * 100;
+
+            // ── Error Budget ─────────────────────────────────────────────────
+            // Error budget = (1 - SLO_target) * total_events
+            // Consumed budget = total_events - good_events = bad_events
+            const errorBudgetEvents = totalEvents === 0 ? null : (1 - sloTarget / 100) * totalEvents;
+            const consumedBudget = totalEvents - totalGood;
+            const budgetRemaining = errorBudgetEvents === null ? null
+              : Math.max(0, errorBudgetEvents - consumedBudget);
+            const budgetRemainingPct = errorBudgetEvents === null || errorBudgetEvents === 0 ? null
+              : (budgetRemaining / errorBudgetEvents) * 100;
+
+            const budgetStatus = budgetRemainingPct === null
+              ? 'insufficient data'
+              : budgetRemainingPct < alertThresholdPct
+                ? `🔴 ALERT — ${budgetRemainingPct.toFixed(1)}% remaining (below ${alertThresholdPct}% threshold)`
+                : budgetRemainingPct < 50
+                  ? `🟡 WARNING — ${budgetRemainingPct.toFixed(1)}% remaining`
+                  : `🟢 OK — ${budgetRemainingPct.toFixed(1)}% remaining`;
+
+            const sloStatus = aggregateSli === null
+              ? 'insufficient data'
+              : aggregateSli >= sloTarget
+                ? `✅ SLO MET (${aggregateSli.toFixed(2)}% >= ${sloTarget}%)`
+                : `❌ SLO BREACHED (${aggregateSli.toFixed(2)}% < ${sloTarget}%)`;
+
+            // ── Build Report ─────────────────────────────────────────────────
+            const reportLines = [];
+            reportLines.push('# SLO Error Budget Report');
+            reportLines.push('');
+            reportLines.push(`Generated: ${new Date().toISOString()}`);
+            reportLines.push(`Lookback window: ${windowDays} days`);
+            reportLines.push(`SLO target: ${sloTarget}%`);
+            reportLines.push('');
+            reportLines.push('## Aggregate SLI');
+            reportLines.push('');
+            reportLines.push(`| Metric | Value |`);
+            reportLines.push(`|---|---|`);
+            reportLines.push(`| Aggregate SLI | ${aggregateSli === null ? 'n/a' : aggregateSli.toFixed(2) + '%'} |`);
+            reportLines.push(`| SLO Status | ${sloStatus} |`);
+            reportLines.push(`| Total Events | ${totalEvents} |`);
+            reportLines.push(`| Good Events | ${totalGood} |`);
+            reportLines.push(`| Bad Events | ${consumedBudget} |`);
+            reportLines.push(`| Error Budget (events) | ${errorBudgetEvents === null ? 'n/a' : errorBudgetEvents.toFixed(1)} |`);
+            reportLines.push(`| Budget Remaining (events) | ${budgetRemaining === null ? 'n/a' : budgetRemaining.toFixed(1)} |`);
+            reportLines.push(`| Budget Status | ${budgetStatus} |`);
+            reportLines.push('');
+            reportLines.push('## Per-Workflow SLI');
+            reportLines.push('');
+            reportLines.push('| Workflow | Good | Total | SLI |');
+            reportLines.push('|---|---:|---:|---:|');
+            for (const m of metrics) {
+              reportLines.push(
+                `| ${m.name} | ${m.good} | ${m.total} | ${m.sliPct === null ? 'n/a' : m.sliPct.toFixed(2) + '%'} |`
+              );
+            }
+            reportLines.push('');
+            if (budgetRemainingPct !== null && budgetRemainingPct < alertThresholdPct) {
+              reportLines.push(
+                `> ⚠️ Error budget critically low: ${budgetRemainingPct.toFixed(1)}% remaining of the ${windowDays}-day window budget. Investigate recent failures immediately.`
+              );
+            }
+
+            const report = reportLines.join('\n') + '\n';
+
+            const outputDir = 'artifacts/slo';
+            fs.mkdirSync(outputDir, { recursive: true });
+            const reportPath = `${outputDir}/slo-error-budget-${dateTag}.md`;
+            fs.writeFileSync(reportPath, report, 'utf8');
+
+            core.setOutput('report_path', reportPath);
+            core.setOutput('report_name', `slo-error-budget-${dateTag}`);
+            core.setOutput('slo_met', (aggregateSli !== null && aggregateSli >= sloTarget) ? 'true' : 'false');
+            core.setOutput('budget_remaining_pct', budgetRemainingPct === null ? 'n/a' : budgetRemainingPct.toFixed(1));
+            core.setOutput('budget_alert', (budgetRemainingPct !== null && budgetRemainingPct < alertThresholdPct) ? 'true' : 'false');
+
+            await core.summary.addRaw(report, true).write();
+
+            // Fail the workflow when error budget is critically low so the
+            // weekly platform scorecard captures this as a non-pass signal.
+            if (budgetRemainingPct !== null && budgetRemainingPct < alertThresholdPct) {
+              core.setFailed(`SLO error budget alert: only ${budgetRemainingPct.toFixed(1)}% of the ${windowDays}-day budget remains.`);
+            }
+
+      - name: Upload SLO error budget artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.slo.outputs.report_name }}
+          path: ${{ steps.slo.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 90

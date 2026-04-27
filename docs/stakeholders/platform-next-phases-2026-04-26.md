@@ -87,9 +87,63 @@ Exit criteria:
 - At least one documented rollback drill completed successfully.
 - Mean time to restore release gate is below 4 hours over rolling incidents.
 
+## Phase 6 - Environment Promotion Pipeline (Week 4 to Week 5)
+
+Goal: enforce a structured dev → staging → production promotion pipeline with automated gate checks at each tier.
+
+Status:
+- Automation implemented via `.github/workflows/environment-promotion.yml` with three sequential gate jobs.
+
+Key work:
+- Configure `production-promotion` GitHub Environment in repo settings with required reviewers.
+- Ensure dev gate (cloud-e2e, workflow-lint, pr-validation, helm-chart-validation, gateway-route-probes) is passing on `main` before any staging promotion is attempted.
+- Require staging gate (runtime-convergence-audit, compliance-check, cloud-e2e-regression, rollback-drill-readiness) before production approval is surfaced.
+- Document promotion SOP in operational hardening runbook.
+
+Exit criteria:
+- At least one full dev → staging → production gate sequence completed with all checks passing.
+- Production promotion requires and records a manual approval from a CODEOWNERS member.
+
+## Phase 7 - SLO / Error Budget Enforcement (Week 5 to Week 6)
+
+Goal: track availability SLI from CI evidence and alert when error budget burn rate threatens the 99.5% SLO target.
+
+Status:
+- Automation implemented via `.github/workflows/slo-error-budget.yml` with 28-day rolling window SLI computation.
+
+Key work:
+- Validate SLI data quality once Cloud E2E and Gateway Route Probe pass rates stabilize (Phase 1 prerequisite).
+- Wire SLO breach alert into incident response runbook.
+- Add error budget remaining to platform manager stakeholder dashboard.
+- Tune SLO target and alert threshold based on first two weeks of data.
+
+Exit criteria:
+- SLO error budget report generated for at least 2 consecutive weeks.
+- Error budget < 20% triggers a failed workflow signal captured in weekly scorecard.
+- Platform review meeting uses SLO data as a primary reliability signal.
+
+## Phase 8 - Security Posture Scorecard (Week 6 to Week 7)
+
+Goal: continuously audit supply-chain hygiene and source code security posture through OpenSSF Scorecard and CodeQL SAST.
+
+Status:
+- Automation implemented via `.github/workflows/security-scorecard.yml` with OpenSSF Scorecard and CodeQL matrix for C# and JavaScript/TypeScript.
+
+Key work:
+- Enable GitHub Advanced Security (GHAS) on the repository so CodeQL results surface in the Security tab.
+- Review initial OpenSSF Scorecard results and address low-scoring checks (branch protection, dependency pinning, token permissions).
+- Triage CodeQL findings and close or suppress with justification.
+- Add `security-scorecard.yml` as a required check for production-bound merges in `release-gate-policy.json`.
+
+Exit criteria:
+- OpenSSF Scorecard score >= 7.0 / 10.
+- No unacknowledged Critical or High CodeQL findings open for > 14 days.
+- Security posture pass trend visible in weekly platform scorecard.
+
 ## Ownership Model
 
-- DevOps: deployment identity, workflow gates, AKS/infra execution.
-- Backend + QA: route contract correctness and probe alignment.
-- Platform manager: scorecard cadence and release evidence governance.
-- Solutions architect: ownership boundaries and contract governance controls.
+- DevOps: deployment identity, workflow gates, AKS/infra execution, promotion pipeline.
+- Backend + QA: route contract correctness, probe alignment, CodeQL triage.
+- Platform manager: scorecard cadence, release evidence governance, SLO review.
+- Solutions architect: ownership boundaries, contract governance controls, OpenSSF Scorecard remediation.
+- Security: CodeQL finding triage, GHAS configuration, supply-chain policy.

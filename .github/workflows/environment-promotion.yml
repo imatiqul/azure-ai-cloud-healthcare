@@ -1,0 +1,275 @@
+name: Environment Promotion
+
+# Enforces a structured dev → staging → production promotion pipeline.
+# Each stage requires all prior quality gates to be green before
+# the promotion token is granted.  Production promotion also requires
+# a manual approval from a CODEOWNERS member.
+#
+# Triggers
+#   push / main  — re-evaluates dev gate; staging / prod are manual.
+#   workflow_dispatch — allows any stage to be re-evaluated on demand.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Target environment to evaluate promotion gate'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write   # required for OIDC-based environment gates
+
+jobs:
+  # ── Gate: Dev promotion ─────────────────────────────────────────────────────
+  # Checks that the tip of main has passing cloud smoke, workflow lint, and
+  # PR validation evidence before declaring the build dev-ready.
+  dev-gate:
+    name: Dev Promotion Gate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.target_environment == 'dev' || github.event.inputs.target_environment == 'staging' || github.event.inputs.target_environment == 'production'))
+    outputs:
+      dev_ready: ${{ steps.gate.outputs.dev_ready }}
+      gate_summary: ${{ steps.gate.outputs.gate_summary }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Evaluate dev gate
+        id: gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = context.sha;
+            const lookbackRuns = 5;
+
+            async function latestPassOnMain(workflowId) {
+              const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                owner, repo,
+                workflow_id: workflowId,
+                branch: 'main',
+                per_page: lookbackRuns,
+              });
+              const completed = runs
+                .filter((r) => r.status === 'completed')
+                .slice(0, lookbackRuns);
+              const latest = completed[0];
+              return {
+                pass: latest?.conclusion === 'success',
+                url: latest?.html_url ?? '',
+                at: latest?.updated_at ?? 'never',
+                conclusion: latest?.conclusion ?? 'none',
+              };
+            }
+
+            const [smoke, lint, prVal, helmVal, routeProbe] = await Promise.all([
+              latestPassOnMain('cloud-e2e-tests.yml'),
+              latestPassOnMain('workflow-lint.yml'),
+              latestPassOnMain('pr-validation.yml'),
+              latestPassOnMain('helm-chart-validation.yml'),
+              latestPassOnMain('gateway-route-probes.yml'),
+            ]);
+
+            const gates = [
+              { name: 'Cloud E2E Tests', ...smoke },
+              { name: 'Workflow Lint', ...lint },
+              { name: 'PR Validation', ...prVal },
+              { name: 'Helm Chart Validation', ...helmVal },
+              { name: 'Gateway Route Probes', ...routeProbe },
+            ];
+
+            const allPass = gates.every((g) => g.pass);
+            const rows = gates
+              .map((g) => `| ${g.name} | ${g.pass ? '✅ pass' : '❌ fail'} | ${g.conclusion} | [run](${g.url}) |`)
+              .join('\n');
+
+            const summary = [
+              '# Environment Promotion — Dev Gate',
+              '',
+              `SHA: ${sha}`,
+              `Evaluated: ${new Date().toISOString()}`,
+              `Overall: **${allPass ? 'PASS — dev-ready' : 'FAIL — not dev-ready'}**`,
+              '',
+              '| Gate | Status | Conclusion | Link |',
+              '|---|---|---|---|',
+              rows,
+            ].join('\n') + '\n';
+
+            await core.summary.addRaw(summary, true).write();
+            core.setOutput('dev_ready', allPass ? 'true' : 'false');
+            core.setOutput('gate_summary', allPass ? 'pass' : 'fail');
+
+            if (!allPass) {
+              core.setFailed('Dev promotion gate: one or more required quality checks are not passing on main.');
+            }
+
+  # ── Gate: Staging promotion ──────────────────────────────────────────────────
+  # Staging gate extends dev gate with runtime convergence audit and
+  # compliance scan pass evidence. Triggered on workflow_dispatch only
+  # (ops team promotes after dev gate turns green).
+  staging-gate:
+    name: Staging Promotion Gate
+    runs-on: ubuntu-latest
+    needs: [dev-gate]
+    if: |
+      always() &&
+      needs.dev-gate.outputs.dev_ready == 'true' &&
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.target_environment == 'staging' || github.event.inputs.target_environment == 'production'))
+    outputs:
+      staging_ready: ${{ steps.gate.outputs.staging_ready }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Evaluate staging gate
+        id: gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const lookbackRuns = 3;
+
+            async function latestPassOnMain(workflowId) {
+              const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                owner, repo,
+                workflow_id: workflowId,
+                branch: 'main',
+                per_page: lookbackRuns,
+              });
+              const completed = runs
+                .filter((r) => r.status === 'completed')
+                .slice(0, lookbackRuns);
+              const latest = completed[0];
+              return {
+                pass: latest?.conclusion === 'success',
+                url: latest?.html_url ?? '',
+                conclusion: latest?.conclusion ?? 'none',
+              };
+            }
+
+            const [convergence, compliance, regression, rollbackReadiness] = await Promise.all([
+              latestPassOnMain('runtime-convergence-audit.yml'),
+              latestPassOnMain('compliance-check.yml'),
+              latestPassOnMain('cloud-e2e-regression.yml'),
+              latestPassOnMain('rollback-drill-readiness.yml'),
+            ]);
+
+            const gates = [
+              { name: 'Runtime Convergence Audit', ...convergence },
+              { name: 'Compliance & Security Checks', ...compliance },
+              { name: 'Cloud E2E Regression', ...regression },
+              { name: 'Rollback Drill Readiness', ...rollbackReadiness },
+            ];
+
+            const allPass = gates.every((g) => g.pass);
+            const rows = gates
+              .map((g) => `| ${g.name} | ${g.pass ? '✅ pass' : '❌ fail'} | ${g.conclusion} | [run](${g.url}) |`)
+              .join('\n');
+
+            const summary = [
+              '# Environment Promotion — Staging Gate',
+              '',
+              `Evaluated: ${new Date().toISOString()}`,
+              `Overall: **${allPass ? 'PASS — staging-ready' : 'FAIL — not staging-ready'}**`,
+              '',
+              '| Gate | Status | Conclusion | Link |',
+              '|---|---|---|---|',
+              rows,
+            ].join('\n') + '\n';
+
+            await core.summary.addRaw(summary, true).write();
+            core.setOutput('staging_ready', allPass ? 'true' : 'false');
+
+            if (!allPass) {
+              core.setFailed('Staging promotion gate: one or more required quality checks are not passing on main.');
+            }
+
+  # ── Gate: Production promotion ───────────────────────────────────────────────
+  # Production gate uses the GitHub environment protection mechanism so the
+  # configured reviewers are prompted for approval before the gate step runs.
+  # The environment "production-promotion" must be configured in the repo
+  # settings with required reviewers.
+  production-gate:
+    name: Production Promotion Gate
+    runs-on: ubuntu-latest
+    needs: [dev-gate, staging-gate]
+    if: |
+      always() &&
+      needs.dev-gate.outputs.dev_ready == 'true' &&
+      needs.staging-gate.outputs.staging_ready == 'true' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.target_environment == 'production'
+    environment: production-promotion
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Evaluate production gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = context.sha;
+
+            async function latestPassOnMain(workflowId) {
+              const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                owner, repo,
+                workflow_id: workflowId,
+                branch: 'main',
+                per_page: 5,
+              });
+              const completed = runs
+                .filter((r) => r.status === 'completed')
+                .slice(0, 5);
+              const latest = completed[0];
+              return {
+                pass: latest?.conclusion === 'success',
+                url: latest?.html_url ?? '',
+                conclusion: latest?.conclusion ?? 'none',
+              };
+            }
+
+            const [releaseAudit, dora, scorecard] = await Promise.all([
+              latestPassOnMain('release-gate-policy-audit.yml'),
+              latestPassOnMain('dora-metrics.yml'),
+              latestPassOnMain('weekly-platform-scorecard.yml'),
+            ]);
+
+            const gates = [
+              { name: 'Release Gate Policy Audit', ...releaseAudit },
+              { name: 'DORA Metrics', ...dora },
+              { name: 'Weekly Platform Scorecard', ...scorecard },
+            ];
+
+            const allPass = gates.every((g) => g.pass);
+            const rows = gates
+              .map((g) => `| ${g.name} | ${g.pass ? '✅ pass' : '❌ fail'} | ${g.conclusion} | [run](${g.url}) |`)
+              .join('\n');
+
+            const summary = [
+              '# Environment Promotion — Production Gate',
+              '',
+              `SHA: ${sha}`,
+              `Approved by: ${context.actor}`,
+              `Evaluated: ${new Date().toISOString()}`,
+              `Overall: **${allPass ? 'PASS — production-ready' : 'FAIL — not production-ready'}**`,
+              '',
+              '| Gate | Status | Conclusion | Link |',
+              '|---|---|---|---|',
+              rows,
+              '',
+              '> Production approval recorded. All three governance tiers (Dev, Staging, Production) cleared.',
+            ].join('\n') + '\n';
+
+            await core.summary.addRaw(summary, true).write();
+
+            if (!allPass) {
+              core.setFailed('Production promotion gate: one or more governance checks are not passing.');
+            }

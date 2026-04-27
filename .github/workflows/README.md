@@ -43,6 +43,9 @@ This catalog describes all CI/CD and quality workflows in this repository.
 | `weekly-platform-scorecard.yml` | `schedule`, `workflow_dispatch` | Generates weekly workflow pass-rate scorecard with rollback cadence and MTTR KPI snapshot artifact. |
 | `rollback-drill-readiness.yml` | `schedule`, `workflow_dispatch` | Evaluates rollback drill cadence and MTTR readiness thresholds and publishes readiness artifact. |
 | `dora-metrics.yml` | `schedule`, `workflow_dispatch` | Calculates the four DORA metrics (deployment frequency, lead time, change failure rate, MTTR) and publishes artifact. |
+| `slo-error-budget.yml` | `schedule`, `workflow_dispatch` | Computes availability SLI from Cloud E2E and route probe run history; alerts when 28-day error budget < 20% remaining. |
+| `environment-promotion.yml` | `push` to `main`, `workflow_dispatch` | Dev → Staging → Production promotion pipeline with automated quality gate checks and environment-protected production approval. |
+| `security-scorecard.yml` | `push` to `main`, `schedule`, `workflow_dispatch` | OpenSSF Scorecard supply-chain hygiene check and CodeQL SAST for C# and JavaScript/TypeScript. |
 
 ## Artifact Notes
 
@@ -55,6 +58,8 @@ This catalog describes all CI/CD and quality workflows in this repository.
 - `release-gate-policy-audit.yml` uploads `release-gate-audit-<date>` with branch protection and post-merge gate compliance results.
 - `rollback-drill-readiness.yml` uploads `rollback-readiness-<date>` with cadence and MTTR readiness evaluation.
 - `dora-metrics.yml` uploads `dora-metrics-<date>` with the four DORA key metrics (90-day retention).
+- `slo-error-budget.yml` uploads `slo-error-budget-<date>` with SLI, error budget, and per-workflow breakdown (90-day retention).
+- `security-scorecard.yml` uploads `openssf-scorecard-<run-id>` SARIF and also uploads to the GitHub Security tab via SARIF upload.
 - `infra-deploy.yml` validate job also uploads `release-evidence-<env>-<sha>` release checklist artifact.
 - `frontend-deploy.yml` uploads `swa-deploy-evidence-<app>-<sha>` per-MFE deploy evidence artifact.
 

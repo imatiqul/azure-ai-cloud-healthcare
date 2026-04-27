@@ -1,0 +1,137 @@
+name: Security Posture Scorecard
+
+# Runs the OpenSSF Scorecard and CodeQL SAST analysis to produce an
+# auditable security posture report.
+#
+# OpenSSF Scorecard evaluates supply-chain hygiene (branch protection,
+# dependency update tooling, token permissions, SAST, signed releases …).
+# CodeQL scans C# and JavaScript source for security vulnerabilities.
+#
+# Runs weekly and on push to main. PR-level CodeQL is handled as a required
+# check via GitHub Advanced Security; this workflow manages the scheduled
+# posture report and artifact retention.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/security-scorecard.yml'
+  schedule:
+    - cron: '0 6 * * 1'    # Monday 06:00 UTC — before scorecard and DORA
+  workflow_dispatch:
+
+permissions:
+  # OpenSSF Scorecard requires these permissions:
+  actions: read
+  contents: read
+  security-events: write    # to upload SARIF to GitHub security tab
+  id-token: write           # for OpenSSF OIDC-based publishing
+
+jobs:
+  # ── OpenSSF Scorecard ────────────────────────────────────────────────────────
+  openssf-scorecard:
+    name: OpenSSF Scorecard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run OpenSSF Scorecard
+        id: scorecard
+        uses: ossf/scorecard-action@v2.4.0
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          # Publish results to the OpenSSF REST API (public scorecards).
+          # Set to false if the repo is private and you don't want public disclosure.
+          publish_results: false
+
+      - name: Upload Scorecard SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: scorecard-results.sarif
+          category: openssf-scorecard
+
+      - name: Upload Scorecard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openssf-scorecard-${{ github.run_id }}
+          path: scorecard-results.sarif
+          retention-days: 90
+
+  # ── CodeQL SAST ──────────────────────────────────────────────────────────────
+  codeql:
+    name: CodeQL SAST
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [csharp, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: +security-and-quality
+
+      # For C#: build the project so CodeQL can trace compilation.
+      - name: Setup .NET (C# only)
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build .NET (C# only)
+        if: matrix.language == 'csharp'
+        run: dotnet build --configuration Release --no-incremental
+
+      # JavaScript/TypeScript is built by CodeQL auto-build.
+      - name: Auto-build (JS/TS)
+        if: matrix.language == 'javascript-typescript'
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: codeql-${{ matrix.language }}
+
+  # ── Security Posture Summary ─────────────────────────────────────────────────
+  posture-summary:
+    name: Security Posture Summary
+    runs-on: ubuntu-latest
+    needs: [openssf-scorecard, codeql]
+    if: always()
+    steps:
+      - name: Publish posture summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const scorecard = '${{ needs.openssf-scorecard.result }}';
+            const codeql = '${{ needs.codeql.result }}';
+
+            const icon = (r) => r === 'success' ? '✅' : r === 'skipped' ? '⏭️' : '❌';
+
+            const lines = [
+              '# Security Posture Scorecard Summary',
+              '',
+              `Generated: ${new Date().toISOString()}`,
+              '',
+              '| Check | Result |',
+              '|---|---|',
+              `| OpenSSF Scorecard | ${icon(scorecard)} ${scorecard} |`,
+              `| CodeQL SAST | ${icon(codeql)} ${codeql} |`,
+              '',
+            ];
+
+            if (scorecard !== 'success' || codeql !== 'success') {
+              lines.push('> ⚠️ One or more security posture checks did not pass. Review findings in the GitHub Security tab.');
+            } else {
+              lines.push('> All security posture checks passed.');
+            }
+
+            await core.summary.addRaw(lines.join('\n') + '\n', true).write();

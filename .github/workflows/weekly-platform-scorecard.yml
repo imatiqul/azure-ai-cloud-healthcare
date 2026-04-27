@@ -40,7 +40,10 @@ jobs:
               { file: 'deployment-health.yml', name: 'Deployment Health Dashboard' },
               { file: 'compliance-check.yml', name: 'Compliance and Security Checks' },
               { file: 'rollback.yml', name: 'Emergency Rollback' },
-              { file: 'dora-metrics.yml', name: 'DORA Metrics' }
+              { file: 'dora-metrics.yml', name: 'DORA Metrics' },
+              { file: 'environment-promotion.yml', name: 'Environment Promotion' },
+              { file: 'slo-error-budget.yml', name: 'SLO Error Budget' },
+              { file: 'security-scorecard.yml', name: 'Security Posture Scorecard' }
             ];
 
             const rows = [];
@@ -92,6 +95,9 @@ jobs:
 
             const cloudE2E = rows.find((row) => row.name === 'Cloud E2E Tests');
             const doraMetrics = rows.find((row) => row.name === 'DORA Metrics');
+            const sloErrorBudget = rows.find((row) => row.name === 'SLO Error Budget');
+            const securityScorecard = rows.find((row) => row.name === 'Security Posture Scorecard');
+            const envPromotion = rows.find((row) => row.name === 'Environment Promotion');
             const runtimeConvergence = rows.find((row) => row.name === 'Runtime Convergence Audit');
             const routeProbes = rows.find((row) => row.name === 'Gateway Route Probes');
             const releaseGatePolicy = rows.find((row) => row.name === 'Release Gate Policy Audit');
@@ -140,6 +146,9 @@ jobs:
             report += '\n## KPI Snapshot\n\n';
             report += `- Cloud E2E pass trend: ${cloudE2E?.passRate ?? 'n/a'}\n`;
             report += `- DORA metrics pass trend: ${doraMetrics?.passRate ?? 'n/a'}\n`;
+            report += `- SLO error budget pass trend: ${sloErrorBudget?.passRate ?? 'n/a'}\n`;
+            report += `- Security posture scorecard pass trend: ${securityScorecard?.passRate ?? 'n/a'}\n`;
+            report += `- Environment promotion gate pass trend: ${envPromotion?.passRate ?? 'n/a'}\n`;
             report += `- Runtime convergence trend: ${runtimeConvergence?.passRate ?? 'n/a'}\n`;
             report += `- Gateway route probe trend: ${routeProbes?.passRate ?? 'n/a'}\n`;
             report += `- Release gate policy trend: ${releaseGatePolicy?.passRate ?? 'n/a'}\n`;
