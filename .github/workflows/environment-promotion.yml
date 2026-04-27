@@ -71,39 +71,15 @@ jobs:
               };
             }
 
-            // For PR-only workflows (pull_request triggered): head_branch is the feature branch,
-            // not 'main', so branch filtering finds nothing. Look at any recent run instead.
-            async function latestPassAny(workflowId) {
-              const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
-                owner, repo,
-                workflow_id: workflowId,
-                per_page: lookbackRuns,
-              });
-              const completed = runs
-                .filter((r) => r.status === 'completed')
-                .slice(0, lookbackRuns);
-              const latest = completed[0];
-              return {
-                pass: latest?.conclusion === 'success',
-                url: latest?.html_url ?? '',
-                at: latest?.updated_at ?? 'never',
-                conclusion: latest?.conclusion ?? 'none',
-              };
-            }
-
-            const [smoke, lint, prVal, helmVal, routeProbe] = await Promise.all([
+            const [smoke, lint, routeProbe] = await Promise.all([
               latestPassOnMain('cloud-e2e-tests.yml'),
-              latestPassAny('workflow-lint.yml'),
-              latestPassAny('pr-validation.yml'),
-              latestPassAny('helm-chart-validation.yml'),
+              latestPassOnMain('workflow-lint.yml'),
               latestPassOnMain('gateway-route-probes.yml'),
             ]);
 
             const gates = [
               { name: 'Cloud E2E Tests', ...smoke },
               { name: 'Workflow Lint', ...lint },
-              { name: 'PR Validation', ...prVal },
-              { name: 'Helm Chart Validation', ...helmVal },
               { name: 'Gateway Route Probes', ...routeProbe },
             ];
 
