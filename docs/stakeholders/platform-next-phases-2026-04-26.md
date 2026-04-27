@@ -147,3 +147,65 @@ Exit criteria:
 - Platform manager: scorecard cadence, release evidence governance, SLO review.
 - Solutions architect: ownership boundaries, contract governance controls, OpenSSF Scorecard remediation.
 - Security: CodeQL finding triage, GHAS configuration, supply-chain policy.
+
+## Phase 9 - Chaos Readiness Audit (Week 7 to Week 8)
+
+Goal: verify that all microservices are configured for resilience before failures occur in production.
+
+Status:
+- Automation implemented via `.github/workflows/chaos-readiness.yml` auditing Helm values for readiness/liveness probes, resource requests/limits, and replica redundancy across all 10 services.
+
+Key work:
+- Ensure all Helm Deployment templates define `readinessProbe` and `livenessProbe`.
+- Verify all services have `replicas >= 2` in production values for fault tolerance.
+- Add YARP retry and circuit-breaker policies to the gateway route configuration.
+- Document chaos readiness baseline in operational hardening runbook.
+
+Exit criteria:
+- Chaos readiness audit passes with zero gaps on main.
+- Gateway config has retry + timeout policies for all upstream clusters.
+- At least 2 replicas configured for all production services.
+
+## Phase 10 - Cost Governance (Week 8 to Week 9)
+
+Goal: enforce resource budget thresholds for all services and prevent unbounded horizontal scaling from surprise cost events.
+
+Status:
+- Automation implemented via `.github/workflows/cost-governance.yml` auditing CPU/memory requests and limits against approved per-service budget thresholds.
+
+Key work:
+- Review current production values against the budget thresholds (CPU ≤ 4 cores, Memory ≤ 8 GiB per container).
+- Define and document the approval process for budget exceptions.
+- Add `maxReplicas` bounds to Helm values for all services that support KEDA/HPA scaling.
+- Wire cost governance pass/fail into the environment promotion staging gate.
+
+Exit criteria:
+- Cost governance audit passes for two consecutive weeks on main.
+- All production services have explicit `resources.requests` and `resources.limits` defined.
+- Budget exception register documented for any services requiring higher limits.
+
+## Phase 11 - Dependency Freshness (Week 9 to Week 10)
+
+Goal: eliminate supply-chain risk from mutable action pins and ensure CI automation runs on supported Node runtimes.
+
+Status:
+- Automation implemented via `.github/workflows/dependency-freshness.yml` scanning all workflow files for floating pins, stale major versions, and deprecated Node runtime references.
+
+Key work:
+- Resolve all floating mutable-branch action pins (use SHA pins or latest major version tags).
+- Upgrade any actions pinned to stale major versions (reference the KNOWN_LATEST manifest in the workflow).
+- Replace deprecated `node-version: 20` references before GitHub's Q3 2026 enforcement date.
+- Add dependency-freshness to the environment promotion dev gate.
+
+Exit criteria:
+- Dependency freshness audit passes with zero high-risk floating pins.
+- No Node 20 references remain in any workflow file.
+- All GitHub-owned actions are on their latest known major version.
+
+## Ownership Model
+
+- DevOps: deployment identity, workflow gates, AKS/infra execution, promotion pipeline, dependency freshness remediation.
+- Backend + QA: route contract correctness, probe alignment, CodeQL triage, chaos readiness probe coverage.
+- Platform manager: scorecard cadence, release evidence governance, SLO review, cost budget approvals.
+- Solutions architect: ownership boundaries, contract governance controls, OpenSSF Scorecard remediation, cost exception register.
+- Security: CodeQL finding triage, GHAS configuration, supply-chain policy.

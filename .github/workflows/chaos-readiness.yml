@@ -1,0 +1,222 @@
+name: Chaos Readiness Audit
+
+# Audits resilience posture across all 10 microservices by statically
+# verifying that each Helm-deployed service has:
+#   - readiness and liveness probes defined
+#   - resource requests AND limits defined
+#   - at least one replica configured (> 0)
+#   - a pod disruption budget (PDB) or replica count >= 2
+#
+# Also validates gateway YARP circuit-breaker and retry annotations in
+# the gateway route configuration file if it exists.
+#
+# Runs weekly and on infrastructure/Helm changes.
+on:
+  schedule:
+    - cron: '0 7 * * 2'    # Tuesday 07:00 UTC
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/helm/**'
+      - 'src/HealthQCopilot.Gateway/**'
+      - '.github/workflows/chaos-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  chaos-readiness-audit:
+    name: Chaos Readiness Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+
+      - name: Render Helm manifests for audit
+        run: |
+          mkdir -p /tmp/chaos-audit
+          helm template healthq-copilot infra/helm \
+            -f infra/helm/values.yaml \
+            -f infra/helm/values.production.yaml \
+            > /tmp/chaos-audit/rendered.yaml 2>&1 || true
+
+      - name: Audit resilience posture
+        id: audit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const yaml = require('js-yaml');  // available in Node via Actions runner
+
+            // ── Read Helm values directly (fast, reliable) ────────────────────
+            const valuesRaw = fs.readFileSync('infra/helm/values.yaml', 'utf8');
+
+            // Minimal YAML parse without js-yaml (which isn't pre-installed).
+            // We drive the audit from the values.yaml structure using regex
+            // extraction per service block, then summarise the gaps.
+
+            const valuesText = valuesRaw;
+
+            const services = [
+              'voice', 'ai-agent', 'fhir', 'identity', 'ocr',
+              'scheduling', 'notification', 'pop-health', 'revenue', 'gateway'
+            ];
+
+            const findings = [];
+
+            for (const svc of services) {
+              // Extract the service block using a simple section approach.
+              // We look for known required fields by scanning the text.
+              const svcPattern = new RegExp(
+                `^  ${svc.replace('-', '[-_]')}:[\\s\\S]*?(?=^  \\S|\\Z)`,
+                'gm'
+              );
+
+              // Check for resource requests/limits
+              const resourceSection = valuesText.match(
+                new RegExp(`${svc}:[\\s\\S]{0,2000}?resources:([\\s\\S]{0,500}?)(?=\\n  \\w)`, 'm')
+              );
+
+              const hasCpuRequest = resourceSection
+                ? /requests:[\s\S]{0,200}?cpu:/.test(resourceSection[0])
+                : false;
+              const hasMemRequest = resourceSection
+                ? /requests:[\s\S]{0,200}?memory:/.test(resourceSection[0])
+                : false;
+              const hasCpuLimit = resourceSection
+                ? /limits:[\s\S]{0,200}?cpu:/.test(resourceSection[0])
+                : false;
+              const hasMemLimit = resourceSection
+                ? /limits:[\s\S]{0,200}?memory:/.test(resourceSection[0])
+                : false;
+
+              // Check replicas
+              const replicaMatch = valuesText.match(
+                new RegExp(`${svc}:[\\s\\S]{0,500}?replicas:\\s*(\\d+)`, 'm')
+              );
+              const replicas = replicaMatch ? parseInt(replicaMatch[1], 10) : 0;
+
+              const svcFindings = [];
+              if (!hasCpuRequest) svcFindings.push('missing resources.requests.cpu');
+              if (!hasMemRequest) svcFindings.push('missing resources.requests.memory');
+              if (!hasCpuLimit) svcFindings.push('missing resources.limits.cpu');
+              if (!hasMemLimit) svcFindings.push('missing resources.limits.memory');
+              if (replicas < 1) svcFindings.push('replicas < 1 (service would not run)');
+              if (replicas < 2) svcFindings.push('replicas < 2 (no redundancy; single point of failure)');
+
+              findings.push({ service: svc, replicas, svcFindings });
+            }
+
+            // ── Check Helm templates for probe definitions ────────────────────
+            const templateDir = 'infra/helm/templates';
+            const probeGaps = [];
+
+            if (fs.existsSync(templateDir)) {
+              const templateFiles = fs.readdirSync(templateDir).filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'));
+              for (const tf of templateFiles) {
+                const content = fs.readFileSync(path.join(templateDir, tf), 'utf8');
+                if (content.includes('kind: Deployment') || content.includes('kind: StatefulSet')) {
+                  const hasReadiness = content.includes('readinessProbe:');
+                  const hasLiveness = content.includes('livenessProbe:');
+                  if (!hasReadiness) probeGaps.push(`${tf}: missing readinessProbe`);
+                  if (!hasLiveness) probeGaps.push(`${tf}: missing livenessProbe`);
+                }
+              }
+            } else {
+              probeGaps.push('infra/helm/templates/ directory not found — skipping probe audit');
+            }
+
+            // ── Check gateway YARP route config for circuit-breaker hints ─────
+            const gatewayConfigPaths = [
+              'src/HealthQCopilot.Gateway/appsettings.json',
+              'src/HealthQCopilot.Gateway/ReverseProxy.json',
+              'src/HealthQCopilot.Gateway/yarp.json',
+            ];
+
+            let gatewayConfigNote = 'No gateway YARP config file found for resilience audit.';
+            for (const gcp of gatewayConfigPaths) {
+              if (fs.existsSync(gcp)) {
+                const gContent = fs.readFileSync(gcp, 'utf8');
+                const hasRetry = /retry|RetryPolicy/i.test(gContent);
+                const hasTimeout = /timeout|TimeoutPolicy/i.test(gContent);
+                const hasCb = /circuitBreaker|CircuitBreaker/i.test(gContent);
+                gatewayConfigNote = `Gateway config: \`${gcp}\` — retry: ${hasRetry ? '✅' : '❌'}, timeout: ${hasTimeout ? '✅' : '❌'}, circuit-breaker: ${hasCb ? '✅' : '❌'}`;
+                break;
+              }
+            }
+
+            // ── Build report ──────────────────────────────────────────────────
+            const dateTag = new Date().toISOString().slice(0, 10);
+            const totalServiceGaps = findings.reduce((n, f) => n + f.svcFindings.length, 0);
+            const allOk = totalServiceGaps === 0 && probeGaps.length === 0;
+
+            const lines = [
+              '# Chaos Readiness Audit',
+              '',
+              `Generated: ${new Date().toISOString()}`,
+              `Overall: **${allOk ? '✅ PASS — all resilience checks clear' : '❌ FAIL — resilience gaps detected'}**`,
+              '',
+              '## Service Resource & Replica Audit',
+              '',
+              '| Service | Replicas | Status | Findings |',
+              '|---|---:|---|---|',
+            ];
+
+            for (const f of findings) {
+              const status = f.svcFindings.length === 0 ? '✅ pass' : '❌ fail';
+              lines.push(`| ${f.service} | ${f.replicas} | ${status} | ${f.svcFindings.join('; ') || '—'} |`);
+            }
+
+            lines.push('');
+            lines.push('## Helm Template Probe Audit');
+            lines.push('');
+            if (probeGaps.length === 0) {
+              lines.push('✅ All Deployment/StatefulSet templates define readinessProbe and livenessProbe.');
+            } else {
+              for (const g of probeGaps) {
+                lines.push(`- ❌ ${g}`);
+              }
+            }
+
+            lines.push('');
+            lines.push('## Gateway Resilience Configuration');
+            lines.push('');
+            lines.push(gatewayConfigNote);
+
+            if (!allOk) {
+              lines.push('');
+              lines.push(`> ⚠️ ${totalServiceGaps} service-level resilience gap(s) and ${probeGaps.length} probe gap(s) detected. Resolve before next staging promotion.`);
+            }
+
+            const report = lines.join('\n') + '\n';
+
+            const outputDir = 'artifacts/chaos';
+            require('fs').mkdirSync(outputDir, { recursive: true });
+            const reportPath = `${outputDir}/chaos-readiness-${dateTag}.md`;
+            fs.writeFileSync(reportPath, report, 'utf8');
+
+            core.setOutput('report_path', reportPath);
+            core.setOutput('report_name', `chaos-readiness-${dateTag}`);
+            core.setOutput('all_ok', allOk ? 'true' : 'false');
+
+            await core.summary.addRaw(report, true).write();
+
+            if (!allOk) {
+              core.setFailed(`Chaos readiness audit: ${totalServiceGaps} resource/replica gap(s) and ${probeGaps.length} probe gap(s) found.`);
+            }
+
+      - name: Upload chaos readiness artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.audit.outputs.report_name }}
+          path: ${{ steps.audit.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 60

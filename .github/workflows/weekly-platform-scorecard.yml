@@ -43,7 +43,10 @@ jobs:
               { file: 'dora-metrics.yml', name: 'DORA Metrics' },
               { file: 'environment-promotion.yml', name: 'Environment Promotion' },
               { file: 'slo-error-budget.yml', name: 'SLO Error Budget' },
-              { file: 'security-scorecard.yml', name: 'Security Posture Scorecard' }
+              { file: 'security-scorecard.yml', name: 'Security Posture Scorecard' },
+              { file: 'chaos-readiness.yml', name: 'Chaos Readiness Audit' },
+              { file: 'cost-governance.yml', name: 'Cost Governance Audit' },
+              { file: 'dependency-freshness.yml', name: 'Dependency Freshness Audit' }
             ];
 
             const rows = [];
@@ -98,6 +101,9 @@ jobs:
             const sloErrorBudget = rows.find((row) => row.name === 'SLO Error Budget');
             const securityScorecard = rows.find((row) => row.name === 'Security Posture Scorecard');
             const envPromotion = rows.find((row) => row.name === 'Environment Promotion');
+            const chaosReadiness = rows.find((row) => row.name === 'Chaos Readiness Audit');
+            const costGovernance = rows.find((row) => row.name === 'Cost Governance Audit');
+            const depFreshness = rows.find((row) => row.name === 'Dependency Freshness Audit');
             const runtimeConvergence = rows.find((row) => row.name === 'Runtime Convergence Audit');
             const routeProbes = rows.find((row) => row.name === 'Gateway Route Probes');
             const releaseGatePolicy = rows.find((row) => row.name === 'Release Gate Policy Audit');
@@ -149,6 +155,9 @@ jobs:
             report += `- SLO error budget pass trend: ${sloErrorBudget?.passRate ?? 'n/a'}\n`;
             report += `- Security posture scorecard pass trend: ${securityScorecard?.passRate ?? 'n/a'}\n`;
             report += `- Environment promotion gate pass trend: ${envPromotion?.passRate ?? 'n/a'}\n`;
+            report += `- Chaos readiness audit pass trend: ${chaosReadiness?.passRate ?? 'n/a'}\n`;
+            report += `- Cost governance audit pass trend: ${costGovernance?.passRate ?? 'n/a'}\n`;
+            report += `- Dependency freshness audit pass trend: ${depFreshness?.passRate ?? 'n/a'}\n`;
             report += `- Runtime convergence trend: ${runtimeConvergence?.passRate ?? 'n/a'}\n`;
             report += `- Gateway route probe trend: ${routeProbes?.passRate ?? 'n/a'}\n`;
             report += `- Release gate policy trend: ${releaseGatePolicy?.passRate ?? 'n/a'}\n`;

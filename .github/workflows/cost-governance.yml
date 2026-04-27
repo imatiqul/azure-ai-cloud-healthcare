@@ -1,0 +1,212 @@
+name: Cost Governance Audit
+
+# Audits Helm values for resource requests/limits across all 10 services
+# and flags any service whose resource ceiling exceeds the approved budget
+# thresholds, or where requests exceed limits (misconfiguration).
+#
+# Also audits ACA scaling rules: if minReplicas and maxReplicas are defined,
+# verifies maxReplicas is bounded (prevents unbounded horizontal scale-out).
+#
+# Runs weekly and on Helm value changes.  Results are uploaded as an auditable
+# artifact and surfaced in the weekly platform scorecard.
+on:
+  schedule:
+    - cron: '0 7 * * 3'    # Wednesday 07:00 UTC
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/helm/values*.yaml'
+      - 'infra/helm/values*.yml'
+      - '.github/workflows/cost-governance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  cost-governance-audit:
+    name: Cost Governance Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Audit resource budgets across Helm values
+        id: audit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // ── Budget thresholds (per service, per replica) ──────────────────
+            // These are the approved maximums.  Adjust in values.production.yaml
+            // when a service legitimately needs more; this workflow enforces that
+            // the change is intentional.
+            const BUDGET = {
+              cpu_limit_cores_max: 4,        // 4 vCPU limit per container
+              memory_limit_gi_max: 8,        // 8 GiB memory limit per container
+              max_replicas_max: 20,           // hard cap on HPA/KEDA maxReplicas
+            };
+
+            const services = [
+              'voice', 'ai-agent', 'fhir', 'identity', 'ocr',
+              'scheduling', 'notification', 'pop-health', 'revenue', 'gateway'
+            ];
+
+            // ── Parse a CPU expression to cores (float) ───────────────────────
+            function parseCpu(val) {
+              if (val === undefined || val === null) return null;
+              const s = String(val).trim();
+              if (s.endsWith('m')) return parseFloat(s) / 1000;
+              return parseFloat(s);
+            }
+
+            // ── Parse a memory expression to GiB (float) ─────────────────────
+            function parseMem(val) {
+              if (val === undefined || val === null) return null;
+              const s = String(val).trim();
+              if (s.endsWith('Gi')) return parseFloat(s);
+              if (s.endsWith('Mi')) return parseFloat(s) / 1024;
+              if (s.endsWith('Ki')) return parseFloat(s) / (1024 * 1024);
+              if (s.endsWith('G')) return parseFloat(s) * 1.074;
+              if (s.endsWith('M')) return parseFloat(s) * 1.074 / 1024;
+              return parseFloat(s) / (1024 * 1024 * 1024);
+            }
+
+            // ── Read and merge values files ───────────────────────────────────
+            // We use a text-based extraction rather than a full YAML parse
+            // because js-yaml is not pre-installed on Actions runners.
+            const valueFiles = [
+              'infra/helm/values.yaml',
+              'infra/helm/values.production.yaml',
+            ].filter((f) => fs.existsSync(f));
+
+            // Build a merged text for extraction
+            const mergedText = valueFiles.map((f) => fs.readFileSync(f, 'utf8')).join('\n');
+
+            const findings = [];
+            let totalGaps = 0;
+
+            for (const svc of services) {
+              const svcGaps = [];
+
+              // Extract the service's resource block using regex
+              const resourceMatch = mergedText.match(
+                new RegExp(`${svc.replace('-', '[-_]')}:[\\s\\S]{0,3000}?resources:([\\s\\S]{0,600}?)(?=\\n  \\w|\\n\\w|$)`, 'm')
+              );
+
+              let cpuReq = null, memReq = null, cpuLim = null, memLim = null;
+
+              if (resourceMatch) {
+                const block = resourceMatch[0];
+                // requests
+                const cpuReqM = block.match(/requests:[\s\S]{0,200}?cpu:\s*["']?([^\n"']+)["']?/m);
+                const memReqM = block.match(/requests:[\s\S]{0,200}?memory:\s*["']?([^\n"']+)["']?/m);
+                // limits
+                const cpuLimM = block.match(/limits:[\s\S]{0,200}?cpu:\s*["']?([^\n"']+)["']?/m);
+                const memLimM = block.match(/limits:[\s\S]{0,200}?memory:\s*["']?([^\n"']+)["']?/m);
+
+                cpuReq = cpuReqM ? parseCpu(cpuReqM[1].trim()) : null;
+                memReq = memReqM ? parseMem(memReqM[1].trim()) : null;
+                cpuLim = cpuLimM ? parseCpu(cpuLimM[1].trim()) : null;
+                memLim = memLimM ? parseMem(memLimM[1].trim()) : null;
+              }
+
+              // Missing values
+              if (cpuReq === null) svcGaps.push('missing cpu request');
+              if (memReq === null) svcGaps.push('missing memory request');
+              if (cpuLim === null) svcGaps.push('missing cpu limit');
+              if (memLim === null) svcGaps.push('missing memory limit');
+
+              // Request > Limit (Kubernetes will fail the pod)
+              if (cpuReq !== null && cpuLim !== null && cpuReq > cpuLim) {
+                svcGaps.push(`cpu request (${cpuReq.toFixed(2)} cores) exceeds limit (${cpuLim.toFixed(2)} cores)`);
+              }
+              if (memReq !== null && memLim !== null && memReq > memLim) {
+                svcGaps.push(`memory request (${memReq.toFixed(2)} GiB) exceeds limit (${memLim.toFixed(2)} GiB)`);
+              }
+
+              // Over-budget limits
+              if (cpuLim !== null && cpuLim > BUDGET.cpu_limit_cores_max) {
+                svcGaps.push(`cpu limit (${cpuLim.toFixed(2)} cores) exceeds approved budget (${BUDGET.cpu_limit_cores_max} cores)`);
+              }
+              if (memLim !== null && memLim > BUDGET.memory_limit_gi_max) {
+                svcGaps.push(`memory limit (${memLim.toFixed(2)} GiB) exceeds approved budget (${BUDGET.memory_limit_gi_max} GiB)`);
+              }
+
+              // maxReplicas audit
+              const maxReplicasM = mergedText.match(
+                new RegExp(`${svc.replace('-', '[-_]')}:[\\s\\S]{0,2000}?maxReplicas:\\s*(\\d+)`, 'm')
+              );
+              if (maxReplicasM) {
+                const maxR = parseInt(maxReplicasM[1], 10);
+                if (maxR > BUDGET.max_replicas_max) {
+                  svcGaps.push(`maxReplicas (${maxR}) exceeds approved cap (${BUDGET.max_replicas_max})`);
+                }
+              }
+
+              const summary = {
+                service: svc,
+                cpuReq: cpuReq !== null ? `${cpuReq.toFixed(3)} cores` : 'n/a',
+                memReq: memReq !== null ? `${memReq.toFixed(2)} GiB` : 'n/a',
+                cpuLim: cpuLim !== null ? `${cpuLim.toFixed(2)} cores` : 'n/a',
+                memLim: memLim !== null ? `${memLim.toFixed(2)} GiB` : 'n/a',
+                gaps: svcGaps,
+              };
+
+              findings.push(summary);
+              totalGaps += svcGaps.length;
+            }
+
+            const allOk = totalGaps === 0;
+            const dateTag = new Date().toISOString().slice(0, 10);
+
+            const lines = [
+              '# Cost Governance Audit',
+              '',
+              `Generated: ${new Date().toISOString()}`,
+              `Overall: **${allOk ? '✅ PASS — all services within resource budget' : `❌ FAIL — ${totalGaps} gap(s) detected`}**`,
+              '',
+              `Budget thresholds: CPU limit ≤ ${BUDGET.cpu_limit_cores_max} cores, Memory limit ≤ ${BUDGET.memory_limit_gi_max} GiB, maxReplicas ≤ ${BUDGET.max_replicas_max}`,
+              '',
+              '## Per-Service Resource Audit',
+              '',
+              '| Service | CPU Req | Mem Req | CPU Limit | Mem Limit | Status | Findings |',
+              '|---|---|---|---|---|---|---|',
+            ];
+
+            for (const f of findings) {
+              const status = f.gaps.length === 0 ? '✅' : '❌';
+              lines.push(`| ${f.service} | ${f.cpuReq} | ${f.memReq} | ${f.cpuLim} | ${f.memLim} | ${status} | ${f.gaps.join('; ') || '—'} |`);
+            }
+
+            if (!allOk) {
+              lines.push('');
+              lines.push('> ⚠️ Resource budget gaps found. Update `infra/helm/values.production.yaml` to bring values within approved thresholds, or obtain architecture approval for exceptions.');
+            }
+
+            const report = lines.join('\n') + '\n';
+
+            const outputDir = 'artifacts/cost';
+            fs.mkdirSync(outputDir, { recursive: true });
+            const reportPath = `${outputDir}/cost-governance-${dateTag}.md`;
+            fs.writeFileSync(reportPath, report, 'utf8');
+
+            core.setOutput('report_path', reportPath);
+            core.setOutput('report_name', `cost-governance-${dateTag}`);
+            core.setOutput('all_ok', allOk ? 'true' : 'false');
+
+            await core.summary.addRaw(report, true).write();
+
+            if (!allOk) {
+              core.setFailed(`Cost governance audit: ${totalGaps} resource budget gap(s) found.`);
+            }
+
+      - name: Upload cost governance artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.audit.outputs.report_name }}
+          path: ${{ steps.audit.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 90

@@ -46,6 +46,9 @@ This catalog describes all CI/CD and quality workflows in this repository.
 | `slo-error-budget.yml` | `schedule`, `workflow_dispatch` | Computes availability SLI from Cloud E2E and route probe run history; alerts when 28-day error budget < 20% remaining. |
 | `environment-promotion.yml` | `push` to `main`, `workflow_dispatch` | Dev → Staging → Production promotion pipeline with automated quality gate checks and environment-protected production approval. |
 | `security-scorecard.yml` | `push` to `main`, `schedule`, `workflow_dispatch` | OpenSSF Scorecard supply-chain hygiene check and CodeQL SAST for C# and JavaScript/TypeScript. |
+| `chaos-readiness.yml` | `schedule`, `pull_request`, `workflow_dispatch` | Audits Helm values for readiness/liveness probes, resource requests/limits, and replica redundancy across all 10 services. |
+| `cost-governance.yml` | `schedule`, `pull_request`, `workflow_dispatch` | Audits service resource requests/limits against approved budget thresholds; flags over-budget or misconfigured values. |
+| `dependency-freshness.yml` | `schedule`, `pull_request`, `workflow_dispatch` | Scans all workflow files for floating mutable-branch action pins (supply-chain risk), stale major versions, and deprecated Node runtime references. |
 
 ## Artifact Notes
 
@@ -60,6 +63,9 @@ This catalog describes all CI/CD and quality workflows in this repository.
 - `dora-metrics.yml` uploads `dora-metrics-<date>` with the four DORA key metrics (90-day retention).
 - `slo-error-budget.yml` uploads `slo-error-budget-<date>` with SLI, error budget, and per-workflow breakdown (90-day retention).
 - `security-scorecard.yml` uploads `openssf-scorecard-<run-id>` SARIF and also uploads to the GitHub Security tab via SARIF upload.
+- `chaos-readiness.yml` uploads `chaos-readiness-<date>` with per-service probe and resource resilience audit results (60-day retention).
+- `cost-governance.yml` uploads `cost-governance-<date>` with per-service resource budget compliance table (90-day retention).
+- `dependency-freshness.yml` uploads `dependency-freshness-<date>` with floating pin, stale version, and Node deprecation findings (90-day retention).
 - `infra-deploy.yml` validate job also uploads `release-evidence-<env>-<sha>` release checklist artifact.
 - `frontend-deploy.yml` uploads `swa-deploy-evidence-<app>-<sha>` per-MFE deploy evidence artifact.
 

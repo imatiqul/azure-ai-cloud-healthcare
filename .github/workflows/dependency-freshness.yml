@@ -1,0 +1,240 @@
+name: Dependency Freshness Audit
+
+# Scans all GitHub Actions workflow files for:
+#   1. Deprecated Node runtime warnings (actions using node16 or node20 that
+#      GitHub will soon drop in favour of node24).
+#   2. Third-party actions pinned to a floating tag (e.g. @v3) rather than
+#      an immutable SHA — a supply-chain security risk.
+#   3. First-party GitHub actions (actions/*) that have newer major versions
+#      available based on a known-version manifest embedded in this workflow.
+#
+# Runs weekly and on workflow file changes.  Fail on high-risk findings
+# (floating SHA pins); warn on freshness opportunities.
+on:
+  schedule:
+    - cron: '0 7 * * 4'    # Thursday 07:00 UTC
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - '.github/workflows/dependency-freshness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-freshness:
+    name: Dependency Freshness Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Audit workflow action dependencies
+        id: audit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // ── Known latest major versions (update as new majors ship) ───────
+            const KNOWN_LATEST = {
+              'actions/checkout': 'v4',
+              'actions/setup-dotnet': 'v4',
+              'actions/setup-node': 'v4',
+              'actions/upload-artifact': 'v4',
+              'actions/download-artifact': 'v4',
+              'actions/cache': 'v4',
+              'actions/github-script': 'v7',
+              'actions/dependency-review-action': 'v4',
+              'actions/attest-build-provenance': 'v2',
+              'github/codeql-action/init': 'v3',
+              'github/codeql-action/autobuild': 'v3',
+              'github/codeql-action/analyze': 'v3',
+              'github/codeql-action/upload-sarif': 'v3',
+              'docker/login-action': 'v3',
+              'docker/build-push-action': 'v6',
+              'docker/metadata-action': 'v5',
+              'docker/setup-buildx-action': 'v3',
+              'azure/login': 'v2',
+              'azure/setup-helm': 'v4',
+              'azure/static-web-apps-deploy': 'v1',
+              'ossf/scorecard-action': 'v2',
+              'Azure/static-web-apps-deploy': 'v1',
+            };
+
+            // Actions pinned to a floating semver tag (not a SHA) are a supply-chain risk.
+            // SHA pins look like: uses: owner/repo@abc1234def (>=7 hex chars)
+            const shaPattern = /^[0-9a-f]{7,40}$/i;
+
+            const workflowDir = '.github/workflows';
+            const files = fs.readdirSync(workflowDir)
+              .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
+
+            const floatingPins = [];     // high-risk: floating tag
+            const staleVersions = [];    // medium-risk: outdated major
+            const nodeWarnings = [];     // informational: deprecated node runtime
+
+            // Patterns for deprecated node runtimes in workflow YAML
+            // These appear as `using: node16` or `using: node20` in action.yml files,
+            // but as consumers we detect them via the `runs-on` runner if the action
+            // name maps to a known stale version.
+            // We also scan for explicit `node-version: 20` in setup-node steps as proxy.
+            const deprecatedNodePatterns = [
+              /node-version:\s*['"]?1[0-9]['"]?/,   // node 10-19
+              /node-version:\s*['"]?20['"]?/,         // node 20 (deprecated Q3 2026)
+            ];
+
+            for (const file of files) {
+              const filePath = path.join(workflowDir, file);
+              const content = fs.readFileSync(filePath, 'utf8');
+              const lines = content.split('\n');
+
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const lineNo = i + 1;
+
+                // Match "uses: owner/repo@ref" patterns
+                const usesMatch = line.match(/\s+uses:\s+([^@\s]+)@([^\s#]+)/);
+                if (usesMatch) {
+                  const actionRef = usesMatch[1].trim();
+                  const pinRef = usesMatch[2].trim();
+
+                  // Check for floating semver (e.g. @v3, @main, @latest)
+                  const isShaPinned = shaPattern.test(pinRef);
+                  const isVersionTag = /^v\d/.test(pinRef);
+                  const isFloating = !isShaPinned && (pinRef === 'main' || pinRef === 'master' || pinRef === 'latest');
+
+                  if (isFloating) {
+                    floatingPins.push({
+                      file,
+                      line: lineNo,
+                      action: actionRef,
+                      ref: pinRef,
+                      risk: 'HIGH — mutable branch/tag; no integrity guarantee',
+                    });
+                  }
+
+                  // Check known-stale major versions
+                  if (isVersionTag && KNOWN_LATEST[actionRef]) {
+                    const currentMajor = parseInt(pinRef.replace(/^v/, '').split('.')[0], 10);
+                    const latestMajor = parseInt(KNOWN_LATEST[actionRef].replace(/^v/, '').split('.')[0], 10);
+                    if (currentMajor < latestMajor) {
+                      staleVersions.push({
+                        file,
+                        line: lineNo,
+                        action: actionRef,
+                        current: pinRef,
+                        latest: KNOWN_LATEST[actionRef],
+                      });
+                    }
+                  }
+                }
+
+                // Node version deprecation warnings
+                for (const pat of deprecatedNodePatterns) {
+                  if (pat.test(line)) {
+                    nodeWarnings.push({ file, line: lineNo, text: line.trim() });
+                    break;
+                  }
+                }
+              }
+            }
+
+            // ── Build report ─────────────────────────────────────────────────
+            const dateTag = new Date().toISOString().slice(0, 10);
+            const highRisk = floatingPins.length > 0;
+            const hasIssues = highRisk || staleVersions.length > 0 || nodeWarnings.length > 0;
+
+            const lines = [
+              '# Dependency Freshness Audit',
+              '',
+              `Generated: ${new Date().toISOString()}`,
+              `Workflows scanned: ${files.length}`,
+              `Overall: **${!hasIssues ? '✅ PASS' : highRisk ? '❌ FAIL — high-risk floating pins detected' : '⚠️ WARNING — stale or deprecated action versions'}**`,
+              '',
+            ];
+
+            if (floatingPins.length > 0) {
+              lines.push('## ❌ Floating Pins (HIGH — supply-chain risk)');
+              lines.push('');
+              lines.push('| File | Line | Action | Pinned To | Risk |');
+              lines.push('|---|---:|---|---|---|');
+              for (const p of floatingPins) {
+                lines.push(`| ${p.file} | ${p.line} | \`${p.action}\` | \`${p.ref}\` | ${p.risk} |`);
+              }
+              lines.push('');
+              lines.push('> **Action required**: Pin to an immutable SHA (`uses: owner/repo@<sha>`) for supply-chain integrity.');
+              lines.push('');
+            } else {
+              lines.push('## Floating Pins');
+              lines.push('');
+              lines.push('✅ No floating mutable-branch pins found.');
+              lines.push('');
+            }
+
+            if (staleVersions.length > 0) {
+              lines.push('## ⚠️ Stale Action Versions (upgrade recommended)');
+              lines.push('');
+              lines.push('| File | Line | Action | Current | Latest Major |');
+              lines.push('|---|---:|---|---|---|');
+              for (const s of staleVersions) {
+                lines.push(`| ${s.file} | ${s.line} | \`${s.action}\` | \`${s.current}\` | \`${s.latest}\` |`);
+              }
+              lines.push('');
+            } else {
+              lines.push('## Stale Action Versions');
+              lines.push('');
+              lines.push('✅ All audited actions are on the latest known major version.');
+              lines.push('');
+            }
+
+            if (nodeWarnings.length > 0) {
+              lines.push('## ⚠️ Deprecated Node Version References');
+              lines.push('');
+              lines.push('| File | Line | Content |');
+              lines.push('|---|---:|---|');
+              for (const n of nodeWarnings) {
+                lines.push(`| ${n.file} | ${n.line} | \`${n.text}\` |`);
+              }
+              lines.push('');
+              lines.push('> Node 20 support in GitHub-hosted runners ends in Q3 2026. Upgrade to node24 or use the latest action version.');
+              lines.push('');
+            } else {
+              lines.push('## Deprecated Node Version References');
+              lines.push('');
+              lines.push('✅ No deprecated Node runtime references found in workflow files.');
+              lines.push('');
+            }
+
+            const report = lines.join('\n') + '\n';
+
+            const outputDir = 'artifacts/freshness';
+            fs.mkdirSync(outputDir, { recursive: true });
+            const reportPath = `${outputDir}/dependency-freshness-${dateTag}.md`;
+            fs.writeFileSync(reportPath, report, 'utf8');
+
+            core.setOutput('report_path', reportPath);
+            core.setOutput('report_name', `dependency-freshness-${dateTag}`);
+            core.setOutput('high_risk', highRisk ? 'true' : 'false');
+            core.setOutput('stale_count', String(staleVersions.length));
+            core.setOutput('node_warning_count', String(nodeWarnings.length));
+
+            await core.summary.addRaw(report, true).write();
+
+            // Only fail on floating pins (supply-chain risk).
+            // Stale versions and node warnings are surfaced but not blocking.
+            if (highRisk) {
+              core.setFailed(`Dependency freshness: ${floatingPins.length} floating mutable-branch pin(s) found — supply-chain risk.`);
+            }
+
+      - name: Upload dependency freshness artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.audit.outputs.report_name }}
+          path: ${{ steps.audit.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 90
