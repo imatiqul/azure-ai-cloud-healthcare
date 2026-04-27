@@ -175,7 +175,7 @@ jobs:
           - service: gateway
             project: HealthQCopilot.Gateway
             changed: ${{ needs.detect-changes.outputs.gateway }}
-    if: needs.detect-changes.result == 'success' && needs.validate-dispatch-inputs.result == 'success' && (needs.azure-login-preflight.result == 'success' || needs.azure-login-preflight.result == 'skipped')
+    if: always() && needs.detect-changes.result == 'success' && needs.validate-dispatch-inputs.result == 'success' && (needs.azure-login-preflight.result == 'success' || needs.azure-login-preflight.result == 'skipped')
     steps:
       - name: Resolve manual service selection
         id: service-selection
