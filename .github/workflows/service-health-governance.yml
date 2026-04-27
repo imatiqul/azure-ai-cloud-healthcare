@@ -106,7 +106,7 @@ jobs:
                 try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
                 for (const e of entries) {
                   const fp = path.join(d, e.name);
-                  if (e.isDirectory()) { walk(fp); return; }
+                  if (e.isDirectory()) { walk(fp); continue; }
                   const isHealthFile = e.name === 'Program.cs' || e.name === 'Startup.cs' ||
                     /[Hh]ealth[Cc]heck/.test(e.name) || /[Hh]ealth[Ee]ndpoint/.test(e.name);
                   if (!isHealthFile) continue;

@@ -391,10 +391,6 @@ jobs:
       - name: Update Helm image tag for GitOps (ArgoCD)
         if: (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') && steps.service-selection.outputs.selected == 'true' && github.ref == 'refs/heads/main'
         run: |
-          # Map CI matrix service name to Helm values key
-          SERVICE_KEY="${{ matrix.service }}"
-          # ai-agent maps to the 'ai-agent' key in values.yaml
-          VALUES_FILE="infra/helm/values.yaml"
           PROD_VALUES="infra/helm/values.production.yaml"
 
           # Update the image tag in values.production.yaml (create if missing)
