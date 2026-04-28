@@ -10,7 +10,8 @@
   ],
   "recommendedPostMergeChecks": [
     "cloud-e2e-tests.yml",
-    "gateway-route-probes.yml"
+    "gateway-route-probes.yml",
+    "security-scorecard.yml"
   ],
   "postMergeSuccessWindowDays": 14
 }

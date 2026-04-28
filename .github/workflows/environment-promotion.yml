@@ -237,16 +237,18 @@ jobs:
               };
             }
 
-            const [releaseAudit, dora, scorecard] = await Promise.all([
+            const [releaseAudit, dora, scorecard, securityPosture] = await Promise.all([
               latestPassOnMain('release-gate-policy-audit.yml'),
               latestPassOnMain('dora-metrics.yml'),
               latestPassOnMain('weekly-platform-scorecard.yml'),
+              latestPassOnMain('security-scorecard.yml'),
             ]);
 
             const gates = [
               { name: 'Release Gate Policy Audit', ...releaseAudit },
               { name: 'DORA Metrics', ...dora },
               { name: 'Weekly Platform Scorecard', ...scorecard },
+              { name: 'Security Posture Scorecard', ...securityPosture },
             ];
 
             const allPass = gates.every((g) => g.pass);

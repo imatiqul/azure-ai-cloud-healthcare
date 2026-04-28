@@ -281,3 +281,21 @@ Exit criteria:
 - Cloud E2E `deployment-sync` blocks with `hardFailure` when `Frontend MFE CI/CD` triggered the run but `build-and-deploy` failed.
 - Cloud E2E `deployment-sync` emits `not-deployed` (intentional skip) when `Frontend MFE CI/CD` ran but no MFE apps changed.
 - Cloud E2E `deployment-sync` treats frontend as optional evidence only when triggered by `Microservice CI/CD` or via schedule/manual dispatch.
+
+## Phase 16 - Security Scorecard Gate Promotion (Week 14 to Week 15)
+
+Goal: complete Phase 8's open exit criterion by making security posture a first-class blocker on the production promotion gate and an audited post-merge check, so no release can reach production while the OpenSSF Scorecard or CodeQL pipeline is failing.
+
+Status:
+- Enforcement implemented in `.github/release-gate-policy.json` and `.github/workflows/environment-promotion.yml` production gate.
+
+Key work:
+- Add `security-scorecard.yml` to `recommendedPostMergeChecks` in `release-gate-policy.json` so the Release Gate Policy Audit tracks it within the `postMergeSuccessWindowDays` window.
+- Wire `security-scorecard.yml` into the environment-promotion production gate alongside `release-gate-policy-audit`, `dora-metrics`, and `weekly-platform-scorecard`; production promotion is now blocked when security posture has not passed recently on main.
+- Mark the P1 Node 20 deprecation gap resolved in `platform-gap-backlog-2026-04-25.md`: no `node-version: 20` references exist in any workflow; `dependency-freshness.yml` enforces the pattern in the dev gate on every PR touching workflows.
+
+Exit criteria:
+- `release-gate-policy.json` lists `security-scorecard.yml` under `recommendedPostMergeChecks`.
+- Environment-promotion production gate evaluates `security-scorecard` pass/fail alongside the three existing production governance checks.
+- Release Gate Policy Audit surfaces security scorecard status within the 14-day success window.
+- P1 Node 20 deprecation backlog item closed with evidence of zero references and gate enforcement.
