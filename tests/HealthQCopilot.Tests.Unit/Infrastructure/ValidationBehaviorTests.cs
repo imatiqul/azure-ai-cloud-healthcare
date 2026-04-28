@@ -57,7 +57,7 @@ public class ValidationBehaviorTests
         };
 
         // Act
-        var result = await sut.Handle(new NoValidatorRequest("x"), next, CancellationToken.None);
+        var result = await sut.Handle(new NoValidatorRequest("x"), next, TestContext.Current.CancellationToken);
 
         // Assert
         called.Should().BeTrue();
@@ -81,7 +81,7 @@ public class ValidationBehaviorTests
         };
 
         // Act
-        var result = await sut.Handle(new ValidatedBehaviorRequest("Alice"), next, CancellationToken.None);
+        var result = await sut.Handle(new ValidatedBehaviorRequest("Alice"), next, TestContext.Current.CancellationToken);
 
         // Assert
         called.Should().BeTrue();
@@ -105,7 +105,7 @@ public class ValidationBehaviorTests
         };
 
         // Act
-        var result = await sut.Handle(new ValidatedBehaviorRequest(""), next, CancellationToken.None);
+        var result = await sut.Handle(new ValidatedBehaviorRequest(""), next, TestContext.Current.CancellationToken);
 
         // Assert
         called.Should().BeFalse("next should not be called when validation fails");
@@ -123,7 +123,7 @@ public class ValidationBehaviorTests
         RequestHandlerDelegate<Result> next = () => Task.FromResult(Result.Success());
 
         // Act
-        var result = await sut.Handle(new ValidatedBehaviorRequest(""), next, CancellationToken.None);
+        var result = await sut.Handle(new ValidatedBehaviorRequest(""), next, TestContext.Current.CancellationToken);
 
         // Assert — both messages present in the joined error string
         result.Error.Should().Contain("Name is required");
@@ -143,7 +143,7 @@ public class ValidationBehaviorTests
             () => Task.FromResult(Result<string>.Success("ok"));
 
         // Act
-        var result = await sut.Handle(new GenericBehaviorRequest(""), next, CancellationToken.None);
+        var result = await sut.Handle(new GenericBehaviorRequest(""), next, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.Should().BeTrue();
@@ -162,7 +162,7 @@ public class ValidationBehaviorTests
             () => Task.FromResult(Result<string>.Success("hello"));
 
         // Act
-        var result = await sut.Handle(new GenericBehaviorRequest("hello"), next, CancellationToken.None);
+        var result = await sut.Handle(new GenericBehaviorRequest("hello"), next, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();

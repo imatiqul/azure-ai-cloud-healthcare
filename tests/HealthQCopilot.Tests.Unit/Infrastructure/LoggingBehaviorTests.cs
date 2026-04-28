@@ -38,7 +38,7 @@ public class LoggingBehaviorTests
         RequestHandlerDelegate<string> next = () => Task.FromResult(expected);
 
         // Act
-        var result = await _sut.Handle(new LoggingBehaviorTestRequest(), next, CancellationToken.None);
+        var result = await _sut.Handle(new LoggingBehaviorTestRequest(), next, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().Be(expected);
@@ -51,7 +51,7 @@ public class LoggingBehaviorTests
         RequestHandlerDelegate<string> next = () => Task.FromResult("response");
 
         // Act
-        await _sut.Handle(new LoggingBehaviorTestRequest(), next, CancellationToken.None);
+        await _sut.Handle(new LoggingBehaviorTestRequest(), next, TestContext.Current.CancellationToken);
 
         // Assert — two informational log entries (Handling + Handled)
         _logger.ReceivedWithAnyArgs(2).Log(
@@ -71,7 +71,7 @@ public class LoggingBehaviorTests
 
         // Act
         Func<Task> act = async () =>
-            await _sut.Handle(new LoggingBehaviorTestRequest(), next, CancellationToken.None);
+            await _sut.Handle(new LoggingBehaviorTestRequest(), next, TestContext.Current.CancellationToken);
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("boom");
@@ -91,7 +91,7 @@ public class LoggingBehaviorTests
         RequestHandlerDelegate<string> next = () => throw new Exception("fail");
 
         // Act
-        try { await _sut.Handle(new LoggingBehaviorTestRequest(), next, CancellationToken.None); }
+        try { await _sut.Handle(new LoggingBehaviorTestRequest(), next, TestContext.Current.CancellationToken); }
         catch { /* expected */ }
 
         // Assert — at least one error-level log was emitted

@@ -21,7 +21,7 @@ public class DocumentProcessedHandlerTests
         var handler = new DocumentProcessedHandler(_dapr, _logger);
         var evt = new DocumentProcessed(Guid.NewGuid(), "patient-001", "doc-ref-abc");
 
-        await handler.Handle(new DomainEventNotification<DocumentProcessed>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<DocumentProcessed>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "document.processed",
@@ -35,7 +35,7 @@ public class DocumentProcessedHandlerTests
         var handler = new DocumentProcessedHandler(_dapr, _logger);
         var evt = new DocumentProcessed(Guid.NewGuid(), null, "doc-ref-xyz");
 
-        await handler.Handle(new DomainEventNotification<DocumentProcessed>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<DocumentProcessed>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "document.processed",

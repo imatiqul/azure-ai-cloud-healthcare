@@ -24,7 +24,7 @@ public class TranscriptProducedHandlerTests
         var evt = new TranscriptProduced(Guid.NewGuid(), "Patient reports chest pain.");
         var notification = new DomainEventNotification<TranscriptProduced>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub",
@@ -41,7 +41,7 @@ public class TranscriptProducedHandlerTests
         var evt = new TranscriptProduced(sessionId, "Transcript text.");
         var notification = new DomainEventNotification<TranscriptProduced>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _cache.Received(1).RemoveAsync(
             $"healthq:voice:transcript:{sessionId}",
@@ -59,7 +59,7 @@ public class TranscriptProducedHandlerTests
         var notification = new DomainEventNotification<TranscriptProduced>(evt);
 
         // Should not throw — cache failure is non-fatal
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "transcript.produced",
@@ -81,7 +81,7 @@ public class SessionEndedHandlerTests
         var evt = new SessionEnded(Guid.NewGuid(), TimeSpan.FromMinutes(12));
         var notification = new DomainEventNotification<SessionEnded>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "session.ended",
@@ -96,7 +96,7 @@ public class SessionEndedHandlerTests
         var evt = new SessionEnded(sessionId, TimeSpan.FromMinutes(5));
         var notification = new DomainEventNotification<SessionEnded>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _cache.Received(1).RemoveAsync(
             $"healthq:voice:session:{sessionId}", Arg.Any<CancellationToken>());

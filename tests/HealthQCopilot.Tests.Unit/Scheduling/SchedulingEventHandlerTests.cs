@@ -32,7 +32,7 @@ public class SlotBookedHandlerTests
     {
         var handler = CreateHandler();
         var evt = SampleEvent();
-        await handler.Handle(new DomainEventNotification<SlotBooked>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<SlotBooked>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "slot.booked", Arg.Any<object>(), Arg.Any<CancellationToken>());
@@ -44,7 +44,7 @@ public class SlotBookedHandlerTests
         var slotId = Guid.NewGuid();
         var handler = CreateHandler();
         var evt = SampleEvent(slotId);
-        await handler.Handle(new DomainEventNotification<SlotBooked>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<SlotBooked>(evt), TestContext.Current.CancellationToken);
 
         await _cache.Received(1).RemoveAsync("healthq:scheduling:stats", Arg.Any<CancellationToken>());
         await _cache.Received(1).RemoveAsync(
@@ -61,7 +61,7 @@ public class SlotBookedHandlerTests
         var evt = SampleEvent();
 
         // Cache failure must not propagate — Dapr publish is critical path
-        await handler.Handle(new DomainEventNotification<SlotBooked>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<SlotBooked>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "slot.booked", Arg.Any<object>(), Arg.Any<CancellationToken>());
@@ -85,7 +85,7 @@ public class BookingCreatedHandlerTests
             PractitionerId: "DR-002",
             AppointmentTime: DateTime.UtcNow.AddDays(2));
 
-        await handler.Handle(new DomainEventNotification<BookingCreated>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<BookingCreated>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "booking.created", Arg.Any<object>(), Arg.Any<CancellationToken>());
@@ -98,7 +98,7 @@ public class BookingCreatedHandlerTests
         var handler = new BookingCreatedHandler(_dapr, Substitute.For<ILogger<BookingCreatedHandler>>());
         var evt = new BookingCreated(bookingId, Guid.NewGuid(), "p-003", "dr-003", DateTime.UtcNow);
 
-        await handler.Handle(new DomainEventNotification<BookingCreated>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<BookingCreated>(evt), TestContext.Current.CancellationToken);
 
         // Verify the event was published with an object payload (structural verification
         // via the topic name; full payload shape is covered by integration tests)

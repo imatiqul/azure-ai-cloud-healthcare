@@ -26,7 +26,7 @@ public sealed class AgentSessionCancellationRegistryTests
     [Fact]
     public void TryCancel_trips_the_token_for_a_registered_session()
     {
-        using var cts = _sut.Register("s1", CancellationToken.None);
+        using var cts = _sut.Register("s1", TestContext.Current.CancellationToken);
 
         var ok = _sut.TryCancel("s1");
 
@@ -48,7 +48,7 @@ public sealed class AgentSessionCancellationRegistryTests
     [Fact]
     public void Disposing_the_returned_cts_removes_the_registry_entry()
     {
-        var cts = _sut.Register("s1", CancellationToken.None);
+        var cts = _sut.Register("s1", TestContext.Current.CancellationToken);
         cts.Dispose();
 
         // Subsequent cancel should not find the session — it was un-registered
@@ -59,8 +59,8 @@ public sealed class AgentSessionCancellationRegistryTests
     [Fact]
     public void Last_writer_wins_on_duplicate_session_ids()
     {
-        using var first  = _sut.Register("s1", CancellationToken.None);
-        using var second = _sut.Register("s1", CancellationToken.None);
+        using var first  = _sut.Register("s1", TestContext.Current.CancellationToken);
+        using var second = _sut.Register("s1", TestContext.Current.CancellationToken);
 
         _sut.TryCancel("s1").Should().BeTrue();
 

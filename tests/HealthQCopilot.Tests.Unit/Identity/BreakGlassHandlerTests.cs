@@ -29,7 +29,7 @@ public class BreakGlassAccessGrantedHandlerTests
             ExpiresAt: DateTime.UtcNow.AddHours(1));
 
         await handler.Handle(
-            new DomainEventNotification<BreakGlassAccessGranted>(evt), CancellationToken.None);
+            new DomainEventNotification<BreakGlassAccessGranted>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "breakglass.granted",
@@ -45,7 +45,7 @@ public class BreakGlassAccessGrantedHandlerTests
             accessId, Guid.NewGuid(), "p-x", "Emergency access", DateTime.UtcNow.AddMinutes(30));
 
         await handler.Handle(
-            new DomainEventNotification<BreakGlassAccessGranted>(evt), CancellationToken.None);
+            new DomainEventNotification<BreakGlassAccessGranted>(evt), TestContext.Current.CancellationToken);
 
         // HIPAA critical: must publish to correct component and topic for compliance audit stream
         await _dapr.Received(1).PublishEventAsync(
@@ -75,7 +75,7 @@ public class BreakGlassAccessRevokedHandlerTests
             RevokedByUserId: Guid.NewGuid());
 
         await handler.Handle(
-            new DomainEventNotification<BreakGlassAccessRevoked>(evt), CancellationToken.None);
+            new DomainEventNotification<BreakGlassAccessRevoked>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "breakglass.revoked",
@@ -92,7 +92,7 @@ public class BreakGlassAccessRevokedHandlerTests
             Guid.NewGuid(), granteeId, "patient-x", supervisorId);
 
         await handler.Handle(
-            new DomainEventNotification<BreakGlassAccessRevoked>(evt), CancellationToken.None);
+            new DomainEventNotification<BreakGlassAccessRevoked>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "breakglass.revoked",

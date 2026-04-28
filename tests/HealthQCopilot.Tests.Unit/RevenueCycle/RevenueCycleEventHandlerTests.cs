@@ -24,7 +24,7 @@ public class CodingJobSubmittedHandlerTests
         var evt = new CodingJobSubmitted(Guid.NewGuid(), ["Z87.891", "J44.1"]);
         var notification = new DomainEventNotification<CodingJobSubmitted>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "coding-job.submitted",
@@ -47,7 +47,7 @@ public class PriorAuthApprovedHandlerTests
         var evt = new PriorAuthApproved(Guid.NewGuid(), "patient-001");
         var notification = new DomainEventNotification<PriorAuthApproved>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "priorauth.result",
@@ -68,7 +68,7 @@ public class PriorAuthDeniedHandlerTests
         var evt = new PriorAuthDenied(Guid.NewGuid(), "patient-002", "Not medically necessary");
         var notification = new DomainEventNotification<PriorAuthDenied>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "priorauth.result",
@@ -84,10 +84,10 @@ public class PriorAuthDeniedHandlerTests
 
         await approvedHandler.Handle(
             new DomainEventNotification<PriorAuthApproved>(new PriorAuthApproved(Guid.NewGuid(), "p1")),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
         await deniedHandler.Handle(
             new DomainEventNotification<PriorAuthDenied>(new PriorAuthDenied(Guid.NewGuid(), "p2", "Experimental")),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         await _dapr.Received(2).PublishEventAsync(
             "pubsub", "priorauth.result",
@@ -110,7 +110,7 @@ public class ClaimSubmittedHandlerTests
         var evt = new ClaimSubmitted(Guid.NewGuid(), "patient-003", "BlueCross");
         var notification = new DomainEventNotification<ClaimSubmitted>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "claim.submitted",
@@ -131,7 +131,7 @@ public class ClaimRejectedHandlerTests
         var evt = new ClaimRejected(Guid.NewGuid(), "Invalid NPI — provider not enrolled");
         var notification = new DomainEventNotification<ClaimRejected>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "claim.rejected",
@@ -154,7 +154,7 @@ public class RemittanceReceivedHandlerTests
         var evt = new RemittanceReceived(Guid.NewGuid(), "Aetna", 150_00L);
         var notification = new DomainEventNotification<RemittanceReceived>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "remittance.received",
@@ -175,7 +175,7 @@ public class RemittancePostedHandlerTests
         var evt = new RemittancePosted(Guid.NewGuid(), 150_00L);
         var notification = new DomainEventNotification<RemittancePosted>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "remittance.posted",

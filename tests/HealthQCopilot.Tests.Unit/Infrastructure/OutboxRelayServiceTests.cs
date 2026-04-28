@@ -78,7 +78,7 @@ public class OutboxRelayServiceTests
         catch (OperationCanceledException) { }
         finally
         {
-            await service.StopAsync(CancellationToken.None);
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         // Assert
@@ -112,7 +112,7 @@ public class OutboxRelayServiceTests
         catch (OperationCanceledException) { }
         finally
         {
-            await service.StopAsync(CancellationToken.None);
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         // Assert
@@ -150,7 +150,7 @@ public class OutboxRelayServiceTests
         catch (OperationCanceledException) { }
         finally
         {
-            await service.StopAsync(CancellationToken.None);
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         // Assert

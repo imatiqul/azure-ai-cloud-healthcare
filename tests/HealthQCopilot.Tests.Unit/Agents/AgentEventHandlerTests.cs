@@ -25,7 +25,7 @@ public class EscalationRequiredHandlerTests
         var evt = new EscalationRequired(Guid.NewGuid(), "session-001", TriageLevel.P1_Immediate);
         var notification = new DomainEventNotification<EscalationRequired>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub",
@@ -43,7 +43,7 @@ public class EscalationRequiredHandlerTests
         var evt = new EscalationRequired(Guid.NewGuid(), "session-x", level);
         var notification = new DomainEventNotification<EscalationRequired>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "escalation.required",
@@ -74,7 +74,7 @@ public class TriageCompletedHandlerTests
         var notification = new DomainEventNotification<TriageCompleted>(evt);
 
         // Act
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         // Assert — Dapr publish always fires regardless of workflow load outcome
         await _dapr.Received(1).PublishEventAsync(

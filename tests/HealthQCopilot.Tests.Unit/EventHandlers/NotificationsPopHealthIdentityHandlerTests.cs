@@ -26,7 +26,7 @@ public class ConsentGrantedHandlerTests
         var evt = new ConsentGranted(Guid.NewGuid(), Guid.NewGuid(), "treatment", "phi-read");
         var notification = new DomainEventNotification<ConsentGranted>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "consent.granted",
@@ -45,7 +45,7 @@ public class ConsentRevokedHandlerTests
         var evt = new ConsentRevoked(Guid.NewGuid(), Guid.NewGuid(), "research", "Patient withdrew");
         var notification = new DomainEventNotification<ConsentRevoked>(evt);
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "consent.revoked",
@@ -60,7 +60,7 @@ public class ConsentRevokedHandlerTests
         var notification = new DomainEventNotification<ConsentRevoked>(evt);
 
         // Reason is optional — should not throw
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(notification, TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "consent.revoked",
@@ -79,7 +79,7 @@ public class CampaignEventHandlerTests
     {
         var handler = new CampaignActivatedHandler(_dapr, Substitute.For<ILogger<CampaignActivatedHandler>>());
         var evt = new CampaignActivated(Guid.NewGuid(), "Flu Outreach Q4", CampaignType.CareGap, DateTime.UtcNow.AddHours(1));
-        await handler.Handle(new DomainEventNotification<CampaignActivated>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<CampaignActivated>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "campaign.activated",
@@ -91,7 +91,7 @@ public class CampaignEventHandlerTests
     {
         var handler = new CampaignCompletedHandler(_dapr, Substitute.For<ILogger<CampaignCompletedHandler>>());
         var evt = new CampaignCompleted(Guid.NewGuid(), "Post-Visit Follow-up");
-        await handler.Handle(new DomainEventNotification<CampaignCompleted>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<CampaignCompleted>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "campaign.completed",
@@ -103,7 +103,7 @@ public class CampaignEventHandlerTests
     {
         var handler = new CampaignCancelledHandler(_dapr, Substitute.For<ILogger<CampaignCancelledHandler>>());
         var evt = new CampaignCancelled(Guid.NewGuid(), "Diabetes Reminder");
-        await handler.Handle(new DomainEventNotification<CampaignCancelled>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<CampaignCancelled>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "campaign.cancelled",
@@ -126,7 +126,7 @@ public class PatientRiskAssessedHandlerTests
     {
         var handler = new PatientRiskAssessedHandler(_dapr, Substitute.For<ILogger<PatientRiskAssessedHandler>>());
         var evt = new PatientRiskAssessed(Guid.NewGuid(), "patient-001", level, 0.85, "phi4-medical-v2");
-        await handler.Handle(new DomainEventNotification<PatientRiskAssessed>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<PatientRiskAssessed>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "patient-risk.assessed",
@@ -145,7 +145,7 @@ public class CareGapHandlerTests
     {
         var handler = new CareGapIdentifiedHandler(_dapr, Substitute.For<ILogger<CareGapIdentifiedHandler>>());
         var evt = new CareGapIdentified(Guid.NewGuid(), "patient-002", "HEDIS-COL", "Colorectal cancer screening due");
-        await handler.Handle(new DomainEventNotification<CareGapIdentified>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<CareGapIdentified>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "care-gap.identified",
@@ -157,7 +157,7 @@ public class CareGapHandlerTests
     {
         var handler = new CareGapAddressedHandler(_dapr, Substitute.For<ILogger<CareGapAddressedHandler>>());
         var evt = new CareGapAddressed(Guid.NewGuid(), "patient-003", "HEDIS-BCS");
-        await handler.Handle(new DomainEventNotification<CareGapAddressed>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<CareGapAddressed>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "care-gap.addressed",
@@ -169,7 +169,7 @@ public class CareGapHandlerTests
     {
         var handler = new CareGapClosedHandler(_dapr, Substitute.For<ILogger<CareGapClosedHandler>>());
         var evt = new CareGapClosed(Guid.NewGuid(), "patient-004", "HEDIS-CDC");
-        await handler.Handle(new DomainEventNotification<CareGapClosed>(evt), CancellationToken.None);
+        await handler.Handle(new DomainEventNotification<CareGapClosed>(evt), TestContext.Current.CancellationToken);
 
         await _dapr.Received(1).PublishEventAsync(
             "pubsub", "care-gap.closed",
