@@ -263,3 +263,21 @@ Exit criteria:
 - Platform manager: scorecard cadence, release evidence governance, SLO review, cost budget approvals.
 - Solutions architect: ownership boundaries, contract governance controls, OpenSSF Scorecard remediation, cost exception register, API contract versioning policy.
 - Security: CodeQL finding triage, GHAS configuration, supply-chain policy, credential hygiene remediation, secret storage standards.
+
+## Phase 15 - Frontend Deploy Evidence Enforcement (Week 13 to Week 14)
+
+Goal: close the P1 release-gate gap where a failed or missing frontend deployment does not block the Cloud E2E gate, allowing stale or broken MFE builds to be tested as if they were successfully deployed.
+
+Status:
+- Enforcement implemented in `.github/workflows/cloud-e2e-tests.yml` deployment-sync gate.
+
+Key work:
+- Make `Frontend MFE CI/CD` a required evidence source in the Cloud E2E deployment-sync gate when the triggering workflow is `Frontend MFE CI/CD` (dynamic `optionalIfMissing` based on trigger identity).
+- Add `build-and-deploy` job-level inspection for frontend deploy evidence, mirroring the `post-deploy-smoke` job check used for backend deploys.
+- Distinguish three frontend deploy outcomes: `ready` (build-and-deploy succeeded), `not-deployed` (build-and-deploy skipped — no MFE changes in push), and `failed` (build-and-deploy failed — gate must block).
+- When no MFE changes triggered a deploy (`build-and-deploy` skipped), treat as `not-deployed` (terminal no-deploy) so Cloud E2E downstream jobs are intentionally skipped rather than erroneously passing against stale SWA builds.
+
+Exit criteria:
+- Cloud E2E `deployment-sync` blocks with `hardFailure` when `Frontend MFE CI/CD` triggered the run but `build-and-deploy` failed.
+- Cloud E2E `deployment-sync` emits `not-deployed` (intentional skip) when `Frontend MFE CI/CD` ran but no MFE apps changed.
+- Cloud E2E `deployment-sync` treats frontend as optional evidence only when triggered by `Microservice CI/CD` or via schedule/manual dispatch.

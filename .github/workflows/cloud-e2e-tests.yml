@@ -75,9 +75,12 @@ jobs:
               return 'true';
             }
 
+            // Phase 15: require Frontend MFE CI/CD evidence when it is the
+            // triggering workflow; keep it optional for backend-only deploys.
+            const triggeringWorkflow = context.payload.workflow_run?.name;
             const requiredWorkflows = [
               { name: 'Microservice CI/CD', optionalIfMissing: false },
-              { name: 'Frontend MFE CI/CD', optionalIfMissing: true },
+              { name: 'Frontend MFE CI/CD', optionalIfMissing: triggeringWorkflow !== 'Frontend MFE CI/CD' },
             ];
             const headSha = context.payload.workflow_run.head_sha;
             const headBranch = context.payload.workflow_run.head_branch;
@@ -132,6 +135,37 @@ jobs:
                     gateState = 'waiting';
                   } else if (postDeploySmoke.conclusion === 'failure') {
                     gateState = 'failed';
+                  }
+                }
+
+                // Phase 15: inspect build-and-deploy job conclusion for frontend
+                // deploys to distinguish a completed-but-skipped deploy (no MFE
+                // changes in this push) from a genuine deploy success or failure.
+                if (run && workflow.name === 'Frontend MFE CI/CD' && status === 'completed' && conclusion === 'success') {
+                  const jobsResponse = await github.rest.actions.listJobsForWorkflowRun({
+                    owner,
+                    repo,
+                    run_id: run.id,
+                    per_page: 100,
+                  });
+                  const buildAndDeploy = jobsResponse.data.jobs.find((job) => job.name?.startsWith('build-and-deploy'));
+
+                  if (!buildAndDeploy || buildAndDeploy.conclusion === 'skipped') {
+                    // No MFE changes detected — frontend deploy was intentionally
+                    // skipped; treat as not-deployed so gate does not block.
+                    if (!workflow.optionalIfMissing) {
+                      gateState = 'not-deployed';
+                      terminalNoDeploy = true;
+                    } else {
+                      gateState = 'not-required';
+                    }
+                  } else if (buildAndDeploy.conclusion === 'success') {
+                    gateState = 'ready';
+                  } else if (buildAndDeploy.status !== 'completed') {
+                    gateState = 'waiting';
+                  } else {
+                    gateState = 'failed';
+                    hardFailure = true;
                   }
                 }
 
