@@ -90,6 +90,31 @@ public sealed class QueryType
         SchedulingApiClient scheduling,
         CancellationToken ct)
         => scheduling.GetAppointmentsAsync(ct);
+
+    // ── Voice ──────────────────────────────────────────────────────────────
+
+    [GraphQLDescription("List recent voice recording sessions.")]
+    public Task<List<VoiceSessionDto>> GetVoiceSessionsAsync(
+        string? patientId,
+        VoiceApiClient voice,
+        CancellationToken ct)
+        => voice.GetSessionsAsync(patientId, ct);
+
+    [GraphQLDescription("Get the AI-generated SOAP note for a voice session.")]
+    public Task<SoapNoteDto?> GetSoapNoteAsync(
+        string sessionId,
+        VoiceApiClient voice,
+        CancellationToken ct)
+        => voice.GetSoapNoteAsync(sessionId, ct);
+
+    // ── Encounters (FHIR) ─────────────────────────────────────────────────
+
+    [GraphQLDescription("List encounters for a patient, or all recent encounters.")]
+    public Task<List<EncounterDto>> GetEncountersAsync(
+        string? patientId,
+        FhirApiClient fhir,
+        CancellationToken ct)
+        => fhir.GetEncountersAsync(patientId, ct);
 }
 
 // ── Mutation ─────────────────────────────────────────────────────────────────
@@ -157,6 +182,47 @@ public sealed class MutationType
         CancellationToken ct)
         => await agents.GetMlConfidenceAsync(probability, featureValues, ct)
             ?? throw new GraphQLException("ML confidence computation returned no result.");
+
+    [GraphQLDescription("Start an AI triage session for a patient.")]
+    public async Task<TriageSessionDto> StartTriageAsync(
+        StartTriageInput input,
+        AgentApiClient agents,
+        ITopicEventSender eventSender,
+        CancellationToken ct)
+    {
+        var payload = new
+        {
+            patientId = input.PatientId,
+            transcriptText = input.TranscriptText,
+            requestedBy = input.RequestedBy,
+        };
+        var session = await agents.StartTriageAsync(payload, ct)
+            ?? throw new GraphQLException("Triage start returned no result.");
+
+        await eventSender.SendAsync("TRIAGE_STARTED", session, ct);
+        return session;
+    }
+
+    [GraphQLDescription("Book an appointment for a patient in a scheduling slot.")]
+    public async Task<AppointmentDto> BookAppointmentAsync(
+        BookAppointmentInput input,
+        SchedulingApiClient scheduling,
+        ITopicEventSender eventSender,
+        CancellationToken ct)
+    {
+        var payload = new
+        {
+            slotId = input.SlotId,
+            patientId = input.PatientId,
+            practitionerId = input.PractitionerId,
+            notes = input.Notes,
+        };
+        var appointment = await scheduling.BookAppointmentAsync(payload, ct)
+            ?? throw new GraphQLException("Appointment booking returned no result.");
+
+        await eventSender.SendAsync("APPOINTMENT_BOOKED", appointment, ct);
+        return appointment;
+    }
 }
 
 // ── Subscription ─────────────────────────────────────────────────────────────
@@ -198,6 +264,36 @@ public sealed class SubscriptionType
         [Service] ITopicEventReceiver receiver,
         CancellationToken ct)
         => receiver.SubscribeAsync<CodingJobDto>("CODING_JOB_APPROVED", ct);
+
+    /// <summary>
+    /// Fires whenever an appointment is booked via the BookAppointment mutation.
+    /// Scheduling MFE components refresh the calendar view in real-time.
+    /// </summary>
+    [Subscribe(With = nameof(SubscribeToAppointmentBooked))]
+    [GraphQLDescription("Subscribe to new appointment bookings.")]
+    public AppointmentDto OnAppointmentBooked(
+        [EventMessage] AppointmentDto appointment)
+        => appointment;
+
+    public static ValueTask<ISourceStream<AppointmentDto>> SubscribeToAppointmentBooked(
+        [Service] ITopicEventReceiver receiver,
+        CancellationToken ct)
+        => receiver.SubscribeAsync<AppointmentDto>("APPOINTMENT_BOOKED", ct);
+
+    /// <summary>
+    /// Fires when a triage session is started via the StartTriage mutation.
+    /// AI Triage MFE components can react and show live status.
+    /// </summary>
+    [Subscribe(With = nameof(SubscribeToTriageStarted))]
+    [GraphQLDescription("Subscribe to triage session start events.")]
+    public TriageSessionDto OnTriageStarted(
+        [EventMessage] TriageSessionDto session)
+        => session;
+
+    public static ValueTask<ISourceStream<TriageSessionDto>> SubscribeToTriageStarted(
+        [Service] ITopicEventReceiver receiver,
+        CancellationToken ct)
+        => receiver.SubscribeAsync<TriageSessionDto>("TRIAGE_STARTED", ct);
 }
 
 // ── Input types ───────────────────────────────────────────────────────────────
@@ -213,3 +309,14 @@ public sealed record CostPredictionInput(
     string RiskLevel,
     string[] Conditions,
     double SdohWeight = 0);
+
+public sealed record StartTriageInput(
+    string PatientId,
+    string TranscriptText,
+    string? RequestedBy = null);
+
+public sealed record BookAppointmentInput(
+    string SlotId,
+    string PatientId,
+    string PractitionerId,
+    string? Notes = null);

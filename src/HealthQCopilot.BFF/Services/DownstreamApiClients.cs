@@ -92,6 +92,37 @@ public sealed record AppointmentDto(
     string Status,
     string ScheduledAt);
 
+public sealed record EncounterDto(
+    string Id,
+    string PatientId,
+    string? PatientName,
+    string Status,
+    string EncounterType,
+    string? PractitionerId,
+    string? PractitionerName,
+    string? ReasonCode,
+    string? ReasonText,
+    string? WorkflowId,
+    string StartedAt,
+    string? EndedAt);
+
+public sealed record VoiceSessionDto(
+    string Id,
+    string PatientId,
+    string Status,
+    string? TranscriptText,
+    string CreatedAt,
+    string? EndedAt);
+
+public sealed record SoapNoteDto(
+    string SessionId,
+    string PatientId,
+    string Subjective,
+    string Objective,
+    string Assessment,
+    string Plan,
+    string GeneratedAt);
+
 public sealed record MlConfidenceDto(
     double Probability,
     ConfidenceIntervalDto ConfidenceInterval);
@@ -197,7 +228,7 @@ public sealed class AgentApiClient(HttpClient http)
 {
     public async Task<List<TriageSessionDto>> GetTriageSessionsAsync(CancellationToken ct = default)
     {
-        var json = await http.GetStringAsync("/api/v1/agents/triage/sessions", ct);
+        var json = await http.GetStringAsync("/api/v1/agents/triage", ct);
         return Json.Deserialize<List<TriageSessionDto>>(json) ?? [];
     }
 
@@ -209,6 +240,15 @@ public sealed class AgentApiClient(HttpClient http)
         resp.EnsureSuccessStatusCode();
         var json = await resp.Content.ReadAsStringAsync(ct);
         return Json.Deserialize<MlConfidenceDto>(json);
+    }
+
+    public async Task<TriageSessionDto?> StartTriageAsync(object payload, CancellationToken ct = default)
+    {
+        using var content = new StringContent(Json.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+        var resp = await http.PostAsync("/api/v1/agents/triage", content, ct);
+        resp.EnsureSuccessStatusCode();
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        return Json.Deserialize<TriageSessionDto>(json);
     }
 }
 
@@ -233,8 +273,17 @@ public sealed class SchedulingApiClient(HttpClient http)
 {
     public async Task<List<AppointmentDto>> GetAppointmentsAsync(CancellationToken ct = default)
     {
-        var json = await http.GetStringAsync("/api/v1/scheduling/appointments", ct);
+        var json = await http.GetStringAsync("/api/v1/scheduling/bookings", ct);
         return Json.Deserialize<List<AppointmentDto>>(json) ?? [];
+    }
+
+    public async Task<AppointmentDto?> BookAppointmentAsync(object payload, CancellationToken ct = default)
+    {
+        using var content = new StringContent(Json.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+        var resp = await http.PostAsync("/api/v1/scheduling/bookings", content, ct);
+        resp.EnsureSuccessStatusCode();
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        return Json.Deserialize<AppointmentDto>(json);
     }
 }
 
@@ -245,5 +294,33 @@ public sealed class FhirApiClient(HttpClient http)
     {
         var json = await http.GetStringAsync($"/api/v1/fhir/patients/{fhirId}", ct);
         return Json.Deserialize<JsonElement>(json);
+    }
+
+    public async Task<List<EncounterDto>> GetEncountersAsync(string? patientId, CancellationToken ct = default)
+    {
+        var url = string.IsNullOrWhiteSpace(patientId)
+            ? "/api/v1/fhir/encounters"
+            : $"/api/v1/fhir/encounters?patientId={Uri.EscapeDataString(patientId)}";
+        var json = await http.GetStringAsync(url, ct);
+        return Json.Deserialize<List<EncounterDto>>(json) ?? [];
+    }
+}
+
+/// <summary>Wraps the Voice microservice REST API.</summary>
+public sealed class VoiceApiClient(HttpClient http)
+{
+    public async Task<List<VoiceSessionDto>> GetSessionsAsync(string? patientId, CancellationToken ct = default)
+    {
+        var url = string.IsNullOrWhiteSpace(patientId)
+            ? "/api/v1/voice/sessions"
+            : $"/api/v1/voice/sessions?patientId={Uri.EscapeDataString(patientId)}";
+        var json = await http.GetStringAsync(url, ct);
+        return Json.Deserialize<List<VoiceSessionDto>>(json) ?? [];
+    }
+
+    public async Task<SoapNoteDto?> GetSoapNoteAsync(string sessionId, CancellationToken ct = default)
+    {
+        var json = await http.GetStringAsync($"/api/v1/voice/sessions/{sessionId}/soap-note", ct);
+        return Json.Deserialize<SoapNoteDto>(json);
     }
 }

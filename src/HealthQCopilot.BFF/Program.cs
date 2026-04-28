@@ -33,6 +33,11 @@ builder.Services.AddHttpClient<FhirApiClient>(c =>
         ?? builder.Configuration["Services:Fhir"]
         ?? "http://fhir-service")).AddServiceResilienceHandler();
 
+builder.Services.AddHttpClient<VoiceApiClient>(c =>
+    c.BaseAddress = new Uri(builder.Configuration.GetConnectionString("voice-service")
+        ?? builder.Configuration["Services:Voice"]
+        ?? "http://voice-service")).AddServiceResilienceHandler();
+
 // ── Hot Chocolate GraphQL server ─────────────────────────────────────────
 builder.Services
     .AddGraphQLServer()

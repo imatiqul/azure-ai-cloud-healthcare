@@ -127,16 +127,46 @@ public static class SchedulingEndpoints
                 {
                     b.Id,
                     b.PatientId,
-                    b.PractitionerId,
+                    ProviderId = b.PractitionerId,
                     b.SlotId,
+                    AppointmentType = "Outpatient",
                     b.AppointmentTime,
-                    b.Status,
-                    BookedAt = b.CreatedAt,
+                    Status = b.Status.ToString(),
+                    ScheduledAt = b.CreatedAt,
                 })
                 .ToListAsync(ct);
             return Results.Ok(bookings);
         }).WithSummary("List recent bookings")
           .WithDescription("Returns the most recent bookings ordered by appointment time descending. Use ?top=N to limit results (default 20).");
+
+        // ── GET /appointments — BFF-friendly alias for /bookings ─────────────
+        // Returns the same projection as /bookings but in the AppointmentDto shape
+        // expected by the BFF GraphQL layer (propertyCasing aligned).
+        group.MapGet("/appointments", async (
+            string? patientId,
+            int? top,
+            SchedulingDbContext db,
+            CancellationToken ct) =>
+        {
+            var query = db.Bookings.AsQueryable();
+            if (!string.IsNullOrWhiteSpace(patientId))
+                query = query.Where(b => b.PatientId == patientId);
+            var appointments = await query
+                .OrderByDescending(b => b.AppointmentTime)
+                .Take(Math.Clamp(top ?? 50, 1, 100))
+                .Select(b => new
+                {
+                    Id = b.Id.ToString(),
+                    b.PatientId,
+                    ProviderId = b.PractitionerId,
+                    AppointmentType = "Outpatient",
+                    Status = b.Status.ToString(),
+                    ScheduledAt = b.AppointmentTime.ToString("o"),
+                })
+                .ToListAsync(ct);
+            return Results.Ok(appointments);
+        }).WithSummary("List appointments (BFF alias)")
+          .WithDescription("Alias for /bookings returning AppointmentDto-compatible shape for GraphQL BFF layer.");
 
         group.MapGet("/stats", async (
             SchedulingDbContext db,

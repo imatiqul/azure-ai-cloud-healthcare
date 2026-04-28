@@ -91,6 +91,118 @@ public static class FhirEndpoints
             return Results.Content(content, "application/fhir+json");
         });
 
+        // ── GET /encounters — BFF-friendly flat DTO list ──────────────────────
+        // Returns Encounter data in a flat DTO shape, optionally filtered by patientId.
+        // Parses FHIR R4 Bundle from the upstream FHIR server and projects to EncounterSummaryDto.
+        group.MapGet("/encounters", async (
+            string? patientId,
+            string? status,
+            int? count,
+            IHttpClientFactory httpClientFactory,
+            CancellationToken ct) =>
+        {
+            var client = httpClientFactory.CreateClient("FhirServer");
+            var fhirQuery = "Encounter?";
+            if (!string.IsNullOrWhiteSpace(patientId))
+                fhirQuery += $"patient={Uri.EscapeDataString(patientId)}&";
+            if (!string.IsNullOrWhiteSpace(status))
+                fhirQuery += $"status={Uri.EscapeDataString(status)}&";
+            fhirQuery += $"_count={Math.Clamp(count ?? 50, 1, 200)}&_sort=-date";
+
+            var response = await client.GetAsync(fhirQuery.TrimEnd('&'), ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                // Degrade gracefully — return empty list so BFF/GraphQL isn't blocked
+                return Results.Ok(Array.Empty<object>());
+            }
+
+            var json = await response.Content.ReadAsStringAsync(ct);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var encounters = new List<object>();
+
+            if (root.TryGetProperty("entry", out var entries))
+            {
+                foreach (var entry in entries.EnumerateArray())
+                {
+                    if (!entry.TryGetProperty("resource", out var res)) continue;
+                    if (!res.TryGetProperty("resourceType", out var rt) || rt.GetString() != "Encounter") continue;
+
+                    var id = res.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
+                    var encStatus = res.TryGetProperty("status", out var stProp) ? stProp.GetString() : "unknown";
+                    var encClass = res.TryGetProperty("class", out var cls)
+                        && cls.TryGetProperty("code", out var clsCode) ? clsCode.GetString() : "AMB";
+
+                    string? subjectId = null, subjectName = null;
+                    if (res.TryGetProperty("subject", out var subject))
+                    {
+                        var ref_ = subject.TryGetProperty("reference", out var refProp) ? refProp.GetString() : null;
+                        subjectId = ref_?.Split('/').LastOrDefault();
+                        subjectName = subject.TryGetProperty("display", out var disp) ? disp.GetString() : null;
+                    }
+
+                    string? practId = null, practName = null;
+                    if (res.TryGetProperty("participant", out var parts) && parts.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        foreach (var p in parts.EnumerateArray())
+                        {
+                            if (p.TryGetProperty("individual", out var ind))
+                            {
+                                var ref_ = ind.TryGetProperty("reference", out var rp) ? rp.GetString() : null;
+                                practId = ref_?.Split('/').LastOrDefault();
+                                practName = ind.TryGetProperty("display", out var dp) ? dp.GetString() : null;
+                                break;
+                            }
+                        }
+                    }
+
+                    string? reasonCode = null, reasonText = null;
+                    if (res.TryGetProperty("reasonCode", out var rcs) && rcs.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        foreach (var rc in rcs.EnumerateArray())
+                        {
+                            if (rc.TryGetProperty("coding", out var codings))
+                            {
+                                foreach (var coding in codings.EnumerateArray())
+                                {
+                                    reasonCode = coding.TryGetProperty("code", out var rcc) ? rcc.GetString() : null;
+                                    reasonText = coding.TryGetProperty("display", out var rcd) ? rcd.GetString() : null;
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+
+                    string? startedAt = null, endedAt = null;
+                    if (res.TryGetProperty("period", out var period))
+                    {
+                        startedAt = period.TryGetProperty("start", out var ps) ? ps.GetString() : null;
+                        endedAt = period.TryGetProperty("end", out var pe) ? pe.GetString() : null;
+                    }
+
+                    encounters.Add(new
+                    {
+                        Id = id,
+                        PatientId = subjectId ?? patientId,
+                        PatientName = subjectName,
+                        Status = encStatus,
+                        EncounterType = encClass,
+                        PractitionerId = practId,
+                        PractitionerName = practName,
+                        ReasonCode = reasonCode,
+                        ReasonText = reasonText,
+                        WorkflowId = (string?)null,
+                        StartedAt = startedAt ?? DateTime.UtcNow.ToString("o"),
+                        EndedAt = endedAt,
+                    });
+                }
+            }
+
+            return Results.Ok(encounters);
+        }).WithSummary("List encounters as flat DTOs")
+          .WithDescription("Returns encounters filtered by patientId/status. Projects FHIR R4 Bundle into a BFF-friendly flat list.");
+
         group.MapGet("/appointments/{patientId}", async (
             string patientId,
             IHttpClientFactory httpClientFactory,
