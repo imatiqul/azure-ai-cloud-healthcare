@@ -1,0 +1,111 @@
+---
+# Voice Service — scales on Azure Service Bus transcription queue depth
+# and active WebSocket connections (custom metric from OpenTelemetry).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: voice-scaledobject
+  namespace: healthq-copilot
+spec:
+  scaleTargetRef:
+    name: voice-service
+  minReplicaCount: 2
+  maxReplicaCount: 10
+  cooldownPeriod: 120
+  triggers:
+    - type: azure-servicebus
+      metadata:
+        queueName: transcript-events
+        namespace: healthq-copilot-servicebus
+        messageCount: "5"
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus.monitoring:9090
+        metricName: active_voice_sessions_total
+        threshold: "4"
+        query: sum(active_voice_sessions_total{namespace="healthq-copilot"})
+---
+# Identity Service — scales on authentication request rate (Prometheus)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: identity-scaledobject
+  namespace: healthq-copilot
+spec:
+  scaleTargetRef:
+    name: identity-service
+  minReplicaCount: 2
+  maxReplicaCount: 6
+  cooldownPeriod: 300
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus.monitoring:9090
+        metricName: http_server_active_requests
+        threshold: "20"
+        query: >-
+          sum(rate(http_server_requests_seconds_count{
+            service="identity-service",
+            namespace="healthq-copilot"
+          }[2m]))
+---
+# FHIR Service — scales on Service Bus FHIR event queue and HTTP request rate.
+# FHIR records are the most-read resource; scale conservatively to protect
+# the downstream HAPI FHIR server connection pool.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: fhir-scaledobject
+  namespace: healthq-copilot
+spec:
+  scaleTargetRef:
+    name: fhir-service
+  minReplicaCount: 2
+  maxReplicaCount: 8
+  cooldownPeriod: 240
+  triggers:
+    - type: azure-servicebus
+      metadata:
+        queueName: fhir-change-events
+        namespace: healthq-copilot-servicebus
+        messageCount: "15"
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus.monitoring:9090
+        metricName: http_server_active_requests
+        threshold: "30"
+        query: >-
+          sum(rate(http_server_requests_seconds_count{
+            service="fhir-service",
+            namespace="healthq-copilot"
+          }[2m]))
+---
+# Scheduling Service — scales on slot reservation request backlog.
+# Uses Redis list length as primary trigger (real-time slot cache pressure).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: scheduling-scaledobject
+  namespace: healthq-copilot
+spec:
+  scaleTargetRef:
+    name: scheduling-service
+  minReplicaCount: 2
+  maxReplicaCount: 8
+  cooldownPeriod: 180
+  triggers:
+    - type: azure-servicebus
+      metadata:
+        queueName: booking-requests
+        namespace: healthq-copilot-servicebus
+        messageCount: "10"
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus.monitoring:9090
+        metricName: http_server_active_requests
+        threshold: "25"
+        query: >-
+          sum(rate(http_server_requests_seconds_count{
+            service="scheduling-service",
+            namespace="healthq-copilot"
+          }[2m]))

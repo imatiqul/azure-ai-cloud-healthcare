@@ -37,6 +37,20 @@ spec:
       tolerations:
         {{- toYaml $svc.tolerations | nindent 8 }}
       {{- end }}
+      # Pod-level security context — HIPAA/OWASP baseline
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        # ASP.NET Core requires a writable temp directory even with a read-only root filesystem
+        - name: tmp
+          emptyDir: {}
+        - name: aspnet-data-protection
+          emptyDir: {}
       containers:
         - name: {{ $svc.name }}
           image: {{ $.Values.global.registry }}/{{ $svc.image.repository }}:{{ $svc.image.tag }}
@@ -44,6 +58,18 @@ spec:
           ports:
             - containerPort: {{ $svc.port }}
               protocol: TCP
+          # Container-level security context — least-privilege enforcement
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: aspnet-data-protection
+              mountPath: /home/app/.aspnet/DataProtection-Keys
           env:
             {{- range $envKey, $envVal := $svc.env }}
             - name: {{ $envKey }}
@@ -56,6 +82,11 @@ spec:
               value: "{{ $svc.name }}"
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "service.name={{ $svc.name }},service.namespace={{ $.Values.global.namespace }}"
+            # ASP.NET Core temp / data-protection paths (required with readOnlyRootFilesystem)
+            - name: TMPDIR
+              value: /tmp
+            - name: DOTNET_CLI_HOME
+              value: /tmp
           resources:
             {{- toYaml $svc.resources | nindent 12 }}
           livenessProbe:

@@ -6,7 +6,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: healthq-copilot
   source:
     repoURL: https://github.com/imatiqul/azure-ai-cloud-healthcare.git
     targetRevision: main

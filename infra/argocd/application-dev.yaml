@@ -4,7 +4,7 @@ metadata:
   name: healthq-copilot-dev
   namespace: argocd
 spec:
-  project: default
+  project: healthq-copilot
   source:
     repoURL: https://github.com/imatiqul/azure-ai-cloud-healthcare.git
     targetRevision: develop

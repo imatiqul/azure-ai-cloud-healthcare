@@ -1,0 +1,60 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway-service-policy
+  namespace: healthq-copilot
+spec:
+  podSelector:
+    matchLabels:
+      app: gateway-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Accept traffic from the ingress controller (NGINX / APIM via Application Gateway)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Gateway is the YARP reverse proxy — must reach all 9 bounded-context services
+    - to:
+        - podSelector:
+            matchLabels:
+              app: voice-service
+        - podSelector:
+            matchLabels:
+              app: ai-agent-service
+        - podSelector:
+            matchLabels:
+              app: fhir-service
+        - podSelector:
+            matchLabels:
+              app: ocr-service
+        - podSelector:
+            matchLabels:
+              app: scheduling-service
+        - podSelector:
+            matchLabels:
+              app: notification-service
+        - podSelector:
+            matchLabels:
+              app: pophealth-service
+        - podSelector:
+            matchLabels:
+              app: revenue-service
+        - podSelector:
+            matchLabels:
+              app: identity-service
+        - podSelector:
+            matchLabels:
+              app: bff-service
+      ports:
+        - protocol: TCP
+          port: 8080

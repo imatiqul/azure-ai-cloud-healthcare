@@ -6,7 +6,7 @@ metadata:
 spec:
   description: HealthQ Copilot microservices project
   sourceRepos:
-    - https://github.com/your-org/healthq-copilot.git
+    - https://github.com/imatiqul/azure-ai-cloud-healthcare.git
   destinations:
     - namespace: healthq-copilot
       server: https://kubernetes.default.svc
