@@ -372,7 +372,8 @@ else
 {
     builder.Services.AddSingleton<HealthQCopilot.Agents.Prompts.IAgentPromptRegistry>(
         sp => sp.GetRequiredService<HealthQCopilot.Agents.Prompts.InMemoryPromptRegistry>());
-}builder.Services.AddOutputCache(opts =>
+}
+builder.Services.AddOutputCache(opts =>
 {
     opts.AddPolicy("short", b => b.Expire(TimeSpan.FromSeconds(30)).SetVaryByQuery("top", "status"));
 });
