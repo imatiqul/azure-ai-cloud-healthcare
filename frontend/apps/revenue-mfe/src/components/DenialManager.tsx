@@ -142,7 +142,7 @@ export function DenialManager() {
           </CardHeader>
           <CardContent>
             <Grid container spacing={2}>
-              <Grid item xs={6} sm={3}>
+              <Grid size={{ xs: 6, sm: 3 }}>
                 <Stack alignItems="center">
                   <Typography variant="h4" fontWeight="bold" color="error.main">
                     {analytics.totalOpen}
@@ -150,7 +150,7 @@ export function DenialManager() {
                   <Typography variant="caption" color="text.secondary">Open</Typography>
                 </Stack>
               </Grid>
-              <Grid item xs={6} sm={3}>
+              <Grid size={{ xs: 6, sm: 3 }}>
                 <Stack alignItems="center">
                   <Typography variant="h4" fontWeight="bold" color="warning.main">
                     {analytics.totalUnderAppeal}
@@ -158,7 +158,7 @@ export function DenialManager() {
                   <Typography variant="caption" color="text.secondary">Under Appeal</Typography>
                 </Stack>
               </Grid>
-              <Grid item xs={6} sm={3}>
+              <Grid size={{ xs: 6, sm: 3 }}>
                 <Stack alignItems="center">
                   <Typography variant="h4" fontWeight="bold" color="success.main">
                     {(analytics.overturnRate * 100).toFixed(0)}%
@@ -166,7 +166,7 @@ export function DenialManager() {
                   <Typography variant="caption" color="text.secondary">Overturn Rate</Typography>
                 </Stack>
               </Grid>
-              <Grid item xs={6} sm={3}>
+              <Grid size={{ xs: 6, sm: 3 }}>
                 <Stack alignItems="center">
                   <Typography variant="h4" fontWeight="bold" color={analytics.nearDeadlineCount > 0 ? 'error.main' : 'text.primary'}>
                     {analytics.nearDeadlineCount}

@@ -126,7 +126,7 @@ export default function ModelGovernanceDashboard() {
 
       {/* Summary cards */}
       <Grid container spacing={2}>
-        <Grid item xs={6} sm={3}>
+        <Grid size={{ xs: 6, sm: 3 }}>
           <Card>
             <CardContent>
               <Typography variant="caption" color="text.secondary">
@@ -138,7 +138,7 @@ export default function ModelGovernanceDashboard() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={6} sm={3}>
+        <Grid size={{ xs: 6, sm: 3 }}>
           <Card>
             <CardContent>
               <Typography variant="caption" color="text.secondary">
@@ -150,7 +150,7 @@ export default function ModelGovernanceDashboard() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={6} sm={3}>
+        <Grid size={{ xs: 6, sm: 3 }}>
           <Card>
             <CardContent>
               <Typography variant="caption" color="text.secondary">
@@ -162,7 +162,7 @@ export default function ModelGovernanceDashboard() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={6} sm={3}>
+        <Grid size={{ xs: 6, sm: 3 }}>
           <Card>
             <CardContent>
               <Typography variant="caption" color="text.secondary">

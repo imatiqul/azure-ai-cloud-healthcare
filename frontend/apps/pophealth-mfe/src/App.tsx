@@ -8,19 +8,19 @@ import { RiskTrajectoryPanel } from './components/RiskTrajectoryPanel';
 export default function App() {
   return (
     <Grid container spacing={3} sx={{ p: 3 }}>
-      <Grid item xs={12} md={4}>
+      <Grid size={{ xs: 12, md: 4 }}>
         <PatientSearch />
       </Grid>
-      <Grid item xs={12} md={8}>
+      <Grid size={{ xs: 12, md: 8 }}>
         <RiskDistributionChart />
       </Grid>
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <RiskPanel />
       </Grid>
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <CareGapList />
       </Grid>
-      <Grid item xs={12}>
+      <Grid size={12}>
         <RiskTrajectoryPanel />
       </Grid>
     </Grid>

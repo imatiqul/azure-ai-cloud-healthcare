@@ -245,19 +245,19 @@ export default function PractitionerManager() {
             </CardHeader>
             <CardContent>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography variant="caption" color="text.secondary">ID / NPI</Typography>
                   <Typography variant="body2">{p.practitionerId}</Typography>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography variant="caption" color="text.secondary">Specialty</Typography>
                   <Typography variant="body2">{p.specialty || '—'}</Typography>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography variant="caption" color="text.secondary">Email</Typography>
                   <Typography variant="body2">{p.email || '—'}</Typography>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography variant="caption" color="text.secondary">Availability</Typography>
                   <Typography variant="body2">
                     {p.availabilityStart} – {p.availabilityEnd} ({p.timeZoneId})
@@ -284,28 +284,28 @@ export default function PractitionerManager() {
         <DialogContent>
           {submitError && <Alert severity="error" sx={{ mb: 2 }}>{submitError}</Alert>}
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField label="ID / NPI" fullWidth size="small" required {...field('practitionerId')}
                 disabled={editId !== null} />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField label="Full Name" fullWidth size="small" required {...field('name')} />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField label="Specialty" fullWidth size="small" {...field('specialty')} />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField label="Email" fullWidth size="small" type="email" {...field('email')} />
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField label="From (HH:mm)" fullWidth size="small" {...field('availabilityStart')}
                 placeholder="09:00" />
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField label="To (HH:mm)" fullWidth size="small" {...field('availabilityEnd')}
                 placeholder="17:00" />
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField label="Time Zone" fullWidth size="small" {...field('timeZoneId')}
                 placeholder="UTC" />
             </Grid>

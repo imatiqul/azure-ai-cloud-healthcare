@@ -647,7 +647,7 @@ export default function WorkflowOperationsWorkbench() {
       {actionError && <Alert severity="error" onClose={() => setActionError('')} sx={{ mb: 2 }}>{actionError}</Alert>}
 
       <Grid container spacing={2.5}>
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <SummaryCard
             title="Attention Required"
             value={summary.attentionRequired.toString()}
@@ -655,7 +655,7 @@ export default function WorkflowOperationsWorkbench() {
             icon={<WarningAmberIcon />}
           />
         </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <SummaryCard
             title="Awaiting Human Review"
             value={summary.awaitingHumanReview.toString()}
@@ -663,7 +663,7 @@ export default function WorkflowOperationsWorkbench() {
             icon={<AssignmentTurnedInIcon />}
           />
         </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <SummaryCard
             title="Booked Today"
             value={summary.bookedToday.toString()}
@@ -671,7 +671,7 @@ export default function WorkflowOperationsWorkbench() {
             icon={<CalendarMonthIcon />}
           />
         </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <SummaryCard
             title="Automation Health"
             value={automationRate}

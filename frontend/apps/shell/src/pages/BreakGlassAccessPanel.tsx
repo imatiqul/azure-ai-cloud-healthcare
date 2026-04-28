@@ -321,7 +321,7 @@ export default function BreakGlassAccessPanel() {
         <DialogTitle>Request Break-Glass Emergency Access</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <TextField
                 label="Requesting User ID"
                 fullWidth
@@ -330,7 +330,7 @@ export default function BreakGlassAccessPanel() {
                 onChange={(e) => setRequestForm((f) => ({ ...f, requestedByUserId: e.target.value }))}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <TextField
                 label="Target Patient ID"
                 fullWidth
@@ -339,7 +339,7 @@ export default function BreakGlassAccessPanel() {
                 onChange={(e) => setRequestForm((f) => ({ ...f, targetPatientId: e.target.value }))}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <TextField
                 label="Clinical Justification (min 20 chars)"
                 fullWidth
@@ -351,7 +351,7 @@ export default function BreakGlassAccessPanel() {
                 helperText={`${requestForm.clinicalJustification.length} / 20 minimum`}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <TextField
                 label="Duration (hours, 1–8)"
                 type="number"

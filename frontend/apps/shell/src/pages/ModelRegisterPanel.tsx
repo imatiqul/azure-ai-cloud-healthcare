@@ -123,7 +123,7 @@ export default function ModelRegisterPanel() {
         <CardHeader><CardTitle>Register New Model Deployment</CardTitle></CardHeader>
         <CardContent>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Model Name"
                 fullWidth
@@ -133,7 +133,7 @@ export default function ModelRegisterPanel() {
                 onChange={(e) => setForm((f) => ({ ...f, modelName: e.target.value }))}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Model Version"
                 fullWidth
@@ -143,7 +143,7 @@ export default function ModelRegisterPanel() {
                 onChange={(e) => setForm((f) => ({ ...f, modelVersion: e.target.value }))}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Deployment Name"
                 fullWidth
@@ -153,7 +153,7 @@ export default function ModelRegisterPanel() {
                 onChange={(e) => setForm((f) => ({ ...f, deploymentName: e.target.value }))}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="SK Version"
                 fullWidth
@@ -162,7 +162,7 @@ export default function ModelRegisterPanel() {
                 onChange={(e) => setForm((f) => ({ ...f, skVersion: e.target.value }))}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Prompt Hash (SHA-256)"
                 fullWidth
@@ -171,7 +171,7 @@ export default function ModelRegisterPanel() {
                 onChange={(e) => setForm((f) => ({ ...f, promptHash: e.target.value }))}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Deployed By User ID"
                 fullWidth

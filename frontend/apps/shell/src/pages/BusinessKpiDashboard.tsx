@@ -367,7 +367,7 @@ export default function BusinessKpiDashboard() {
       {/* ── Platform Overview ─────────────────────────────────────────────── */}
       <SectionHeader title="Platform Overview" accent="#1976d2" />
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             title="Active Tenants"
             value={fmtNum(kpi?.tenantCount)}
@@ -377,7 +377,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             title="Platform Users"
             value={fmtNum(kpi?.userCount)}
@@ -387,7 +387,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             title="AI Quality Score"
             value={aiQualityPct !== null ? `${aiQualityPct}%` : '—'}
@@ -398,7 +398,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             title="AI Models Active"
             value={activeModels !== null ? `${activeModels} / ${totalModels}` : '—'}
@@ -413,7 +413,7 @@ export default function BusinessKpiDashboard() {
       {/* ── Clinical Workflow Operations ────────────────────────────────── */}
       <SectionHeader title="Clinical Workflow Operations" accent="#1565c0" />
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <KpiCard
             title="Awaiting Human Review"
             value={fmtNum(kpi?.workflowSummary?.awaitingHumanReview)}
@@ -423,7 +423,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <KpiCard
             title="Attention Required"
             value={fmtNum(kpi?.workflowSummary?.attentionRequired)}
@@ -433,7 +433,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <KpiCard
             title="Booked Today"
             value={fmtNum(kpi?.workflowSummary?.bookedToday)}
@@ -443,7 +443,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <KpiCard
             title="Waitlist Fallbacks"
             value={fmtNum(kpi?.workflowSummary?.waitlistFallbacks)}
@@ -453,7 +453,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <KpiCard
             title="Average Review Time"
             value={kpi?.workflowSummary?.averageReviewMinutes != null ? `${kpi.workflowSummary.averageReviewMinutes.toFixed(1)}m` : '—'}
@@ -463,7 +463,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <KpiCard
             title="Closed-Loop Automation"
             value={automationRatePct !== null ? `${automationRatePct}%` : '—'}
@@ -479,7 +479,7 @@ export default function BusinessKpiDashboard() {
       {/* ── Revenue Health ────────────────────────────────────────────────── */}
       <SectionHeader title="Revenue Cycle Health" accent="#e65100" />
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <KpiCard
             title="Open Claim Denials"
             value={fmtNum(kpi?.denials?.openCount)}
@@ -489,7 +489,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <KpiCard
             title="Claim Overturn Rate"
             value={kpi?.denials?.overTurnRate != null ? fmtPct(kpi.denials.overTurnRate) : '—'}
@@ -500,7 +500,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <KpiCard
             title="Near Deadline"
             value={fmtNum(kpi?.denials?.nearDeadlineCount)}
@@ -515,7 +515,7 @@ export default function BusinessKpiDashboard() {
       {/* ── Engagement & Notifications ────────────────────────────────────── */}
       <SectionHeader title="Engagement & Notifications" accent="#00838f" />
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <KpiCard
             title="Notification Delivery Rate"
             value={deliveryRatePct !== null ? `${deliveryRatePct}%` : '—'}
@@ -526,7 +526,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <KpiCard
             title="Active Campaigns"
             value={activeCampaigns !== null ? activeCampaigns : '—'}
@@ -536,7 +536,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <KpiCard
             title="Messages Failed (30d)"
             value={kpi?.delivery?.failed != null ? fmtNum(kpi.delivery.failed) : '—'}
@@ -551,7 +551,7 @@ export default function BusinessKpiDashboard() {
       {/* ── Demo & GTM ───────────────────────────────────────────────────── */}
       <SectionHeader title="Go-to-Market & AI Adoption" accent="#6a1b9a" />
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             title="Demo Sessions"
             value={fmtNum(kpi?.demoSessions?.length)}
@@ -561,7 +561,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             title="Demos Completed"
             value={fmtNum(completedDemos)}
@@ -571,7 +571,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             title="Average NPS Score"
             value={avgNps !== null ? avgNps : '—'}
@@ -582,7 +582,7 @@ export default function BusinessKpiDashboard() {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             title="AI Feedback Positive"
             value={kpi?.feedback ? `${fmtNum(kpi.feedback.positiveCount)} / ${fmtNum(kpi.feedback.totalFeedback)}` : '—'}

@@ -283,7 +283,7 @@ export default function IdentityUserAdminPanel() {
         <DialogTitle>Add User Account</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <TextField
                 label="External ID (Entra Object ID)"
                 fullWidth
@@ -292,7 +292,7 @@ export default function IdentityUserAdminPanel() {
                 onChange={(e) => setCreateForm((f) => ({ ...f, externalId: e.target.value }))}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <TextField
                 label="Email"
                 type="email"
@@ -302,7 +302,7 @@ export default function IdentityUserAdminPanel() {
                 onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <TextField
                 label="Full Name"
                 fullWidth
@@ -311,7 +311,7 @@ export default function IdentityUserAdminPanel() {
                 onChange={(e) => setCreateForm((f) => ({ ...f, fullName: e.target.value }))}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <FormControl fullWidth>
                 <InputLabel>Role</InputLabel>
                 <Select
@@ -338,7 +338,7 @@ export default function IdentityUserAdminPanel() {
         <DialogTitle>Edit User — {editUser?.displayName}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <TextField
                 label="Email"
                 type="email"
@@ -347,7 +347,7 @@ export default function IdentityUserAdminPanel() {
                 onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <TextField
                 label="Full Name"
                 fullWidth

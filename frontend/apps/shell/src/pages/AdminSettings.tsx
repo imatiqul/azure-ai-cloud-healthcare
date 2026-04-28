@@ -101,7 +101,7 @@ export default function AdminSettings() {
             { label: 'Frontend Stack',   value: 'React 19 · MUI v6 · Vite · Module Federation' },
             { label: 'Backend Stack',    value: '.NET 9 · Dapr · Azure Container Apps' },
           ].map(({ label, value }) => (
-            <Grid item xs={12} sm={6} key={label}>
+            <Grid size={{ xs: 12, sm: 6 }} key={label}>
               <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
               <Chip label={value} size="small" variant="outlined" sx={{ mt: 0.25, fontFamily: value.startsWith('React') || value.startsWith('.NET') ? 'monospace' : undefined }} />
             </Grid>
@@ -200,7 +200,7 @@ export default function AdminSettings() {
             { label: 'REST API Base URL', value: API_BASE },
             { label: 'GraphQL Endpoint',  value: GRAPHQL_ENDPOINT },
           ].map(({ label, value }) => (
-            <Grid item xs={12} key={label}>
+            <Grid size={12} key={label}>
               <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
               <Typography
                 variant="body2"

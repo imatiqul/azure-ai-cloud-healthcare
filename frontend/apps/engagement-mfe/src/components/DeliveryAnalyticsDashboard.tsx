@@ -172,7 +172,7 @@ export function DeliveryAnalyticsDashboard() {
           {analytics ? (
             <Grid container spacing={2} alignItems="center">
               {/* Donut chart */}
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <DonutRing
                   delivered={analytics.Delivered}
                   failed={analytics.Failed}
@@ -181,7 +181,7 @@ export function DeliveryAnalyticsDashboard() {
               </Grid>
 
               {/* Stats */}
-              <Grid item xs={12} sm={8}>
+              <Grid size={{ xs: 12, sm: 8 }}>
                 <Grid container spacing={1}>
                   {[
                     { label: 'Total', value: analytics.Total, color: 'text.primary' },
@@ -190,7 +190,7 @@ export function DeliveryAnalyticsDashboard() {
                     { label: 'Pending', value: analytics.Pending, color: 'warning.main' },
                     { label: 'Sent', value: analytics.Sent, color: 'info.main' },
                   ].map(({ label, value, color }) => (
-                    <Grid item xs={6} sm={4} key={label}>
+                    <Grid size={{ xs: 6, sm: 4 }} key={label}>
                       <Box
                         sx={{
                           p: 1.5,
@@ -209,7 +209,7 @@ export function DeliveryAnalyticsDashboard() {
                       </Box>
                     </Grid>
                   ))}
-                  <Grid item xs={6} sm={4}>
+                  <Grid size={{ xs: 6, sm: 4 }}>
                     <Box
                       sx={{
                         p: 1.5,

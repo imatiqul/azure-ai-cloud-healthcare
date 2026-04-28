@@ -65,7 +65,7 @@ export function DashboardQuickActions() {
         </Typography>
         <Grid container spacing={1.5}>
           {QUICK_ACTIONS.map((action) => (
-            <Grid key={action.href} item xs={6} sm={3}>
+            <Grid key={action.href} size={{ xs: 6, sm: 3 }}>
               <ButtonBase
                 onClick={() => navigate(action.href)}
                 aria-label={action.label}

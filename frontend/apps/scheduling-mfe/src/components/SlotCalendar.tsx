@@ -176,7 +176,7 @@ export function SlotCalendar() {
         ) : (
           <Grid container spacing={1}>
             {slots.map((slot) => (
-              <Grid item xs={6} key={slot.id}>
+              <Grid size={6} key={slot.id}>
                 <Box
                   role="button"
                   tabIndex={0}

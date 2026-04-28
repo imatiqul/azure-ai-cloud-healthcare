@@ -350,7 +350,7 @@ export default function PlatformHealthPanel() {
             checkedAt: new Date(),
           };
           return (
-            <Grid item xs={12} sm={6} md={4} key={svc.name}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={svc.name}>
               <ServiceCard health={health} />
             </Grid>
           );

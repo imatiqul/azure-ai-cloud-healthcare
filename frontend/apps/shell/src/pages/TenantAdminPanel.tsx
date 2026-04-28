@@ -253,7 +253,7 @@ export default function TenantAdminPanel() {
         <DialogContent>
           {submitError && <Alert severity="error" sx={{ mb: 2 }}>{submitError}</Alert>}
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <TextField
                 label="Organisation Name"
                 value={form.organisationName}
@@ -262,7 +262,7 @@ export default function TenantAdminPanel() {
                 required
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Slug"
                 value={form.slug}
@@ -272,7 +272,7 @@ export default function TenantAdminPanel() {
                 required
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Data Region"
                 value={form.dataRegion}
@@ -281,7 +281,7 @@ export default function TenantAdminPanel() {
                 fullWidth
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Admin Email"
                 type="email"
@@ -291,7 +291,7 @@ export default function TenantAdminPanel() {
                 required
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Admin Display Name"
                 value={form.adminDisplayName}
@@ -300,7 +300,7 @@ export default function TenantAdminPanel() {
                 required
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Locale"
                 value={form.locale}

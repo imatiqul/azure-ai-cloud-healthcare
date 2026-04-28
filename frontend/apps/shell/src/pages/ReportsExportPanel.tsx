@@ -267,7 +267,7 @@ export default function ReportsExportPanel() {
         {domainGroups.map(domain => {
           const domainReports = REPORTS.filter(r => r.domain === domain);
           return (
-            <Grid item xs={12} key={domain}>
+            <Grid size={12} key={domain}>
               <Card>
                 <CardHeader>
                   <CardTitle>{domain}</CardTitle>

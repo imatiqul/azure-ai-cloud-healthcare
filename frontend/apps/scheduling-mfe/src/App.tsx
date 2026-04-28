@@ -11,10 +11,10 @@ export default function App() {
         Appointment Scheduling
       </Typography>
       <Grid container spacing={3}>
-        <Grid item xs={12} lg={8}>
+        <Grid size={{ xs: 12, lg: 8 }}>
           <SlotCalendar />
         </Grid>
-        <Grid item xs={12} lg={4}>
+        <Grid size={{ xs: 12, lg: 4 }}>
           <BookingForm />
         </Grid>
       </Grid>

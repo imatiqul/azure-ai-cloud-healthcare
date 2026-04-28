@@ -273,7 +273,7 @@ export default function ClinicalAlertsCenter() {
 
       <Grid container spacing={3}>
         {/* ── Critical & High Risk Patients ── */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card>
             <CardHeader>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -322,7 +322,7 @@ export default function ClinicalAlertsCenter() {
         </Grid>
 
         {/* ── Active Break-Glass Accesses ── */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card>
             <CardHeader>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -370,7 +370,7 @@ export default function ClinicalAlertsCenter() {
         </Grid>
 
         {/* ── Urgent Waitlist Entries ── */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card>
             <CardHeader>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -414,7 +414,7 @@ export default function ClinicalAlertsCenter() {
         </Grid>
 
         {/* ── Near-Deadline Claim Denials ── */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card>
             <CardHeader>
               <Stack direction="row" justifyContent="space-between" alignItems="center">

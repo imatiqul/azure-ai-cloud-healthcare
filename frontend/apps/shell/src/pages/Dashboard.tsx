@@ -354,7 +354,7 @@ export default function Dashboard() {
         <DashboardQuickActions />
       </Box>
       <Grid container spacing={3}>
-        <Grid item xs={12} md={9}>
+        <Grid size={{ xs: 12, md: 9 }}>
           <Stack spacing={4}>
             {sections.map((section) => {
               if (!visibleSections.includes(section)) return null;
@@ -370,7 +370,7 @@ export default function Dashboard() {
                   </Stack>
                   <Grid container spacing={2}>
                     {sectionStats.map((stat) => (
-                      <Grid item xs={12} sm={6} md={3} key={stat.labelKey}>
+                      <Grid size={{ xs: 12, sm: 6, md: 3 }} key={stat.labelKey}>
                         <StatCard stat={stat} />
                       </Grid>
                     ))}
@@ -380,7 +380,7 @@ export default function Dashboard() {
             })}
           </Stack>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <ClinicalAlertsSummaryWidget />
           <ActivityFeedWidget />
           <FavoritePagesWidget />
