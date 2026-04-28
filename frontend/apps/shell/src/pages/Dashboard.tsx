@@ -31,8 +31,8 @@ import { ClinicalAlertsSummaryWidget } from '../components/ClinicalAlertsSummary
 import { DashboardQuickActions } from '../components/DashboardQuickActions'; // Phase 47
 import { ActivityFeedWidget } from '../components/ActivityFeedWidget'; // Phase 53
 import { useGlobalStore } from '../store';
+import { useDashboardStats, type DashboardStatsResult } from '../hooks/useDashboardStats';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 // Only attempt SignalR when the hub URL is explicitly configured.
 // Leaving VITE_SIGNALR_HUB_URL empty disables the feature gracefully (no 405 errors).
 const SIGNALR_HUB_URL = import.meta.env.VITE_SIGNALR_HUB_URL || '';
@@ -59,33 +59,8 @@ interface RawDashboardPayload {
   priorAuthsPending?: number;
 }
 
-// Realistic demo data shown when the backend is not yet reachable
-const DEMO_AGENTS     = { pendingTriage: 8,   awaitingReview: 3,  completed: 47 };
-const DEMO_SCHEDULING = { availableToday: 23, bookedToday: 41 };
-const DEMO_POPHEALTH  = { highRiskPatients: 127, openCareGaps: 84 };
-const DEMO_REVENUE    = { codingQueue: 31, priorAuthsPending: 12 };
-
-async function fetchSafe<T>(url: string, demo: T, fallback: T, failedUrls?: string[]): Promise<T> {
-  try {
-    const res = await fetch(`${API_BASE}${url}`, { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) {
-      failedUrls?.push(url);
-      // 404 = backend not deployed → show realistic demo data instead of zeros
-      return res.status === 404 ? demo : fallback;
-    }
-    return await res.json();
-  } catch {
-    failedUrls?.push(url);
-    return fallback;
-  }
-}
-
-function buildStats(
-  agents:     { pendingTriage: number; awaitingReview: number; completed: number },
-  scheduling: { availableToday: number; bookedToday: number },
-  popHealth:  { highRiskPatients: number; openCareGaps: number },
-  revenue:    { codingQueue: number; priorAuthsPending: number }
-): DashboardStats[] {
+function buildStats(data: DashboardStatsResult): DashboardStats[] {
+  const { agents, scheduling, populationHealth: popHealth, revenue } = data;
   return [
     { labelKey: 'dashboard.pendingTriage',    value: agents.pendingTriage + agents.awaitingReview, color: 'warning.main',   icon: <WarningAmberIcon />,         section: 'clinical',    trend: -5,  href: '/triage'           },
     { labelKey: 'dashboard.triageCompleted',  value: agents.completed,                             color: 'success.main',   icon: <CheckCircleOutlineIcon />,   section: 'clinical',    trend: 12,  href: '/triage'           },
@@ -264,11 +239,27 @@ function StatCard({ stat }: { stat: DashboardStats }) {
 export default function Dashboard() {
   const { t } = useTranslation();
   const [stats, setStats] = useState<DashboardStats[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [visibleSections, setVisibleSections] = useState<DashboardSection[]>(loadVisibleSections); // Phase 37
   const backendOnline = useGlobalStore(s => s.backendOnline);
+
+  // Use GraphQL BFF for a single aggregated dashboard stats query
+  const {
+    stats: rawStats,
+    loading,
+    error: fetchError,
+    lastRefreshed,
+    refetch: loadStats,
+  } = useDashboardStats(backendOnline !== false);
+
+  // Allow the user to dismiss the error banner without affecting the hook state
+  const [errorDismissed, setErrorDismissed] = useState(false);
+
+  // Rebuild the DashboardStats[] array whenever the raw data changes
+  useEffect(() => {
+    if (rawStats) {
+      setStats(buildStats(rawStats));
+    }
+  }, [rawStats]);
 
   const applyPushUpdate = useCallback((payload: RawDashboardPayload) => {
     setStats(prev => prev.map(s => {
@@ -285,40 +276,6 @@ export default function Dashboard() {
       }
     }));
   }, []);
-
-  const loadStats = useCallback(async () => {
-    // Skip all API calls when backend is known offline — use demo data immediately
-    if (backendOnline === false) {
-      setStats(buildStats(DEMO_AGENTS, DEMO_SCHEDULING, DEMO_POPHEALTH, DEMO_REVENUE));
-      setFetchError(false);
-      setLastRefreshed(new Date());
-      setLoading(false);
-      return;
-    }
-    const failed: string[] = [];
-    const [agents, scheduling, popHealth, revenue] = await Promise.all([
-      fetchSafe('/api/v1/agents/stats',           DEMO_AGENTS,     { pendingTriage: 0, awaitingReview: 0, completed: 0 }, failed),
-      fetchSafe('/api/v1/scheduling/stats',        DEMO_SCHEDULING, { availableToday: 0, bookedToday: 0 }, failed),
-      fetchSafe('/api/v1/population-health/stats', DEMO_POPHEALTH,  { highRiskPatients: 0, openCareGaps: 0 }, failed),
-      fetchSafe('/api/v1/revenue/stats',           DEMO_REVENUE,    { codingQueue: 0, priorAuthsPending: 0 }, failed),
-    ]);
-    setStats(buildStats(agents, scheduling, popHealth, revenue));
-    setFetchError(failed.length > 0);
-    setLastRefreshed(new Date());
-    setLoading(false);
-  }, [backendOnline]);
-
-  // Initial load
-  useEffect(() => {
-    loadStats();
-  }, [loadStats]);
-
-  // Auto-refresh every 30s (skip when backend is offline to avoid repeated 404s)
-  useEffect(() => {
-    if (backendOnline === false) return;
-    const id = setInterval(loadStats, 30_000);
-    return () => clearInterval(id);
-  }, [loadStats, backendOnline]);
 
   useEffect(() => {
     if (!SIGNALR_HUB_URL) return; // skip when hub not configured — avoids 405 console errors
@@ -372,12 +329,12 @@ export default function Dashboard() {
           <DashboardCustomizer onChange={setVisibleSections} />
         </Stack>
       </Stack>
-      {fetchError && (
+      {fetchError && !errorDismissed && (
         <Alert
           severity="info"
           icon={<ScienceOutlinedIcon />}
           sx={{ mb: 2 }}
-          onClose={() => setFetchError(false)}
+          onClose={() => setErrorDismissed(true)}
           action={
             <Chip
               label="Demo Mode"

@@ -135,6 +135,31 @@ public sealed record ConfidenceIntervalDto(
     string Method,
     string Interpretation);
 
+// ── Dashboard aggregation DTOs ────────────────────────────────────────────────
+
+public sealed record AgentStatsDto(
+    int PendingTriage,
+    int AwaitingReview,
+    int Completed);
+
+public sealed record SchedulingStatsDto(
+    int AvailableToday,
+    int BookedToday);
+
+public sealed record RevenueStatsDto(
+    int CodingQueue,
+    int PriorAuthsPending);
+
+/// <summary>
+/// Aggregated dashboard statistics returned by a single GraphQL query,
+/// replacing the four individual REST calls previously made by the shell.
+/// </summary>
+public sealed record DashboardStatsDto(
+    AgentStatsDto Agents,
+    SchedulingStatsDto Scheduling,
+    PopHealthStatsDto PopulationHealth,
+    RevenueStatsDto Revenue);
+
 // ── JSON helpers ─────────────────────────────────────────────────────────────
 
 file static class Json
@@ -232,6 +257,16 @@ public sealed class AgentApiClient(HttpClient http)
         return Json.Deserialize<List<TriageSessionDto>>(json) ?? [];
     }
 
+    public async Task<AgentStatsDto> GetStatsAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var json = await http.GetStringAsync("/api/v1/agents/stats", ct);
+            return Json.Deserialize<AgentStatsDto>(json) ?? new AgentStatsDto(0, 0, 0);
+        }
+        catch { return new AgentStatsDto(0, 0, 0); }
+    }
+
     public async Task<MlConfidenceDto?> GetMlConfidenceAsync(double probability, float[]? features, CancellationToken ct = default)
     {
         var payload = new { probability, featureValues = features };
@@ -266,6 +301,16 @@ public sealed class RevenueApiClient(HttpClient http)
         var json = await http.GetStringAsync("/api/v1/revenue/prior-auths", ct);
         return Json.Deserialize<List<PriorAuthDto>>(json) ?? [];
     }
+
+    public async Task<RevenueStatsDto> GetStatsAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var json = await http.GetStringAsync("/api/v1/revenue/stats", ct);
+            return Json.Deserialize<RevenueStatsDto>(json) ?? new RevenueStatsDto(0, 0);
+        }
+        catch { return new RevenueStatsDto(0, 0); }
+    }
 }
 
 /// <summary>Wraps the Scheduling microservice REST API.</summary>
@@ -275,6 +320,16 @@ public sealed class SchedulingApiClient(HttpClient http)
     {
         var json = await http.GetStringAsync("/api/v1/scheduling/bookings", ct);
         return Json.Deserialize<List<AppointmentDto>>(json) ?? [];
+    }
+
+    public async Task<SchedulingStatsDto> GetStatsAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var json = await http.GetStringAsync("/api/v1/scheduling/stats", ct);
+            return Json.Deserialize<SchedulingStatsDto>(json) ?? new SchedulingStatsDto(0, 0);
+        }
+        catch { return new SchedulingStatsDto(0, 0); }
     }
 
     public async Task<AppointmentDto?> BookAppointmentAsync(object payload, CancellationToken ct = default)

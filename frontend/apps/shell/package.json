@@ -13,6 +13,7 @@
     "dependencies": {
         "@healthcare/auth-client": "workspace:*",
         "@healthcare/design-system": "workspace:*",
+        "@healthcare/graphql-client": "workspace:*",
         "@healthcare/mfe-events": "workspace:*",
         "@healthcare/signalr-client": "workspace:*",
         "i18next": "^24.2.2",

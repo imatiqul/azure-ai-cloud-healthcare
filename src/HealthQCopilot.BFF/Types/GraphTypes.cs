@@ -115,6 +115,33 @@ public sealed class QueryType
         FhirApiClient fhir,
         CancellationToken ct)
         => fhir.GetEncountersAsync(patientId, ct);
+
+    /// <summary>
+    /// Aggregates dashboard statistics from four downstream services in a single
+    /// parallel request. Replaces the four separate REST polling calls made by
+    /// the shell Dashboard page.
+    /// </summary>
+    [GraphQLDescription("Aggregated dashboard statistics across agents, scheduling, population health, and revenue.")]
+    public async Task<DashboardStatsDto> GetDashboardStatsAsync(
+        AgentApiClient agents,
+        SchedulingApiClient scheduling,
+        PopHealthApiClient popHealth,
+        RevenueApiClient revenue,
+        CancellationToken ct)
+    {
+        var agentTask       = agents.GetStatsAsync(ct);
+        var schedulingTask  = scheduling.GetStatsAsync(ct);
+        var popHealthTask   = popHealth.GetStatsAsync(ct);
+        var revenueTask     = revenue.GetStatsAsync(ct);
+
+        await Task.WhenAll(agentTask, schedulingTask, popHealthTask, revenueTask);
+
+        return new DashboardStatsDto(
+            agentTask.Result,
+            schedulingTask.Result,
+            popHealthTask.Result ?? new PopHealthStatsDto(0, 0, 0, 0),
+            revenueTask.Result);
+    }
 }
 
 // ── Mutation ─────────────────────────────────────────────────────────────────
