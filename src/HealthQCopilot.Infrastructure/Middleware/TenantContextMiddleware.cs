@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Http;
-using Serilog.Context;
+using Microsoft.Extensions.Logging;
 
 namespace HealthQCopilot.Infrastructure.Middleware;
 
@@ -9,10 +9,15 @@ namespace HealthQCopilot.Infrastructure.Middleware;
 /// queries like "show all PHI access for tenant X / patient Y" work reliably in
 /// Azure Monitor, Sentinel, and Elastic.
 ///
+/// Tenant context is pushed via <see cref="ILogger.BeginScope"/> so it appears on
+/// every structured log record emitted within the async execution context of the
+/// request — including logs from injected services — when the OpenTelemetry logger
+/// provider is configured with <c>IncludeScopes = true</c>.
+///
 /// Must be registered BEFORE authentication middleware so that even auth failures
 /// are logged with tenant context.
 /// </summary>
-public sealed class TenantContextMiddleware(RequestDelegate next)
+public sealed class TenantContextMiddleware(RequestDelegate next, ILogger<TenantContextMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
     {
@@ -36,12 +41,17 @@ public sealed class TenantContextMiddleware(RequestDelegate next)
             ?? context.Request.Headers["X-Patient-Id"].FirstOrDefault()
             ?? "-";
 
-        // Push all context properties so they appear on every log entry in this request
-        using (LogContext.PushProperty("TenantId", tenantId))
-        using (LogContext.PushProperty("UserId", userId))
-        using (LogContext.PushProperty("PatientId", patientId))
+        // BeginScope pushes a structured dictionary onto the ambient IExternalScopeProvider
+        // shared by all ILoggerProvider implementations (including the OTel provider).
+        // All log entries emitted within the async execution context of this request
+        // will carry these three key-value pairs as OTel log record attributes.
+        using var scope = logger.BeginScope(new Dictionary<string, object?>
         {
-            await next(context);
-        }
+            ["TenantId"] = tenantId,
+            ["UserId"] = userId,
+            ["PatientId"] = patientId,
+        });
+
+        await next(context);
     }
 }

@@ -3,11 +3,10 @@ using HealthQCopilot.Infrastructure.Metrics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using Serilog;
-using Serilog.Formatting.Compact;
 
 namespace HealthQCopilot.Infrastructure.Observability;
 
@@ -81,17 +80,17 @@ public static class ObservabilityExtensions
                         opt.Endpoint = new Uri(otlpEndpoint);
                         opt.Protocol = OtlpExportProtocol.HttpProtobuf;
                     });
+            })
+            .WithLogging(logging =>
+            {
+                // HIPAA §164.312(b) — scrub PHI from every log record before export
+                logging.AddProcessor(new PhiRedactionProcessor());
+
+                // Forward logs to Azure Application Insights when connection string is present
+                var aiConnStr = config["ApplicationInsights:ConnectionString"];
+                if (!string.IsNullOrEmpty(aiConnStr))
+                    logging.AddAzureMonitorLogExporter(opt => opt.ConnectionString = aiConnStr);
             });
-
-        Log.Logger = new LoggerConfiguration()
-            .ReadFrom.Configuration(config)
-            .Enrich.FromLogContext()              // Required: picks up LogContext.PushProperty() calls
-            .Enrich.WithCorrelationId()           // Correlation ID across distributed requests
-            .Enrich.WithProperty("ServiceName", serviceName)
-            .WriteTo.Console(new RenderedCompactJsonFormatter())
-            .CreateLogger();
-
-        services.AddSerilog();
 
         return services;
     }
