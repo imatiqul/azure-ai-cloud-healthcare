@@ -6,7 +6,7 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
     <PackageReference Include="Azure.Messaging.WebPubSub" Version="1.4.0" />
     <PackageReference Include="Microsoft.CognitiveServices.Speech" Version="1.42.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\HealthQCopilot.Domain\HealthQCopilot.Domain.csproj" />
