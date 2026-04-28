@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CostPredictionPanel } from './CostPredictionPanel';
+import { gqlFetch } from '@healthcare/graphql-client';
+
+vi.mock('@healthcare/graphql-client', () => ({ gqlFetch: vi.fn() }));
 
 const mockPrediction = {
   id: 'cp-1',
@@ -18,7 +21,7 @@ const mockPrediction = {
 describe('CostPredictionPanel', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    global.fetch = vi.fn();
+    vi.mocked(gqlFetch).mockReset();
   });
 
   it('renders the Healthcare Cost Prediction header', () => {
@@ -40,38 +43,33 @@ describe('CostPredictionPanel', () => {
 
     expect(screen.getByText('CKD Stage 3')).toBeDefined();
 
-    // remove chip
     const deleteBtn = screen.getByRole('button', { name: /remove ckd stage 3/i });
     await user.click(deleteBtn);
     expect(screen.queryByText('CKD Stage 3')).toBeNull();
   });
 
-  it('POSTs correct payload on form submit', async () => {
+  it('submits correct payload via gqlFetch', async () => {
     const user = userEvent.setup({ delay: null });
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockPrediction),
-    });
+    vi.mocked(gqlFetch).mockResolvedValueOnce({ predictCost: mockPrediction });
 
     render(<CostPredictionPanel />);
     await user.type(screen.getByLabelText(/patient id/i), 'P-002');
     await user.click(screen.getByRole('button', { name: /predict cost/i }));
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
-    const [url, opts] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(url).toContain('/api/v1/population-health/cost-prediction');
-    expect(opts.method).toBe('POST');
-    const body = JSON.parse(opts.body);
-    expect(body.patientId).toBe('P-002');
-    expect(body.riskLevel).toBe('Medium');
+    await waitFor(() => expect(gqlFetch).toHaveBeenCalledTimes(1));
+    expect(gqlFetch).toHaveBeenCalledWith(expect.objectContaining({
+      variables: expect.objectContaining({
+        input: expect.objectContaining({
+          patientId: 'P-002',
+          riskLevel: 'Medium',
+        }),
+      }),
+    }));
   });
 
   it('displays predicted cost, bounds, and cost tier', async () => {
     const user = userEvent.setup({ delay: null });
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockPrediction),
-    });
+    vi.mocked(gqlFetch).mockResolvedValueOnce({ predictCost: mockPrediction });
 
     render(<CostPredictionPanel />);
     await user.type(screen.getByLabelText(/patient id/i), 'P-002');
@@ -85,10 +83,7 @@ describe('CostPredictionPanel', () => {
 
   it('displays cost drivers', async () => {
     const user = userEvent.setup({ delay: null });
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockPrediction),
-    });
+    vi.mocked(gqlFetch).mockResolvedValueOnce({ predictCost: mockPrediction });
 
     render(<CostPredictionPanel />);
     await user.type(screen.getByLabelText(/patient id/i), 'P-002');
@@ -99,34 +94,28 @@ describe('CostPredictionPanel', () => {
     expect(screen.getByText('Type 2 Diabetes')).toBeDefined();
   });
 
-  it('shows error alert on HTTP failure', async () => {
+  it('shows demo result on submit failure', async () => {
     const user = userEvent.setup({ delay: null });
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: false,
-      status: 503,
-      json: () => Promise.resolve({}),
-    });
+    vi.mocked(gqlFetch).mockRejectedValueOnce(new Error('Server error'));
 
     render(<CostPredictionPanel />);
     await user.type(screen.getByLabelText(/patient id/i), 'P-002');
     await user.click(screen.getByRole('button', { name: /predict cost/i }));
 
-    await waitFor(() => expect(screen.getByText(/http 503/i)).toBeDefined());
+    await waitFor(() => expect(screen.getByText(/predicted:/i)).toBeDefined());
   });
 
-  it('calls GET cost-prediction/{patientId} when Load Latest is clicked', async () => {
+  it('calls gqlFetch when Load Latest is clicked', async () => {
     const user = userEvent.setup({ delay: null });
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockPrediction),
-    });
+    vi.mocked(gqlFetch).mockResolvedValueOnce({ costPrediction: mockPrediction });
 
     render(<CostPredictionPanel />);
     await user.type(screen.getByLabelText(/patient id/i), 'P-002');
     await user.click(screen.getByRole('button', { name: /load latest/i }));
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
-    const [url] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(url).toContain('/api/v1/population-health/cost-prediction/P-002');
+    await waitFor(() => expect(gqlFetch).toHaveBeenCalledTimes(1));
+    expect(gqlFetch).toHaveBeenCalledWith(expect.objectContaining({
+      variables: expect.objectContaining({ patientId: 'P-002' }),
+    }));
   });
 });

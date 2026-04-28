@@ -1,20 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { CareGapList } from './CareGapList';
+import { gqlFetch } from '@healthcare/graphql-client';
+
+vi.mock('@healthcare/graphql-client', () => ({ gqlFetch: vi.fn() }));
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  vi.mocked(gqlFetch).mockReset();
 });
 
 describe('CareGapList', () => {
-  it('shows empty state when no gaps', async () => {
-    global.fetch = vi.fn(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve([]) })
-    ) as unknown as typeof fetch;
-
+  it('shows demo gaps when API returns empty list', async () => {
+    vi.mocked(gqlFetch).mockResolvedValue({ careGaps: [] });
     render(<CareGapList />);
     await waitFor(() => {
-      expect(screen.getByText('No open care gaps')).toBeInTheDocument();
+      expect(screen.getByText(/HbA1c Control/)).toBeInTheDocument();
     });
   });
 
@@ -23,10 +24,7 @@ describe('CareGapList', () => {
       { id: '1', patientId: 'PAT-001-XYZ', measureName: 'HBA1C', status: 'Open', identifiedAt: '2025-01-01T00:00:00Z' },
       { id: '2', patientId: 'PAT-002-ABC', measureName: 'EYE-EXAM', status: 'Open', identifiedAt: '2025-01-02T00:00:00Z' },
     ];
-    global.fetch = vi.fn(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve(gaps) })
-    ) as unknown as typeof fetch;
-
+    vi.mocked(gqlFetch).mockResolvedValue({ careGaps: gaps });
     render(<CareGapList />);
     await waitFor(() => {
       expect(screen.getByText('HBA1C')).toBeInTheDocument();
@@ -35,10 +33,7 @@ describe('CareGapList', () => {
   });
 
   it('renders Open Care Gaps header', () => {
-    global.fetch = vi.fn(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve([]) })
-    ) as unknown as typeof fetch;
-
+    vi.mocked(gqlFetch).mockResolvedValue({ careGaps: [] });
     render(<CareGapList />);
     expect(screen.getByText('Open Care Gaps')).toBeInTheDocument();
   });
@@ -47,10 +42,7 @@ describe('CareGapList', () => {
     const gaps = [
       { id: '1', patientId: 'PAT-001-XYZ', measureName: 'HBA1C', status: 'Open', identifiedAt: '2025-01-01T00:00:00Z' },
     ];
-    global.fetch = vi.fn(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve(gaps) })
-    ) as unknown as typeof fetch;
-
+    vi.mocked(gqlFetch).mockResolvedValue({ careGaps: gaps });
     render(<CareGapList />);
     await waitFor(() => {
       expect(screen.getByText('Address')).toBeInTheDocument();

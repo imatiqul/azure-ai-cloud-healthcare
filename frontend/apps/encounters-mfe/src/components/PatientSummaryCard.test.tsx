@@ -4,11 +4,7 @@ import { PatientSummaryCard } from './PatientSummaryCard';
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  vi.useFakeTimers({ now: new Date('2026-01-15T12:00:00Z').getTime() });
-});
-
-afterEach(() => {
-  vi.useRealTimers();
+  vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-01-15T12:00:00Z').getTime());
 });
 
 const MOCK_SUMMARY = {
@@ -57,8 +53,10 @@ describe('PatientSummaryCard', () => {
 
     expect(screen.getByText(/Hypertension/)).toBeInTheDocument();
     expect(screen.getByText(/Type 2 Diabetes/)).toBeInTheDocument();
-    expect(screen.getByText('Moderate')).toBeInTheDocument();
-    expect(screen.getByText('55')).toBeInTheDocument();
+    // Readmission risk chip renders "Moderate · 55%" (riskLevel + readmissionRisk)
+    expect(
+      screen.getAllByText((c) => c.includes('Moderate') && c.includes('55%'))
+    ).not.toHaveLength(0);
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
   });
@@ -72,7 +70,10 @@ describe('PatientSummaryCard', () => {
       expect(screen.getByText('Alice Morgan')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('High')).toBeInTheDocument();
+    // Risk chip renders "High · 72%" for Alice Morgan (riskLevel + readmissionRisk)
+    expect(
+      screen.getAllByText((content) => content.includes('High') && content.includes('72%'))
+    ).not.toHaveLength(0);
     expect(screen.getByText(/Type 2 Diabetes Mellitus/)).toBeInTheDocument();
   });
 

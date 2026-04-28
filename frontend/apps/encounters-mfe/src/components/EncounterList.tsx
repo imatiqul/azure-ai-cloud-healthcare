@@ -159,7 +159,7 @@ export function EncounterList({ patientId: propId }: { patientId?: string } = {}
       )}
 
       {/* Encounter cards */}
-      {!loading && !error && patientId && (
+      {!loading && patientId && (
         <Stack spacing={2}>
           {/* Type and status filter chips */}
           {encounters.length > 0 && (

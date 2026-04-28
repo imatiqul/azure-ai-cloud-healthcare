@@ -96,8 +96,11 @@ describe('BreakGlassAccessPanel', () => {
     });
     const user = userEvent.setup({ delay: null });
     render(<BreakGlassAccessPanel />);
-    await waitFor(() => expect(screen.getByText('Request Access')).not.toBeDisabled(), { timeout: 5000 });
-    await user.click(screen.getByText('Request Access'));
+    await waitFor(() => {
+      const btns = screen.getAllByText('Request Access', { selector: 'button' });
+      expect(btns[0]).not.toBeDisabled();
+    }, { timeout: 5000 });
+    await user.click(screen.getAllByText('Request Access', { selector: 'button' })[0]);
     expect(screen.getByText('Request Break-Glass Emergency Access')).toBeTruthy();
     expect(screen.getByLabelText(/requesting user id/i)).toBeTruthy();
     expect(screen.getByLabelText(/target patient id/i)).toBeTruthy();
@@ -112,8 +115,11 @@ describe('BreakGlassAccessPanel', () => {
 
     const user = userEvent.setup({ delay: null });
     render(<BreakGlassAccessPanel />);
-    await waitFor(() => expect(screen.getByText('Request Access')).not.toBeDisabled(), { timeout: 5000 });
-    fireEvent.click(screen.getByText('Request Access'));
+    await waitFor(() => {
+      const btns = screen.getAllByText('Request Access', { selector: 'button' });
+      expect(btns[0]).not.toBeDisabled();
+    }, { timeout: 5000 });
+    fireEvent.click(screen.getAllByText('Request Access', { selector: 'button' })[0]);
     await user.type(screen.getByLabelText(/requesting user id/i), 'user-aaa');
     await user.type(screen.getByLabelText(/target patient id/i), 'patient-bbb');
     await user.type(screen.getByLabelText(/clinical justification/i), 'Patient unconscious, need emergency medical history access');
@@ -156,8 +162,11 @@ describe('BreakGlassAccessPanel', () => {
     });
     const user = userEvent.setup({ delay: null });
     render(<BreakGlassAccessPanel />);
-    await waitFor(() => expect(screen.getByText('Request Access')).not.toBeDisabled(), { timeout: 5000 });
-    fireEvent.click(screen.getByText('Request Access'));
+    await waitFor(() => {
+      const btns = screen.getAllByText('Request Access', { selector: 'button' });
+      expect(btns[0]).not.toBeDisabled();
+    }, { timeout: 5000 });
+    fireEvent.click(screen.getAllByText('Request Access', { selector: 'button' })[0]);
     await user.type(screen.getByLabelText(/requesting user id/i), 'user-x');
     await user.type(screen.getByLabelText(/target patient id/i), 'patient-y');
     await user.type(screen.getByLabelText(/clinical justification/i), 'too short');

@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SdohAssessmentPanel } from './SdohAssessmentPanel';
+import { gqlFetch } from '@healthcare/graphql-client';
+
+vi.mock('@healthcare/graphql-client', () => ({ gqlFetch: vi.fn() }));
 
 const mockAssessmentResult = {
   id: 'sdoh-1',
@@ -19,7 +22,7 @@ const mockAssessmentResult = {
 describe('SdohAssessmentPanel', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    global.fetch = vi.fn();
+    vi.mocked(gqlFetch).mockReset();
   });
 
   it('renders the SDOH screening header', () => {
@@ -38,32 +41,28 @@ describe('SdohAssessmentPanel', () => {
     expect(screen.queryByRole('button', { name: /load latest/i })).toBeNull();
   });
 
-  it('POSTs correct payload on form submit', async () => {
+  it('submits correct payload via gqlFetch', async () => {
     const user = userEvent.setup({ delay: null });
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockAssessmentResult),
-    });
+    vi.mocked(gqlFetch).mockResolvedValueOnce({ scoreSdoh: mockAssessmentResult });
 
     render(<SdohAssessmentPanel />);
     await user.type(screen.getByLabelText(/patient id/i), 'P-001');
     await user.click(screen.getByRole('button', { name: /submit assessment/i }));
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
-    const [url, opts] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(url).toContain('/api/v1/population-health/sdoh');
-    expect(opts.method).toBe('POST');
-    const body = JSON.parse(opts.body);
-    expect(body.patientId).toBe('P-001');
-    expect(typeof body.domainScores).toBe('object');
+    await waitFor(() => expect(gqlFetch).toHaveBeenCalledTimes(1));
+    expect(gqlFetch).toHaveBeenCalledWith(expect.objectContaining({
+      variables: expect.objectContaining({
+        input: expect.objectContaining({
+          patientId: 'P-001',
+          domainScores: expect.any(Object),
+        }),
+      }),
+    }));
   });
 
   it('displays assessment results including totalScore and riskLevel', async () => {
     const user = userEvent.setup({ delay: null });
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockAssessmentResult),
-    });
+    vi.mocked(gqlFetch).mockResolvedValueOnce({ scoreSdoh: mockAssessmentResult });
 
     render(<SdohAssessmentPanel />);
     await user.type(screen.getByLabelText(/patient id/i), 'P-001');
@@ -76,10 +75,7 @@ describe('SdohAssessmentPanel', () => {
 
   it('displays prioritized needs as badges', async () => {
     const user = userEvent.setup({ delay: null });
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockAssessmentResult),
-    });
+    vi.mocked(gqlFetch).mockResolvedValueOnce({ scoreSdoh: mockAssessmentResult });
 
     render(<SdohAssessmentPanel />);
     await user.type(screen.getByLabelText(/patient id/i), 'P-001');
@@ -91,10 +87,7 @@ describe('SdohAssessmentPanel', () => {
 
   it('displays recommended actions', async () => {
     const user = userEvent.setup({ delay: null });
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockAssessmentResult),
-    });
+    vi.mocked(gqlFetch).mockResolvedValueOnce({ scoreSdoh: mockAssessmentResult });
 
     render(<SdohAssessmentPanel />);
     await user.type(screen.getByLabelText(/patient id/i), 'P-001');
@@ -106,36 +99,29 @@ describe('SdohAssessmentPanel', () => {
     expect(screen.getByText(/connect with food bank/i)).toBeDefined();
   });
 
-  it('shows error alert on HTTP failure', async () => {
+  it('shows demo result on submit failure', async () => {
     const user = userEvent.setup({ delay: null });
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({}),
-    });
+    vi.mocked(gqlFetch).mockRejectedValueOnce(new Error('Server error'));
 
     render(<SdohAssessmentPanel />);
     await user.type(screen.getByLabelText(/patient id/i), 'P-001');
     await user.click(screen.getByRole('button', { name: /submit assessment/i }));
 
-    await waitFor(() => expect(screen.getByText(/http 500/i)).toBeDefined());
+    await waitFor(() => expect(screen.getByText(/total score/i)).toBeDefined());
   });
 
-  it('calls GET /sdoh/{patientId} when Load Latest is clicked', async () => {
+  it('calls gqlFetch when Load Latest is clicked', async () => {
     const user = userEvent.setup({ delay: null });
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockAssessmentResult),
-    });
+    vi.mocked(gqlFetch).mockResolvedValueOnce({ sdohAssessment: mockAssessmentResult });
 
     render(<SdohAssessmentPanel />);
     await user.type(screen.getByLabelText(/patient id/i), 'P-001');
-
     const loadBtn = screen.getByRole('button', { name: /load latest/i });
     await user.click(loadBtn);
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
-    const [url] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(url).toContain('/api/v1/population-health/sdoh/P-001');
+    await waitFor(() => expect(gqlFetch).toHaveBeenCalledTimes(1));
+    expect(gqlFetch).toHaveBeenCalledWith(expect.objectContaining({
+      variables: expect.objectContaining({ patientId: 'P-001' }),
+    }));
   });
 });

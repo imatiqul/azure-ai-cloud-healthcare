@@ -66,7 +66,7 @@ describe('HedisMeasuresPanel', () => {
     expect(screen.getByRole('button', { name: /evaluate hedis measures/i })).toBeDisabled();
   });
 
-  it('calls GET /patients/{id}/hedis with body on evaluate', async () => {
+  it('calls POST /patients/{id}/hedis with body on evaluate', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(HEDIS_RESPONSE),
@@ -80,7 +80,7 @@ describe('HedisMeasuresPanel', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/v1/population-health/patients/pat-001/hedis'),
         expect.objectContaining({
-          method: 'GET',
+          method: 'POST',
           body: expect.stringContaining('"age"'),
         }),
       );

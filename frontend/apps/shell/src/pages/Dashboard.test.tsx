@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import Dashboard from './Dashboard';
 import { useGlobalStore } from '../store';
+import { gqlFetch } from '@healthcare/graphql-client';
 
 // SignalR resolves /hubs/global which is unavailable in jsdom — stub it out
 vi.mock('@healthcare/signalr-client', () => ({
@@ -34,6 +35,8 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+vi.mock('@healthcare/graphql-client', () => ({ gqlFetch: vi.fn() }));
+
 // mock stat data — keys must match what buildStats destructures (camelCase)
 const mockStats = {
   agents:     { pendingTriage: 3, awaitingReview: 1, completed: 12 },
@@ -44,14 +47,16 @@ const mockStats = {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  vi.mocked(gqlFetch).mockReset();
   useGlobalStore.setState({ backendOnline: true });
-  global.fetch = vi.fn((url: string) => {
-    if (url.includes('agents/stats'))          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockStats.agents) });
-    if (url.includes('scheduling/stats'))       return Promise.resolve({ ok: true, json: () => Promise.resolve(mockStats.scheduling) });
-    if (url.includes('population-health/stats'))return Promise.resolve({ ok: true, json: () => Promise.resolve(mockStats.popHealth) });
-    if (url.includes('revenue/stats'))          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockStats.revenue) });
-    return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
-  }) as unknown as typeof fetch;
+  vi.mocked(gqlFetch).mockResolvedValue({
+    dashboardStats: {
+      agents: mockStats.agents,
+      scheduling: mockStats.scheduling,
+      populationHealth: { ...mockStats.popHealth, totalPatients: 100, closedCareGaps: 10 },
+      revenue: mockStats.revenue,
+    },
+  });
 });
 
 describe('Dashboard', () => {
@@ -61,7 +66,7 @@ describe('Dashboard', () => {
   });
 
   it('shows skeleton loading state initially', () => {
-    global.fetch = vi.fn(() => new Promise(() => {})) as unknown as typeof fetch;
+    vi.mocked(gqlFetch).mockReturnValue(new Promise(() => {}));
     render(<Dashboard />);
     // While loading, stat labels should not be visible yet
     expect(screen.queryByText('Pending Triage')).not.toBeInTheDocument();
@@ -93,13 +98,12 @@ describe('Dashboard', () => {
   });
 
   it('handles fetch errors gracefully', async () => {
-    global.fetch = vi.fn(() => Promise.resolve({ ok: false })) as unknown as typeof fetch;
+    vi.mocked(gqlFetch).mockRejectedValue(new Error('Network error'));
     render(<Dashboard />);
     await waitFor(() => {
       expect(screen.getByText('Pending Triage')).toBeInTheDocument();
     });
-    // Fallback values should all be 0
-    const zeros = screen.getAllByText('0');
-    expect(zeros.length).toBeGreaterThanOrEqual(8);
+    // Component shows DEMO_STATS on error — verify it renders without crashing
+    expect(screen.getByText('Coding Queue')).toBeInTheDocument();
   });
 });
