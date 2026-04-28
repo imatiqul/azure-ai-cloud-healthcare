@@ -39,4 +39,9 @@
   <ItemGroup>
     <ProjectReference Include="..\HealthQCopilot.Domain\HealthQCopilot.Domain.csproj" />
   </ItemGroup>
+
+  <!-- Expose internal members to the unit test project (e.g. RateLimitingExtensions.ResolveTier) -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="HealthQCopilot.Tests.Unit" />
+  </ItemGroup>
 </Project>
