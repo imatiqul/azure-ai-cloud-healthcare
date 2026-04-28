@@ -1,0 +1,222 @@
+name: Canary Promotion — ACA Traffic Shift
+
+# Sprint 10: Canary deployment pipeline.
+#
+# Triggered after a successful microservice-deploy run on main.
+# Implements a progressive ACA revision traffic split with automated metric gates:
+#   20% → wait 2 min → check error rate ≤ 1% → 40% → wait 2 min → 60% → wait 2 min → 100%
+#   If any metric gate fails → roll back to stable (0% canary) and abort.
+#
+# ACA revision traffic splitting docs:
+#   https://learn.microsoft.com/azure/container-apps/traffic-splitting
+
+on:
+  workflow_run:
+    workflows: ['Microservice CI/CD']
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'ACA service name to promote (e.g. gateway)'
+        required: true
+        default: 'gateway'
+      canary_revision:
+        description: 'ACA revision name to promote (leave blank to use latest)'
+        required: false
+        default: ''
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACA_RESOURCE_GROUP: healthq-copilot-rg
+  ACA_ENVIRONMENT: healthq-copilot-env
+  GATEWAY_URL: https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io
+
+  # Metric thresholds matching Argo Rollouts AnalysisTemplate (rollouts.yaml)
+  MAX_ERROR_RATE: '0.01'   # ≤ 1% errors required to promote
+  STEP_WAIT_SECONDS: '120' # 2-minute observation window per traffic step
+
+jobs:
+  canary-promote:
+    name: Canary Promote — ${{ github.event.inputs.service || 'all-changed' }}
+    # Only run if the triggering workflow succeeded (skip on failures/cancellations)
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        id: azure-login
+        continue-on-error: true
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure login (service principal secret fallback)
+        if: steps.azure-login.outcome != 'success'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Determine services to promote
+        id: services
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "list=${{ github.event.inputs.service }}" >> "$GITHUB_OUTPUT"
+          else
+            # All internet-facing/gateway services (internal services get 100% on deploy)
+            echo "list=gateway" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Progressive canary promotion
+        id: promote
+        env:
+          ACA_RG: ${{ env.ACA_RESOURCE_GROUP }}
+          STEP_WAIT: ${{ env.STEP_WAIT_SECONDS }}
+          MAX_ERR: ${{ env.MAX_ERROR_RATE }}
+          CANARY_REVISION: ${{ github.event.inputs.canary_revision }}
+        run: |
+          set -euo pipefail
+
+          SERVICES="${{ steps.services.outputs.list }}"
+          OVERALL_OK=true
+
+          for SVC in $SERVICES; do
+            echo ""
+            echo "══════════════════════════════════════════════════════"
+            echo " Canary promotion: $SVC"
+            echo "══════════════════════════════════════════════════════"
+
+            # Discover revisions
+            REVISIONS=$(az containerapp revision list \
+              --name "$SVC" --resource-group "$ACA_RG" \
+              --query "[?properties.active==\`true\`].name" -o tsv 2>/dev/null || echo "")
+
+            if [ -z "$REVISIONS" ]; then
+              echo "::warning::No active revisions found for $SVC — skipping canary step"
+              continue
+            fi
+
+            # Latest revision = canary; second-latest = stable
+            CANARY_REV="${CANARY_REVISION:-$(az containerapp revision list \
+              --name "$SVC" --resource-group "$ACA_RG" \
+              --query "[?properties.active==\`true\`] | sort_by(@, &properties.createdTime) | [-1].name" \
+              -o tsv 2>/dev/null || echo "")}"
+            STABLE_REV="$(az containerapp revision list \
+              --name "$SVC" --resource-group "$ACA_RG" \
+              --query "[?properties.active==\`true\`] | sort_by(@, &properties.createdTime) | [-2].name" \
+              -o tsv 2>/dev/null || echo "")"
+
+            if [ -z "$CANARY_REV" ]; then
+              echo "::warning::Could not identify canary revision for $SVC — skipping"
+              continue
+            fi
+
+            if [ -z "$STABLE_REV" ]; then
+              echo "Only one revision found for $SVC — promoting directly to 100%"
+              az containerapp ingress traffic set \
+                --name "$SVC" --resource-group "$ACA_RG" \
+                --revision-weight "${CANARY_REV}=100"
+              echo "✅ $SVC promoted to 100% (single revision)"
+              continue
+            fi
+
+            echo "  Stable  revision: $STABLE_REV"
+            echo "  Canary  revision: $CANARY_REV"
+
+            # Progressive traffic steps: 20 → 40 → 60 → 100
+            PROMOTED=false
+            for WEIGHT in 20 40 60 100; do
+              STABLE_WEIGHT=$((100 - WEIGHT))
+
+              echo ""
+              echo "  ── Setting traffic: canary=${WEIGHT}%, stable=${STABLE_WEIGHT}%"
+              az containerapp ingress traffic set \
+                --name "$SVC" --resource-group "$ACA_RG" \
+                --revision-weight \
+                  "${CANARY_REV}=${WEIGHT}" \
+                  ${STABLE_REV:+"${STABLE_REV}=${STABLE_WEIGHT}"}
+
+              if [ "$WEIGHT" -eq 100 ]; then
+                PROMOTED=true
+                break
+              fi
+
+              echo "  ── Observing for ${STEP_WAIT}s at canary=${WEIGHT}%..."
+              sleep "$STEP_WAIT"
+
+              # Metric gate: probe the gateway health endpoint and count errors
+              PASS=0; FAIL=0
+              for i in $(seq 1 10); do
+                HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+                  --max-time 10 "${{ env.GATEWAY_URL }}/health" || echo "000")
+                if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "204" ]; then
+                  PASS=$((PASS+1))
+                else
+                  FAIL=$((FAIL+1))
+                fi
+                sleep 3
+              done
+
+              TOTAL=$((PASS+FAIL))
+              ERR_RATE=$(echo "scale=4; $FAIL / $TOTAL" | bc)
+              echo "  ── Metric gate: errors=$FAIL/$TOTAL (rate=${ERR_RATE}, threshold=${MAX_ERR})"
+
+              # Compare using awk for floating-point support
+              if awk "BEGIN{exit !($ERR_RATE > $MAX_ERR)}"; then
+                echo "::error::Canary metric gate FAILED for $SVC at ${WEIGHT}% traffic (error_rate=$ERR_RATE > threshold=$MAX_ERR)"
+                echo "  ── Rolling back $SVC to 100% stable"
+                az containerapp ingress traffic set \
+                  --name "$SVC" --resource-group "$ACA_RG" \
+                  --revision-weight "${STABLE_REV}=100" \
+                  "${CANARY_REV}=0"
+                OVERALL_OK=false
+                break
+              fi
+
+              echo "  ✅ Metric gate passed (error_rate=${ERR_RATE})"
+            done
+
+            if [ "$PROMOTED" = "true" ]; then
+              echo ""
+              echo "  ✅ $SVC fully promoted: canary revision $CANARY_REV now handles 100% traffic"
+
+              # Deactivate old stable revision to save resources
+              if [ -n "$STABLE_REV" ]; then
+                az containerapp revision deactivate \
+                  --name "$SVC" --resource-group "$ACA_RG" \
+                  --revision "$STABLE_REV" 2>/dev/null || true
+                echo "  ✅ Old stable revision $STABLE_REV deactivated"
+              fi
+            fi
+          done
+
+          if [ "$OVERALL_OK" = "false" ]; then
+            echo ""
+            echo "::error::Canary promotion failed for one or more services — rollback applied"
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All canary promotions succeeded"
+
+      - name: Write promotion summary
+        if: always()
+        run: |
+          STATUS="${{ steps.promote.outcome }}"
+          echo "## Canary Promotion — Sprint 10" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Services | Status | Traffic steps |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|----------|--------|---------------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ${{ steps.services.outputs.list }} | $STATUS | 20% → 40% → 60% → 100% |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "_Metric gate: error rate ≤ ${{ env.MAX_ERROR_RATE }} at each step over ${{ env.STEP_WAIT_SECONDS }}s observation window._" >> "$GITHUB_STEP_SUMMARY"

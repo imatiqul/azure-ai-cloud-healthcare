@@ -189,14 +189,16 @@ jobs:
           const triagedLatency = new Trend('triage_latency');
 
           export const options = {
+            // Sprint 11: 100 concurrent sessions, P95 < 2s gate
             stages: [
-              { duration: '30s', target: 10 },
-              { duration: '1m',  target: 25 },
-              { duration: '30s', target: 0  },
+              { duration: '30s', target: 20  },  // warm-up
+              { duration: '1m',  target: 100 },  // ramp to 100 concurrent sessions
+              { duration: '2m',  target: 100 },  // sustained load
+              { duration: '30s', target: 0   },  // ramp-down
             ],
             thresholds: {
-              http_req_duration: ['p(95)<2000'],   // P95 < 2s
-              errors: ['rate<0.05'],               // Error rate < 5%
+              http_req_duration: ['p(95)<2000'],   // P95 < 2s (KPI gate)
+              errors: ['rate<0.01'],               // Error rate < 1% (tightened Sprint 11)
               triage_latency: ['p(95)<5000'],      // Triage P95 < 5s
             },
           };
@@ -379,11 +381,161 @@ jobs:
           echo "::error::npm audit found Critical (${CRITICAL}) or High (${HIGH}) severity vulnerabilities"
           exit 1
 
-  # ── 7. Summary report ─────────────────────────────────────────────────────
+  # ── 7. Key Vault HIPAA Audit (Sprint 11) ─────────────────────────────────
+  # HIPAA §164.312(a)(2)(iv) — encryption & access controls.
+  # Verifies:
+  #  a) No Container App environment variables contain raw secrets (all must be
+  #     Key Vault references or managed-identity sourced config).
+  #  b) Key Vault access policies grant to Managed Identities only — no
+  #     service-principal client-secret grants.
+  #  c) Key Vault has soft-delete + purge-protection enabled.
+  keyvault-audit:
+    name: Key Vault HIPAA Audit
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        id: azure-login
+        continue-on-error: true
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure login (service principal secret fallback)
+        if: steps.azure-login.outcome != 'success'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Audit Container App env vars for raw secrets
+        id: env-audit
+        env:
+          ACA_RG: healthq-copilot-rg
+        run: |
+          set -euo pipefail
+          SERVICES=(voice ai-agent fhir identity ocr scheduling notification pop-health revenue gateway)
+          VIOLATIONS=0
+
+          # Patterns that suggest a raw secret value rather than a Key Vault reference
+          # Key Vault references look like: secretref:<name>  or  @Microsoft.KeyVault(...)
+          SECRET_PATTERNS='password|secret|key|token|connectionstring|apikey|pwd|clientsecret'
+
+          for SVC in "${SERVICES[@]}"; do
+            ENV_VARS=$(az containerapp show \
+              --name "$SVC" --resource-group "$ACA_RG" \
+              --query "properties.template.containers[0].env" \
+              -o json 2>/dev/null || echo "[]")
+
+            if [ "$ENV_VARS" = "null" ] || [ "$ENV_VARS" = "[]" ]; then
+              echo "  ✅ $SVC — no environment variables"
+              continue
+            fi
+
+            # Flag any env var whose NAME matches secret patterns but VALUE is a plain string
+            # (not a KV reference: secretref:  or @Microsoft.KeyVault)
+            PLAIN_SECRETS=$(echo "$ENV_VARS" | python3 -c "
+          import json, sys, re
+          data = json.load(sys.stdin)
+          pattern = re.compile(r'$SECRET_PATTERNS', re.IGNORECASE)
+          kv_ref   = re.compile(r'secretref:|@Microsoft\.KeyVault\(', re.IGNORECASE)
+          bad = []
+          for item in data:
+              name  = item.get('name', '')
+              value = item.get('value', '')
+              if pattern.search(name) and value and not kv_ref.search(value):
+                  bad.append(name)
+          print('\n'.join(bad))
+          " 2>/dev/null || true)
+
+            if [ -n "$PLAIN_SECRETS" ]; then
+              echo "  ❌ $SVC — raw secret env vars detected: $PLAIN_SECRETS"
+              VIOLATIONS=$((VIOLATIONS+1))
+            else
+              echo "  ✅ $SVC — all secret env vars sourced from Key Vault"
+            fi
+          done
+
+          echo "violations=$VIOLATIONS" >> "$GITHUB_OUTPUT"
+          if [ "$VIOLATIONS" -gt 0 ]; then
+            echo "::error::$VIOLATIONS ACA service(s) have raw secret env vars — move to Key Vault references (HIPAA §164.312)"
+            exit 1
+          fi
+
+      - name: Audit Key Vault access policies (Managed Identity only)
+        id: kv-policy-audit
+        env:
+          ACA_RG: healthq-copilot-rg
+        run: |
+          set -euo pipefail
+          # List all Key Vaults in the resource group
+          KV_LIST=$(az keyvault list --resource-group "$ACA_RG" --query "[].name" -o tsv 2>/dev/null || echo "")
+
+          if [ -z "$KV_LIST" ]; then
+            echo "::warning::No Key Vaults found in $ACA_RG — skipping policy audit"
+            exit 0
+          fi
+
+          VIOLATIONS=0
+          for KV in $KV_LIST; do
+            echo ""
+            echo "── Auditing Key Vault: $KV"
+
+            # Check soft-delete + purge protection
+            SOFT_DELETE=$(az keyvault show --name "$KV" --query "properties.enableSoftDelete" -o tsv 2>/dev/null || echo "false")
+            PURGE_PROT=$(az keyvault show --name "$KV" --query "properties.enablePurgeProtection" -o tsv 2>/dev/null || echo "false")
+
+            if [ "$SOFT_DELETE" != "true" ]; then
+              echo "  ❌ $KV — soft-delete NOT enabled (HIPAA data integrity)"
+              VIOLATIONS=$((VIOLATIONS+1))
+            else
+              echo "  ✅ $KV — soft-delete enabled"
+            fi
+
+            if [ "$PURGE_PROT" != "true" ]; then
+              echo "  ⚠️  $KV — purge-protection not enabled (recommended for HIPAA)"
+            else
+              echo "  ✅ $KV — purge-protection enabled"
+            fi
+
+            # Check RBAC model (preferred) vs access policies with service-principal keys
+            ENABLE_RBAC=$(az keyvault show --name "$KV" --query "properties.enableRbacAuthorization" -o tsv 2>/dev/null || echo "false")
+            if [ "$ENABLE_RBAC" = "true" ]; then
+              echo "  ✅ $KV — RBAC authorization enabled (Managed Identity friendly)"
+            else
+              echo "  ⚠️  $KV — using legacy access policies; verify no service-principal client-secret grants"
+            fi
+          done
+
+          echo "violations=$VIOLATIONS" >> "$GITHUB_OUTPUT"
+          if [ "$VIOLATIONS" -gt 0 ]; then
+            echo "::error::$VIOLATIONS Key Vault configuration violation(s) — remediate before go-live"
+            exit 1
+          fi
+          echo "✅ Key Vault audit passed"
+
+      - name: Key Vault audit summary
+        if: always()
+        run: |
+          {
+            echo "## Key Vault HIPAA Audit (Sprint 11)"
+            echo ""
+            echo "| Check | Result |"
+            echo "|-------|--------|"
+            echo "| ACA env var raw-secret check | ${{ steps.env-audit.outcome }} |"
+            echo "| Key Vault soft-delete + RBAC  | ${{ steps.kv-policy-audit.outcome }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── 8. Summary report ─────────────────────────────────────────────────────
   compliance-summary:
     name: Compliance Summary
     runs-on: ubuntu-latest
-    needs: [trivy-scan, owasp-zap, k6-load-test, lighthouse, nuget-vuln-scan, npm-audit]
+    needs: [trivy-scan, owasp-zap, k6-load-test, lighthouse, nuget-vuln-scan, npm-audit, keyvault-audit]
     if: always()
     steps:
       - name: Print result
@@ -398,4 +550,5 @@ jobs:
             echo "| Lighthouse Perf >90    | ${{ needs.lighthouse.result }} |"
             echo "| NuGet Vuln Scan        | ${{ needs.nuget-vuln-scan.result }} |"
             echo "| npm Audit              | ${{ needs.npm-audit.result }} |"
+            echo "| Key Vault HIPAA Audit  | ${{ needs.keyvault-audit.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"

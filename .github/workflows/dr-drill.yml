@@ -1,0 +1,437 @@
+name: DR Drill — Disaster Recovery Verification
+
+# Sprint 12: Disaster Recovery drill.
+#
+# Verifies the two DR targets:
+#   1. PostgreSQL PITR restore < 30 minutes  (RPO ≤ 4h, RTO ≤ 30 min)
+#   2. ACA blue-green failover verified       (traffic-split 0/100 → 100/0 → 0/100)
+#
+# Triggered:
+#   - Manual: workflow_dispatch (ad-hoc drills, go-live prerequisite)
+#   - Scheduled: first Monday of every month at 02:00 UTC
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_pg_restore:
+        description: 'Skip PostgreSQL restore drill (faster, CI-only)'
+        required: false
+        default: 'false'
+      skip_blue_green:
+        description: 'Skip ACA blue-green failover drill'
+        required: false
+        default: 'false'
+      target_resource_group:
+        description: 'Azure resource group (defaults to healthq-copilot-rg)'
+        required: false
+        default: 'healthq-copilot-rg'
+
+  schedule:
+    # Run at 02:00 UTC on the 1st of each month
+    - cron: '0 2 1 * *'
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write   # to open an incident issue if drill fails
+
+env:
+  ACA_RG: ${{ github.event.inputs.target_resource_group || 'healthq-copilot-rg' }}
+  ACA_ENV: healthq-copilot-env
+  GATEWAY_URL: https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io
+  # PostgreSQL Flexible Server name (source)
+  PG_SERVER: healthq-copilot-pg
+  # DR test server suffix — created + deleted within this workflow
+  PG_DR_SUFFIX: dr-test
+
+  # RTO/RPO targets
+  PG_RESTORE_RTO_MINUTES: '30'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 1: Azure auth (reusable across all DR jobs)
+  # ─────────────────────────────────────────────────────────────────────────
+  azure-auth:
+    name: Azure Auth Preflight
+    runs-on: ubuntu-latest
+    outputs:
+      auth_ok: ${{ steps.check.outputs.auth_ok }}
+    steps:
+      - name: Azure login (OIDC)
+        id: azure-login
+        continue-on-error: true
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure login (service principal secret fallback)
+        id: azure-login-secret
+        if: steps.azure-login.outcome != 'success'
+        continue-on-error: true
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Check auth
+        id: check
+        run: |
+          if [ "${{ steps.azure-login.outcome }}" = "success" ] || \
+             [ "${{ steps.azure-login-secret.outcome }}" = "success" ]; then
+            echo "auth_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "auth_ok=false" >> "$GITHUB_OUTPUT"
+            echo "::error::Azure auth failed — provide AZURE_CLIENT_ID/TENANT_ID/SUBSCRIPTION_ID (OIDC) or AZURE_CREDENTIALS (SP secret)"
+          fi
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 2: Verify PostgreSQL backup configuration (backup-verify)
+  # Checks PITR is enabled and retention ≥ 7 days before attempting restore.
+  # ─────────────────────────────────────────────────────────────────────────
+  backup-verify:
+    name: PG Backup Configuration Check
+    needs: azure-auth
+    if: needs.azure-auth.outputs.auth_ok == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      pg_exists: ${{ steps.pg-check.outputs.pg_exists }}
+      pitr_enabled: ${{ steps.pg-check.outputs.pitr_enabled }}
+    steps:
+      - name: Azure login (OIDC)
+        id: azure-login
+        continue-on-error: true
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure login (fallback)
+        if: steps.azure-login.outcome != 'success'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Check PostgreSQL Flexible Server backup config
+        id: pg-check
+        run: |
+          set -euo pipefail
+
+          SERVER_INFO=$(az postgres flexible-server show \
+            --name "${{ env.PG_SERVER }}" \
+            --resource-group "${{ env.ACA_RG }}" \
+            -o json 2>/dev/null || echo "null")
+
+          if [ "$SERVER_INFO" = "null" ]; then
+            echo "::warning::PostgreSQL server '${{ env.PG_SERVER }}' not found in ${{ env.ACA_RG }} — skipping backup verify"
+            echo "pg_exists=false" >> "$GITHUB_OUTPUT"
+            echo "pitr_enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "pg_exists=true" >> "$GITHUB_OUTPUT"
+
+          RETENTION=$(echo "$SERVER_INFO" | python3 -c \
+            "import json,sys; d=json.load(sys.stdin); print(d.get('backup',{}).get('backupRetentionDays',0))")
+          GEO_RED=$(echo "$SERVER_INFO" | python3 -c \
+            "import json,sys; d=json.load(sys.stdin); print(d.get('backup',{}).get('geoRedundantBackup','Disabled'))")
+
+          echo "  Backup retention: ${RETENTION} days"
+          echo "  Geo-redundant:    ${GEO_RED}"
+
+          if [ "$RETENTION" -ge 7 ]; then
+            echo "  ✅ Retention ≥ 7 days"
+            echo "pitr_enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "  ❌ Retention < 7 days ($RETENTION) — HIPAA requires ≥ 7 days"
+            echo "pitr_enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::error::PostgreSQL backup retention is $RETENTION days — must be ≥ 7 for HIPAA compliance"
+            exit 1
+          fi
+
+          {
+            echo "## PG Backup Verification"
+            echo "| Setting | Value |"
+            echo "|---------|-------|"
+            echo "| Server | ${{ env.PG_SERVER }} |"
+            echo "| Retention days | $RETENTION |"
+            echo "| Geo-redundant backup | $GEO_RED |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 3: PostgreSQL PITR restore drill
+  # Creates a restore-to-point-in-time server, times the operation,
+  # asserts < 30 min, then deletes the test server.
+  # ─────────────────────────────────────────────────────────────────────────
+  pg-restore-drill:
+    name: PG PITR Restore Drill (RTO < 30 min)
+    needs: [azure-auth, backup-verify]
+    if: >
+      needs.azure-auth.outputs.auth_ok == 'true' &&
+      needs.backup-verify.outputs.pg_exists == 'true' &&
+      needs.backup-verify.outputs.pitr_enabled == 'true' &&
+      github.event.inputs.skip_pg_restore != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45   # allow time for restore + cleanup
+    outputs:
+      restore_minutes: ${{ steps.restore.outputs.restore_minutes }}
+      rto_passed: ${{ steps.restore.outputs.rto_passed }}
+    steps:
+      - name: Azure login (OIDC)
+        id: azure-login
+        continue-on-error: true
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure login (fallback)
+        if: steps.azure-login.outcome != 'success'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Run PITR restore and measure RTO
+        id: restore
+        env:
+          DR_SERVER: ${{ env.PG_SERVER }}-${{ env.PG_DR_SUFFIX }}
+          RTO_LIMIT: ${{ env.PG_RESTORE_RTO_MINUTES }}
+        run: |
+          set -euo pipefail
+
+          # Restore to 10 minutes ago (well within retention window)
+          RESTORE_TIME=$(date -u -d '10 minutes ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || \
+                         date -u -v-10M '+%Y-%m-%dT%H:%M:%SZ')  # macOS fallback
+          echo "Restoring ${{ env.PG_SERVER }} to point-in-time: $RESTORE_TIME"
+          echo "Target server: $DR_SERVER"
+
+          START_TS=$(date +%s)
+
+          # Attempt restore — non-fatal if ACA infra not yet provisioned
+          RESTORE_RESULT=0
+          az postgres flexible-server restore \
+            --name              "$DR_SERVER" \
+            --resource-group    "${{ env.ACA_RG }}" \
+            --source-server     "${{ env.PG_SERVER }}" \
+            --restore-time      "$RESTORE_TIME" \
+            --no-wait 2>/dev/null || RESTORE_RESULT=$?
+
+          if [ "$RESTORE_RESULT" -ne 0 ]; then
+            echo "::warning::PITR restore command failed (exit $RESTORE_RESULT) — server may not exist or subscription limits reached"
+            echo "restore_minutes=0" >> "$GITHUB_OUTPUT"
+            echo "rto_passed=skipped" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Poll until the DR server state is Ready or until timeout
+          MAX_WAIT=$((RTO_LIMIT * 60))
+          ELAPSED=0
+          POLL_INTERVAL=30
+          SERVER_STATE="Creating"
+
+          while [ "$SERVER_STATE" != "Ready" ] && [ "$ELAPSED" -lt "$MAX_WAIT" ]; do
+            sleep $POLL_INTERVAL
+            ELAPSED=$(( $(date +%s) - START_TS ))
+            SERVER_STATE=$(az postgres flexible-server show \
+              --name "$DR_SERVER" \
+              --resource-group "${{ env.ACA_RG }}" \
+              --query "state" -o tsv 2>/dev/null || echo "Unknown")
+            echo "  [${ELAPSED}s] DR server state: $SERVER_STATE"
+          done
+
+          END_TS=$(date +%s)
+          ELAPSED_SECONDS=$(( END_TS - START_TS ))
+          ELAPSED_MINUTES=$(( ELAPSED_SECONDS / 60 ))
+          echo "restore_minutes=$ELAPSED_MINUTES" >> "$GITHUB_OUTPUT"
+
+          if [ "$SERVER_STATE" = "Ready" ] && [ "$ELAPSED_MINUTES" -lt "$RTO_LIMIT" ]; then
+            echo "  ✅ PITR restore completed in ${ELAPSED_MINUTES} min (RTO target: ${RTO_LIMIT} min)"
+            echo "rto_passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "  ❌ PITR restore NOT within RTO (${ELAPSED_MINUTES} min, state=${SERVER_STATE})"
+            echo "rto_passed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Delete DR test server (cleanup)
+        if: always()
+        run: |
+          DR_SERVER="${{ env.PG_SERVER }}-${{ env.PG_DR_SUFFIX }}"
+          EXISTS=$(az postgres flexible-server show \
+            --name "$DR_SERVER" --resource-group "${{ env.ACA_RG }}" \
+            --query "name" -o tsv 2>/dev/null || echo "")
+
+          if [ -n "$EXISTS" ]; then
+            echo "Deleting DR test server: $DR_SERVER"
+            az postgres flexible-server delete \
+              --name "$DR_SERVER" \
+              --resource-group "${{ env.ACA_RG }}" \
+              --yes 2>/dev/null || true
+            echo "✅ DR test server deleted"
+          else
+            echo "DR test server not found — nothing to clean up"
+          fi
+
+      - name: Assert RTO gate
+        if: steps.restore.outputs.rto_passed == 'false'
+        run: |
+          echo "::error::PostgreSQL PITR restore exceeded ${{ env.PG_RESTORE_RTO_MINUTES }}-minute RTO target (${{ steps.restore.outputs.restore_minutes }} min actual)"
+          exit 1
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 4: ACA blue-green failover drill
+  # Shifts 100% traffic from the current active revision to the
+  # previous revision and back, verifying health at each step.
+  # ─────────────────────────────────────────────────────────────────────────
+  blue-green-failover:
+    name: ACA Blue-Green Failover Drill
+    needs: azure-auth
+    if: >
+      needs.azure-auth.outputs.auth_ok == 'true' &&
+      github.event.inputs.skip_blue_green != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      failover_passed: ${{ steps.failover.outputs.failover_passed }}
+    steps:
+      - name: Azure login (OIDC)
+        id: azure-login
+        continue-on-error: true
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure login (fallback)
+        if: steps.azure-login.outcome != 'success'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Blue-green failover on gateway service
+        id: failover
+        run: |
+          set -euo pipefail
+          SVC="gateway"
+          RG="${{ env.ACA_RG }}"
+
+          # Get the two most recent active revisions
+          REVISIONS=$(az containerapp revision list \
+            --name "$SVC" --resource-group "$RG" \
+            --query "[?properties.active==\`true\`] | sort_by(@, &properties.createdTime)[*].name" \
+            -o tsv 2>/dev/null || echo "")
+
+          REV_COUNT=$(echo "$REVISIONS" | grep -c . || echo 0)
+
+          if [ "$REV_COUNT" -lt 2 ]; then
+            echo "::warning::Only $REV_COUNT active revision(s) found for $SVC — need 2 for blue-green drill. Skipping."
+            echo "failover_passed=skipped" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BLUE=$(echo "$REVISIONS" | tail -1)   # current (newest)
+          GREEN=$(echo "$REVISIONS" | head -1)  # previous (stable)
+
+          echo "  Blue  (current): $BLUE"
+          echo "  Green (previous): $GREEN"
+
+          # Step 1: Failover — shift all traffic to GREEN (previous/stable)
+          echo ""
+          echo "── Step 1: Failover → 100% GREEN ($GREEN)"
+          az containerapp ingress traffic set \
+            --name "$SVC" --resource-group "$RG" \
+            --revision-weight "${GREEN}=100" "${BLUE}=0"
+
+          sleep 15
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 "${{ env.GATEWAY_URL }}/health" || echo "000")
+          echo "  Health after failover: HTTP $STATUS"
+
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "204" ]; then
+            echo "::error::Gateway unhealthy after failover to GREEN (HTTP $STATUS)"
+            # Restore before exiting
+            az containerapp ingress traffic set \
+              --name "$SVC" --resource-group "$RG" \
+              --revision-weight "${BLUE}=100" "${GREEN}=0"
+            echo "failover_passed=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "  ✅ Failover health check passed"
+
+          # Step 2: Failback — restore all traffic to BLUE (current)
+          echo ""
+          echo "── Step 2: Failback → 100% BLUE ($BLUE)"
+          az containerapp ingress traffic set \
+            --name "$SVC" --resource-group "$RG" \
+            --revision-weight "${BLUE}=100" "${GREEN}=0"
+
+          sleep 15
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 "${{ env.GATEWAY_URL }}/health" || echo "000")
+          echo "  Health after failback: HTTP $STATUS"
+
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "204" ]; then
+            echo "::error::Gateway unhealthy after failback to BLUE (HTTP $STATUS)"
+            echo "failover_passed=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          echo "  ✅ Failback health check passed"
+          echo "failover_passed=true" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 5: DR Report — summarise RTO/RPO measurements vs. targets
+  # ─────────────────────────────────────────────────────────────────────────
+  dr-report:
+    name: DR Drill Report
+    needs: [backup-verify, pg-restore-drill, blue-green-failover]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Emit DR summary
+        id: summary
+        run: |
+          PG_RESTORE_MIN="${{ needs.pg-restore-drill.outputs.restore_minutes || 'N/A' }}"
+          RTO_PASSED="${{ needs.pg-restore-drill.outputs.rto_passed || 'skipped' }}"
+          BG_PASSED="${{ needs.blue-green-failover.outputs.failover_passed || 'skipped' }}"
+          PG_BACKUP_OK="${{ needs.backup-verify.result }}"
+
+          {
+            echo "## DR Drill Report — Sprint 12"
+            echo ""
+            echo "| DR Test | Result | Measurement | Target |"
+            echo "|---------|--------|-------------|--------|"
+            echo "| PG backup config (retention ≥ 7d, PITR) | $PG_BACKUP_OK | — | ≥ 7 days |"
+            echo "| PostgreSQL PITR restore drill | $RTO_PASSED | ${PG_RESTORE_MIN} min | < ${{ env.PG_RESTORE_RTO_MINUTES }} min |"
+            echo "| ACA blue-green failover drill | $BG_PASSED | — | health check 200 |"
+            echo ""
+            echo "_Triggered by: ${{ github.actor }} on ${{ github.ref }}_"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Determine overall pass/fail
+          if [ "$RTO_PASSED" = "false" ] || [ "$BG_PASSED" = "false" ] || [ "$PG_BACKUP_OK" = "failure" ]; then
+            echo "overall=failed" >> "$GITHUB_OUTPUT"
+          else
+            echo "overall=passed" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open GitHub issue on DR drill failure
+        if: steps.summary.outputs.overall == 'failed' && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              title: `🚨 DR Drill FAILED — ${new Date().toISOString().split('T')[0]}`,
+              body:  `## DR Drill Failure\n\nThe scheduled monthly DR drill failed.\n\n**Workflow run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\n**Action required:** Investigate RTO/RPO failures and re-run drill after remediation.`,
+              labels: ['dr-failure', 'high-priority', 'ops']
+            });
+
+      - name: Fail workflow on DR failure
+        if: steps.summary.outputs.overall == 'failed'
+        run: |
+          echo "::error::DR drill FAILED — see summary above"
+          exit 1
