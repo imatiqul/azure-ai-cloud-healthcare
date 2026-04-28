@@ -38,11 +38,8 @@ export function CodingQueue() {
 
   const fetchJobs = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/revenue/coding-jobs`, {
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (res.ok) setItems(await res.json());
-      else setItems(DEMO_CODING_ITEMS);
+      const data = await gqlFetch<{ codingJobs: CodingItem[] }>({ query: GET_CODING_JOBS });
+      setItems(data.codingJobs?.length ? data.codingJobs : DEMO_CODING_ITEMS);
     } catch {
       setItems(DEMO_CODING_ITEMS);
     } finally {

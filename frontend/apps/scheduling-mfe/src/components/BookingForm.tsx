@@ -9,9 +9,21 @@ import {
   setActiveWorkflow,
   upsertWorkflowHandoff,
 } from '@healthcare/mfe-events';
+import { gqlFetch } from '@healthcare/graphql-client';
 import { syncWorkflowBooked } from '../lib/workflowSync';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const BOOK_APPOINTMENT = /* GraphQL */ `
+  mutation BookAppointment($input: BookAppointmentInput!) {
+    bookAppointment(input: $input) {
+      id
+      patientId
+      providerId
+      appointmentType
+      status
+      scheduledAt
+    }
+  }
+`;
 
 export function BookingForm() {
   const initialWorkflow = getActiveWorkflowHandoff();
@@ -81,18 +93,13 @@ export function BookingForm() {
     setSuccess(false);
     setSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/scheduling/bookings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slotId, patientId, practitionerId }),
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!res.ok) {
-        const msg = await res.text().catch(() => res.statusText);
-        throw new Error(msg || `Request failed (${res.status})`);
-      }
-      const data = await res.json().catch(() => null) as { id?: string; bookingId?: string } | null;
-      await finalizeBooking(data?.bookingId ?? data?.id);
+      const data = await gqlFetch<{ bookAppointment: { id?: string } }>(
+        {
+          query: BOOK_APPOINTMENT,
+          variables: { input: { slotId, patientId, practitionerId } },
+        },
+      );
+      await finalizeBooking(data.bookAppointment?.id);
     } catch {
       // Backend offline — confirm booking locally so the scheduling flow completes
       await finalizeBooking();

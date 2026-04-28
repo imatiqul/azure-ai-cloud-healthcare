@@ -38,9 +38,8 @@ export function PriorAuthTracker() {
 
   const fetchAuths = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/revenue/prior-auths`);
-      if (res.ok) setAuths(await res.json());
-      else setAuths(DEMO_PRIOR_AUTHS);
+      const data = await gqlFetch<{ priorAuths: PriorAuth[] }>({ query: GET_PRIOR_AUTHS });
+      setAuths(data.priorAuths?.length ? data.priorAuths : DEMO_PRIOR_AUTHS);
     } catch {
       setAuths(DEMO_PRIOR_AUTHS);
     } finally {

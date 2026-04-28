@@ -8,8 +8,20 @@ import Alert from '@mui/material/Alert';
 import IconButton from '@mui/material/IconButton';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { Card, CardHeader, CardTitle, CardContent } from '@healthcare/design-system';
+import { gqlFetch } from '@healthcare/graphql-client';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const GET_VOICE_SESSIONS = /* GraphQL */ `
+  query GetVoiceSessions {
+    voiceSessions {
+      id
+      patientId
+      status
+      transcriptText
+      createdAt
+      endedAt
+    }
+  }
+`;
 
 const DEMO_SESSIONS: VoiceSessionSummary[] = [
   {
@@ -47,6 +59,15 @@ const DEMO_SESSIONS: VoiceSessionSummary[] = [
 ];
 
 type SessionStatus = 'Live' | 'Ended' | 'Connecting';
+
+interface VoiceSessionDto {
+  id:             string;
+  patientId:      string;
+  status:         string;
+  transcriptText: string | null;
+  createdAt:      string;
+  endedAt?:       string | null;
+}
 
 interface VoiceSessionSummary {
   id:                  string;
@@ -88,16 +109,17 @@ export function VoiceSessionHistory() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/voice/sessions`, { signal: AbortSignal.timeout(10_000) });
-      if (res.ok) {
-        const data: VoiceSessionSummary[] = await res.json();
-        setSessions(data);
-      } else if (res.status === 404) {
-        setSessions(DEMO_SESSIONS);
-      } else {
-        setError(`HTTP ${res.status}`);
-      }
-    } catch (err) {
+      const data = await gqlFetch<{ voiceSessions: VoiceSessionDto[] }>({ query: GET_VOICE_SESSIONS });
+      const mapped: VoiceSessionSummary[] = (data.voiceSessions ?? []).map(s => ({
+        id:                 s.id,
+        patientId:          s.patientId,
+        status:             (s.status as VoiceSessionSummary['status']) ?? 'Ended',
+        startedAt:          s.createdAt,
+        endedAt:            s.endedAt,
+        transcriptSnippet:  s.transcriptText?.slice(0, 200) ?? undefined,
+      }));
+      setSessions(mapped.length > 0 ? mapped : DEMO_SESSIONS);
+    } catch {
       setSessions(DEMO_SESSIONS);
     } finally {
       setLoading(false);
