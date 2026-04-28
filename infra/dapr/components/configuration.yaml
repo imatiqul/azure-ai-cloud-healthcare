@@ -1,0 +1,42 @@
+# infra/dapr/components/configuration.yaml
+# Dapr Configuration CR — referenced by all services via dapr.io/config: "healthcare-config"
+# Enables distributed tracing, metrics, and mTLS with resiliency defaults.
+apiVersion: dapr.io/v1alpha1
+kind: Configuration
+metadata:
+  name: healthcare-config
+  namespace: healthq-copilot
+spec:
+  tracing:
+    samplingRate: "1"        # 100% sampling — reduce to "0.1" in high-traffic production
+    otel:
+      endpointAddress: "http://otel-collector:4317"
+      isSecure: false
+      protocol: grpc
+  metric:
+    enabled: true
+    rules:
+      - labels:
+          - name: app_id
+            regex:
+              # Only track per-service metrics for the 9 bounded-context services + gateway + bff
+              voice-service:       ".*"
+              ai-agent-service:    ".*"
+              fhir-service:        ".*"
+              scheduling-service:  ".*"
+              notifications-service: ".*"
+              pophealth-service:   ".*"
+              revenuecycle-service: ".*"
+              ocr-service:         ".*"
+              identity-service:    ".*"
+              gateway:             ".*"
+              bff-service:         ".*"
+  features:
+    - name: ServiceInvocationStreaming
+      enabled: true
+    - name: HotReload
+      enabled: true
+  mtls:
+    enabled: true
+    workloadCertTTL: "24h"
+    allowedClockSkew: "15m"
