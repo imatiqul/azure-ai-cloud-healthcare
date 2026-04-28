@@ -123,7 +123,7 @@ export function LiveTranscriptFeed({ sessionId, onTriageUpdate }: LiveTranscript
   return (
     <Card>
       <CardContent>
-        <Box ref={scrollRef} sx={{ height: 256, overflowY: 'auto' }}>
+        <Box ref={scrollRef} role="log" aria-live="polite" aria-label="Live transcript" sx={{ height: 256, overflowY: 'auto' }}>
           {entries.length === 0 && (
             <Typography variant="body2" color="text.disabled" textAlign="center" sx={{ py: 8 }}>
               {connected ? `Connected. Waiting for transcript... Session: ${sessionId}` : `Connecting to voice hub... Session: ${sessionId}`}
@@ -152,6 +152,9 @@ export function LiveTranscriptFeed({ sessionId, onTriageUpdate }: LiveTranscript
                   {entry.speaker === 'agent' ? 'AI Agent' : 'Patient'}
                 </Typography>
                 <Typography variant="body2">{entry.text}</Typography>
+                <Typography variant="caption" color={entry.speaker === 'agent' ? 'primary.light' : 'text.secondary'} display="block">
+                  {entry.timestamp.toLocaleTimeString()}
+                </Typography>
               </Box>
             </Box>
           ))}

@@ -17,6 +17,7 @@ import {
   selectShellTab,
   upsertWorkflowHandoff,
 } from '@healthcare/mfe-events';
+import { useAuthFetch } from '@healthcare/auth-client';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -44,6 +45,7 @@ export function HitlEscalationModal({
   const [clinicianNote, setClinicianNote]   = useState('');
   const [submitting, setSubmitting]         = useState(false);
   const [error, setError]                   = useState<string | null>(null);
+  const authFetch = useAuthFetch();
 
   // Stream the AI reasoning word-by-word when the modal opens so clinicians
   // can watch the AI explain its decision rather than seeing a wall of text.
@@ -102,7 +104,7 @@ export function HitlEscalationModal({
       const resolvedWorkflowId = getWorkflowHandoff(workflowId)?.workflowId
         ?? getWorkflowHandoff(sessionId ?? workflowId)?.workflowId
         ?? workflowId;
-      const res = await fetch(`${API_BASE}/api/v1/agents/triage/${resolvedWorkflowId}/approve`, {
+      const res = await authFetch(`${API_BASE}/api/v1/agents/triage/${resolvedWorkflowId}/approve`, {
         signal: AbortSignal.timeout(10_000),
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

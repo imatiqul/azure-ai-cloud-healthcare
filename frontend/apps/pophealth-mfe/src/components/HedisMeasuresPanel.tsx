@@ -8,6 +8,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import LinearProgress from '@mui/material/LinearProgress';
+import { useAuthFetch } from '@healthcare/auth-client';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -89,6 +90,7 @@ export function HedisMeasuresPanel() {
   const [response, setResponse] = useState<HedisResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const authFetch = useAuthFetch();
 
   const evaluate = useCallback(async () => {
     if (!patientId.trim()) return;
@@ -104,9 +106,9 @@ export function HedisMeasuresPanel() {
     };
 
     try {
-      const res = await fetch(`${API_BASE}/api/v1/population-health/patients/${encodeURIComponent(patientId)}/hedis`, {
+      const res = await authFetch(`${API_BASE}/api/v1/population-health/patients/${encodeURIComponent(patientId)}/hedis`, {
         signal: AbortSignal.timeout(10_000),
-        method: 'GET',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       });

@@ -13,6 +13,7 @@ import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@health
 import Alert from '@mui/material/Alert';
 import { getActiveWorkflowHandoff } from '@healthcare/mfe-events';
 import { syncWorkflowWaitlist } from '../lib/workflowSync';
+import { useAuthFetch } from '@healthcare/auth-client';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -60,6 +61,7 @@ export function WaitlistPanel() {
   const [conflictResult, setConflictResult] = useState<boolean | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [enqueueSuccess, setEnqueueSuccess] = useState(false);
+  const authFetch = useAuthFetch();
 
   const [patientId, setPatientId] = useState(activeWorkflow?.patientId ?? '');
   const [practitionerId, setPractitionerId] = useState(activeWorkflow?.practitionerId ?? '');
@@ -70,7 +72,7 @@ export function WaitlistPanel() {
   const fetchWaitlist = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/scheduling/waitlist`);
+      const res = await authFetch(`${API_BASE}/api/v1/scheduling/waitlist`);
       if (res.ok) {
         setEntries(await res.json());
       } else if (res.status === 404) {
@@ -96,7 +98,7 @@ export function WaitlistPanel() {
     setActionError(null);
     setEnqueueSuccess(false);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/scheduling/waitlist`, {
+      const res = await authFetch(`${API_BASE}/api/v1/scheduling/waitlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -163,7 +165,7 @@ export function WaitlistPanel() {
   const handleRemove = async (id: string) => {
     setActionError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/scheduling/waitlist/${id}`, { method: 'DELETE', signal: AbortSignal.timeout(10_000) });
+      const res = await authFetch(`${API_BASE}/api/v1/scheduling/waitlist/${id}`, { method: 'DELETE', signal: AbortSignal.timeout(10_000) });
       if (res.ok) fetchWaitlist();
       else throw new Error(`${res.status}`);
     } catch {
@@ -179,7 +181,7 @@ export function WaitlistPanel() {
     }
     setActionError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/scheduling/waitlist/conflict-check`, {
+      const res = await authFetch(`${API_BASE}/api/v1/scheduling/waitlist/conflict-check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patientId, practitionerId }),

@@ -7,6 +7,8 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
+import Alert from '@mui/material/Alert';
+import Skeleton from '@mui/material/Skeleton';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
 import { gqlFetch } from '@healthcare/graphql-client';
 
@@ -45,12 +47,20 @@ interface PatientRisk {
 export function RiskPanel() {
   const [allRisks, setAllRisks] = useState<PatientRisk[]>([]);
   const [filter, setFilter] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch all risks once via GraphQL BFF; filter client-side
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     gqlFetch<{ patientRisks: PatientRisk[] }>({ query: GET_PATIENT_RISKS })
       .then(data => setAllRisks(data.patientRisks ?? []))
-      .catch(() => setAllRisks(DEMO_RISKS));
+      .catch(() => {
+        setError('Failed to load risk assessments — showing demo data');
+        setAllRisks(DEMO_RISKS);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const risks = useMemo(
@@ -90,7 +100,15 @@ export function RiskPanel() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {risks.length === 0 ? (
+        {loading && (
+          <Stack spacing={1}>
+            {[0, 1, 2].map(i => <Skeleton key={i} variant="rounded" height={56} />)}
+          </Stack>
+        )}
+        {!loading && (
+          <>
+            {error && <Alert severity="warning" sx={{ mb: 1.5 }}>{error}</Alert>}
+            {risks.length === 0 ? (
           <Typography color="text.disabled" textAlign="center" sx={{ py: 4 }}>
             No risk assessments
           </Typography>
@@ -137,6 +155,8 @@ export function RiskPanel() {
               </Box>
             ))}
           </Stack>
+        )}
+          </>
         )}
       </CardContent>
     </Card>

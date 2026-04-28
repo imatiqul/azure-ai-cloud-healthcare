@@ -30,6 +30,7 @@ import {
   upsertWorkflowHandoff,
 } from '@healthcare/mfe-events';
 import { AiThinkingPanel } from '@healthcare/design-system';
+import { useAuthFetch } from '@healthcare/auth-client';
 
 type SessionStatus = 'idle' | 'connecting' | 'live' | 'ended';
 
@@ -194,7 +195,7 @@ function useMicCapture(
   const sendChunk = useCallback(async (pcmBuffer: ArrayBuffer) => {
     if (!sessionId) return;
     try {
-      const res = await fetch(`${apiBase}/api/v1/voice/sessions/${sessionId}/audio-chunk`, {
+      const res = await authFetch(`${apiBase}/api/v1/voice/sessions/${sessionId}/audio-chunk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/octet-stream' },
         body: pcmBuffer,
@@ -504,6 +505,7 @@ export function VoiceSessionController() {
   const [aiDone, setAiDone]               = useState(false);
 
   const clientRef = useRef<VoiceSessionClient | null>(null);
+  const authFetch = useAuthFetch();
   const isDemoSession = sessionId?.startsWith('demo-voice-') ?? false;
   const demoSpeechRecognitionUnavailable = isDemoSession && !getSpeechRecognitionConstructor();
 
@@ -657,7 +659,7 @@ export function VoiceSessionController() {
     setAiStreaming(false);
     setAiDone(false);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/voice/sessions`, {
+      const res = await authFetch(`${API_BASE}/api/v1/voice/sessions`, {
         signal: AbortSignal.timeout(10_000),
         method: 'POST',
         body: JSON.stringify({ patientId: getBackendPatientId(patientId) }),
@@ -680,7 +682,7 @@ export function VoiceSessionController() {
     if (!sessionId) return;
     stopRecording();
     try {
-      await fetch(`${API_BASE}/api/v1/voice/sessions/${sessionId}/end`, { signal: AbortSignal.timeout(10_000), method: 'POST' });
+      await authFetch(`${API_BASE}/api/v1/voice/sessions/${sessionId}/end`, { signal: AbortSignal.timeout(10_000), method: 'POST' });
     } catch {
       // Demo/offline sessions still need to end locally.
     } finally {
@@ -708,14 +710,14 @@ export function VoiceSessionController() {
       status: 'Processing',
     });
     try {
-      await fetch(`${API_BASE}/api/v1/voice/sessions/${sessionId}/transcript`, {
+      await authFetch(`${API_BASE}/api/v1/voice/sessions/${sessionId}/transcript`, {
         signal: AbortSignal.timeout(10_000),
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcriptText: approvedTranscript }),
       });
 
-      const triageRes = await fetch(`${API_BASE}/api/v1/agents/triage`, {
+      const triageRes = await authFetch(`${API_BASE}/api/v1/agents/triage`, {
         signal: AbortSignal.timeout(30_000),
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

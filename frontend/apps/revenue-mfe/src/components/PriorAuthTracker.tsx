@@ -5,6 +5,26 @@ import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
+import { gqlFetch } from '@healthcare/graphql-client';
+import { useAuthFetch } from '@healthcare/auth-client';
+
+const GET_PRIOR_AUTHS = /* GraphQL */ `
+  query GetPriorAuths {
+    priorAuths {
+      id
+      patientId
+      patientName
+      procedure
+      procedureCode
+      status
+      insurancePayer
+      denialReason
+      createdAt
+      submittedAt
+      resolvedAt
+    }
+  }
+`;
 
 interface PriorAuth {
   id: string;
@@ -35,6 +55,7 @@ export function PriorAuthTracker() {
   const [loading, setLoading] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const authFetch = useAuthFetch();
 
   const fetchAuths = useCallback(async () => {
     try {
@@ -53,7 +74,7 @@ export function PriorAuthTracker() {
     setSubmitError(null);
     setSubmitSuccess(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/revenue/prior-auths/${id}/submit`, { method: 'POST', signal: AbortSignal.timeout(10_000) });
+      const res = await authFetch(`${API_BASE}/api/v1/revenue/prior-auths/${id}/submit`, { method: 'POST', signal: AbortSignal.timeout(10_000) });
       if (res.ok) { setSubmitSuccess('Prior auth submitted for review.'); fetchAuths(); }
       else { setSubmitSuccess('Prior auth submitted for review.'); }
     } catch { setSubmitSuccess('Prior auth submitted for review.'); }

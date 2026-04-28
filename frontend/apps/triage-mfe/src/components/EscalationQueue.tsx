@@ -6,6 +6,7 @@ import Alert from '@mui/material/Alert';
 import Divider from '@mui/material/Divider';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
 import { onBackendStatusChanged } from '@healthcare/mfe-events';
+import { useAuthFetch } from '@healthcare/auth-client';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -51,6 +52,7 @@ export function EscalationQueue() {
   const [backendOnline, setBackendOnlineLocal] = useState<boolean | null>(null);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const authFetch = useAuthFetch();
 
   const fetchQueue = useCallback(async () => {
     // If the global health check confirmed backend is down, skip fetch — avoid 404 noise.
@@ -62,7 +64,7 @@ export function EscalationQueue() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/agents/escalations`, { signal: AbortSignal.timeout(10_000) });
+      const res = await authFetch(`${API_BASE}/api/v1/agents/escalations`, { signal: AbortSignal.timeout(10_000) });
       if (!res.ok) {
         // Backend not deployed — back off to 30 s to reduce APIM noise
         if (intervalRef.current) {
@@ -106,7 +108,7 @@ export function EscalationQueue() {
   async function claim(id: string) {
     setActionError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/agents/escalations/${id}/claim`, {
+      const res = await authFetch(`${API_BASE}/api/v1/agents/escalations/${id}/claim`, {
         signal: AbortSignal.timeout(10_000),
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,7 +133,7 @@ export function EscalationQueue() {
     }
     setActionError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/agents/escalations/${id}/resolve`, {
+      const res = await authFetch(`${API_BASE}/api/v1/agents/escalations/${id}/resolve`, {
         signal: AbortSignal.timeout(10_000),
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -154,7 +156,7 @@ export function EscalationQueue() {
   async function dismiss(id: string) {
     setActionError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/agents/escalations/${id}/dismiss`, {
+      const res = await authFetch(`${API_BASE}/api/v1/agents/escalations/${id}/dismiss`, {
         signal: AbortSignal.timeout(10_000),
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

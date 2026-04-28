@@ -120,6 +120,7 @@ export function VoiceSessionHistory() {
       }));
       setSessions(mapped.length > 0 ? mapped : DEMO_SESSIONS);
     } catch {
+      setError('Failed to load sessions — showing demo data');
       setSessions(DEMO_SESSIONS);
     } finally {
       setLoading(false);

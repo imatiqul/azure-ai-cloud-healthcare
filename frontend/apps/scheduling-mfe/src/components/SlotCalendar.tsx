@@ -19,6 +19,7 @@ import {
   upsertWorkflowHandoff,
 } from '@healthcare/mfe-events';
 import { syncWorkflowReserve } from '../lib/workflowSync';
+import { useAuthFetch } from '@healthcare/auth-client';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -49,6 +50,7 @@ export function SlotCalendar() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [reserveError, setReserveError] = useState<string | null>(null);
   const [workflowContext, setWorkflowContext] = useState(() => getActiveWorkflowHandoff() ?? getLatestWorkflowHandoff());
+  const authFetch = useAuthFetch();
 
   useEffect(() => {
     fetchSlots();
@@ -73,12 +75,13 @@ export function SlotCalendar() {
   async function fetchSlots() {
     setFetchError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/scheduling/slots?date=${selectedDate}`, { signal: AbortSignal.timeout(10_000) });
+      const res = await authFetch(`${API_BASE}/api/v1/scheduling/slots?date=${selectedDate}`, { signal: AbortSignal.timeout(10_000) });
       if (!res.ok) throw new Error(`Server error (${res.status})`);
       const data = await res.json();
       setSlots(data);
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
+        setFetchError('Could not load slots — showing demo data');
         setSlots(makeDemoSlots(selectedDate));
       }
     }
@@ -123,13 +126,14 @@ export function SlotCalendar() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/api/v1/scheduling/slots/${slotId}/reserve`, { method: 'POST', signal: AbortSignal.timeout(10_000) });
+      const res = await authFetch(`${API_BASE}/api/v1/scheduling/slots/${slotId}/reserve`, { method: 'POST', signal: AbortSignal.timeout(10_000) });
       if (!res.ok) throw new Error(`Reservation failed (${res.status})`);
       emitSlotReserved({ slotId, patientId, practitionerId });
       selectShellTab('hq:tab-scheduling', 1);
       fetchSlots();
     } catch {
-      // Backend offline — treat as demo reserve success
+      // Backend offline — apply locally and notify user
+      setReserveError('Slot reservation failed — applied locally.');
       emitSlotReserved({ slotId, patientId, practitionerId });
       selectShellTab('hq:tab-scheduling', 1);
       setSlots(prev => prev.map(s => s.id === slotId ? { ...s, status: 'Reserved' } : s));

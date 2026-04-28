@@ -35,12 +35,18 @@ importers:
 
   apps/encounters-mfe:
     dependencies:
+      '@healthcare/auth-client':
+        specifier: workspace:*
+        version: link:../../packages/auth-client
       '@healthcare/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
       '@healthcare/fhir-types':
         specifier: workspace:*
         version: link:../../packages/fhir-types
+      '@healthcare/graphql-client':
+        specifier: workspace:*
+        version: link:../../packages/graphql-client
       '@healthcare/mfe-events':
         specifier: workspace:*
         version: link:../../packages/mfe-events
@@ -163,12 +169,18 @@ importers:
 
   apps/pophealth-mfe:
     dependencies:
+      '@healthcare/auth-client':
+        specifier: workspace:*
+        version: link:../../packages/auth-client
       '@healthcare/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
       '@healthcare/fhir-types':
         specifier: workspace:*
         version: link:../../packages/fhir-types
+      '@healthcare/graphql-client':
+        specifier: workspace:*
+        version: link:../../packages/graphql-client
       '@healthcare/mfe-events':
         specifier: workspace:*
         version: link:../../packages/mfe-events
@@ -221,12 +233,18 @@ importers:
 
   apps/revenue-mfe:
     dependencies:
+      '@healthcare/auth-client':
+        specifier: workspace:*
+        version: link:../../packages/auth-client
       '@healthcare/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
       '@healthcare/fhir-types':
         specifier: workspace:*
         version: link:../../packages/fhir-types
+      '@healthcare/graphql-client':
+        specifier: workspace:*
+        version: link:../../packages/graphql-client
       '@healthcare/mfe-events':
         specifier: workspace:*
         version: link:../../packages/mfe-events
@@ -279,12 +297,18 @@ importers:
 
   apps/scheduling-mfe:
     dependencies:
+      '@healthcare/auth-client':
+        specifier: workspace:*
+        version: link:../../packages/auth-client
       '@healthcare/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
       '@healthcare/fhir-types':
         specifier: workspace:*
         version: link:../../packages/fhir-types
+      '@healthcare/graphql-client':
+        specifier: workspace:*
+        version: link:../../packages/graphql-client
       '@healthcare/mfe-events':
         specifier: workspace:*
         version: link:../../packages/mfe-events
@@ -343,6 +367,9 @@ importers:
       '@healthcare/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@healthcare/graphql-client':
+        specifier: workspace:*
+        version: link:../../packages/graphql-client
       '@healthcare/mfe-events':
         specifier: workspace:*
         version: link:../../packages/mfe-events
@@ -416,6 +443,9 @@ importers:
 
   apps/triage-mfe:
     dependencies:
+      '@healthcare/auth-client':
+        specifier: workspace:*
+        version: link:../../packages/auth-client
       '@healthcare/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
@@ -477,12 +507,18 @@ importers:
 
   apps/voice-mfe:
     dependencies:
+      '@healthcare/auth-client':
+        specifier: workspace:*
+        version: link:../../packages/auth-client
       '@healthcare/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
       '@healthcare/fhir-types':
         specifier: workspace:*
         version: link:../../packages/fhir-types
+      '@healthcare/graphql-client':
+        specifier: workspace:*
+        version: link:../../packages/graphql-client
       '@healthcare/mfe-events':
         specifier: workspace:*
         version: link:../../packages/mfe-events

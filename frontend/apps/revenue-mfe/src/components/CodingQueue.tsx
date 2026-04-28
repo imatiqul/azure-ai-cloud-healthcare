@@ -7,6 +7,26 @@ import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
+import { gqlFetch } from '@healthcare/graphql-client';
+import { useAuthFetch } from '@healthcare/auth-client';
+
+const GET_CODING_JOBS = /* GraphQL */ `
+  query GetCodingJobs {
+    codingJobs {
+      id
+      encounterId
+      patientId
+      patientName
+      suggestedCodes
+      codeConfidences
+      approvedCodes
+      status
+      createdAt
+      reviewedAt
+      reviewedBy
+    }
+  }
+`;
 
 interface CodingItem {
   id: string;
@@ -35,6 +55,7 @@ export function CodingQueue() {
   const [items, setItems] = useState<CodingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
+  const authFetch = useAuthFetch();
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -57,14 +78,14 @@ export function CodingQueue() {
         : i));
     };
     try {
-      const res = await fetch(`${API_BASE}/api/v1/revenue/coding-jobs/${item.id}/review`, {
+      const res = await authFetch(`${API_BASE}/api/v1/revenue/coding-jobs/${item.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ approvedCodes: item.suggestedCodes, reviewedBy: 'current-user' }),
         signal: AbortSignal.timeout(10_000),
       });
-      if (res.ok) fetchJobs(); else applyApproval();
-    } catch { applyApproval(); }
+      if (res.ok) fetchJobs(); else { setActionError('Approve failed — codes applied locally.'); applyApproval(); }
+    } catch { setActionError('Approve failed — codes applied locally.'); applyApproval(); }
   };
 
   const handleSubmit = async (id: string) => {
@@ -73,9 +94,9 @@ export function CodingQueue() {
       setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'Submitted' as const } : i));
     };
     try {
-      const res = await fetch(`${API_BASE}/api/v1/revenue/coding-jobs/${id}/submit`, { method: 'POST', signal: AbortSignal.timeout(10_000) });
-      if (res.ok) fetchJobs(); else applySubmit();
-    } catch { applySubmit(); }
+      const res = await authFetch(`${API_BASE}/api/v1/revenue/coding-jobs/${id}/submit`, { method: 'POST', signal: AbortSignal.timeout(10_000) });
+      if (res.ok) fetchJobs(); else { setActionError('Submit failed — status applied locally.'); applySubmit(); }
+    } catch { setActionError('Submit failed — status applied locally.'); applySubmit(); }
   };
 
   function getStatusVariant(status: string) {
@@ -88,20 +109,37 @@ export function CodingQueue() {
     }
   }
 
+  const highConfItems = items.filter(
+    item => item.status === 'Pending' &&
+    Object.values(item.codeConfidences ?? {}).length > 0 &&
+    Object.values(item.codeConfidences ?? {}).every(c => c >= 95)
+  );
+
+  async function handleBulkApprove() {
+    await Promise.all(highConfItems.map(item => handleReview(item)));
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <span>ICD-10 Coding Queue</span>
-            <Chip
-              icon={<AutoAwesomeIcon sx={{ fontSize: '14px !important' }} />}
-              label="AI Accuracy 94%"
-              size="small"
-              color="success"
-              variant="outlined"
-              sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700 }}
-            />
+            <Stack direction="row" spacing={1} alignItems="center">
+              {highConfItems.length > 0 && (
+                <Button size="sm" variant="outline" onClick={() => void handleBulkApprove()}>
+                  Approve All High-Confidence ({highConfItems.length})
+                </Button>
+              )}
+              <Chip
+                icon={<AutoAwesomeIcon sx={{ fontSize: '14px !important' }} />}
+                label="AI Accuracy 94%"
+                size="small"
+                color="success"
+                variant="outlined"
+                sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700 }}
+              />
+            </Stack>
           </Stack>
         </CardTitle>
       </CardHeader>

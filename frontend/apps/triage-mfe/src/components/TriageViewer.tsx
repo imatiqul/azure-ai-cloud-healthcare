@@ -23,6 +23,7 @@ import {
   upsertWorkflowHandoff,
 } from '@healthcare/mfe-events';
 import { HitlEscalationModal } from './HitlEscalationModal';
+import { useAuthFetch } from '@healthcare/auth-client';
 import { AgentTraceViewer, useLiveToolEvents } from './AgentTrace';
 
 const AGENT_TRACE_ENABLED = import.meta.env.VITE_AGENT_TRACE_ENABLED === 'true';
@@ -327,6 +328,7 @@ export function TriageViewer() {
   // avoid flooding the APIM gateway (and browser console) when not yet deployed.
   const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollDelayRef   = useRef<number>(5_000);
+  const authFetch      = useAuthFetch();
 
   function persistWorkflow(
     identifier: string,
@@ -390,7 +392,7 @@ export function TriageViewer() {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const res = await fetch(`${API_BASE}/api/v1/agents/workflows?top=50`, { signal: controller.signal });
+      const res = await authFetch(`${API_BASE}/api/v1/agents/workflows?top=50`, { signal: controller.signal });
       if (!res.ok) {
         // Backend not deployed (404) or gateway error — back off to 30 s
         if (pollDelayRef.current !== 30_000) schedulePoll(30_000);

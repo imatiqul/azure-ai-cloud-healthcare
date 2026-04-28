@@ -64,6 +64,8 @@ export function EncounterList({ patientId: propId }: { patientId?: string } = {}
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
     if (propId !== undefined) setPatientId(propId);
@@ -81,7 +83,7 @@ export function EncounterList({ patientId: propId }: { patientId?: string } = {}
     } catch {
       setEncounters(DEMO_ENCOUNTERS);
       setAiFlags(DEMO_AI_FLAGS);
-      setError(null);
+      setError('Failed to load encounters — showing demo data');
     } finally {
       setLoading(false);
     }
@@ -159,16 +161,40 @@ export function EncounterList({ patientId: propId }: { patientId?: string } = {}
       {/* Encounter cards */}
       {!loading && !error && patientId && (
         <Stack spacing={2}>
-          {encounters.length === 0 && (
-            <Card>
-              <CardContent>
-                <Typography color="text.disabled" textAlign="center" sx={{ py: 4 }}>
-                  No encounters found for this patient
-                </Typography>
-              </CardContent>
-            </Card>
+          {/* Type and status filter chips */}
+          {encounters.length > 0 && (
+            <Stack spacing={1}>
+              <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
+                <Typography variant="caption" color="text.secondary">Type:</Typography>
+                {['Ambulatory', 'Inpatient', 'Virtual'].map(t => (
+                  <Chip
+                    key={t}
+                    label={t}
+                    size="small"
+                    variant={typeFilter === t ? 'filled' : 'outlined'}
+                    color={typeFilter === t ? 'primary' : 'default'}
+                    onClick={() => setTypeFilter(prev => prev === t ? '' : t)}
+                  />
+                ))}
+              </Stack>
+              <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
+                <Typography variant="caption" color="text.secondary">Status:</Typography>
+                {['in-progress', 'finished', 'planned', 'cancelled'].map(s => (
+                  <Chip
+                    key={s}
+                    label={s}
+                    size="small"
+                    variant={statusFilter === s ? 'filled' : 'outlined'}
+                    color={statusFilter === s ? 'primary' : 'default'}
+                    onClick={() => setStatusFilter(prev => prev === s ? '' : s)}
+                  />
+                ))}
+              </Stack>
+            </Stack>
           )}
-          {encounters.map((enc) => {
+          {encounters
+            .filter(enc => (!typeFilter || enc.encounterType === typeFilter) && (!statusFilter || enc.status === statusFilter))
+            .map((enc) => {
             const dateLabel = enc.startedAt
               ? new Date(enc.startedAt).toLocaleString()
               : 'Unknown date';
@@ -224,6 +250,15 @@ export function EncounterList({ patientId: propId }: { patientId?: string } = {}
               </Card>
             );
           })}
+          {encounters.filter(enc => (!typeFilter || enc.encounterType === typeFilter) && (!statusFilter || enc.status === statusFilter)).length === 0 && (
+            <Card>
+              <CardContent>
+                <Typography color="text.disabled" textAlign="center" sx={{ py: 4 }}>
+                  {encounters.length === 0 ? 'No encounters found for this patient' : 'No encounters match the selected filters'}
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
         </Stack>
       )}
 
