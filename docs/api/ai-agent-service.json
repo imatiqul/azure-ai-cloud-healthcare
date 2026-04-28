@@ -1,0 +1,337 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HealthQ Copilot — AI Agent Service",
+    "description": "AI triage orchestration, clinical coding agent (ReAct loop), guide chat (SSE streaming), XAI explanations, model governance, A/B experiments, clinician feedback, demo orchestration, and workflow operations.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/api/v1/agents", "description": "AI Agent Service" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/triage": {
+      "post": {
+        "operationId": "startTriage",
+        "summary": "Start an AI triage session",
+        "tags": ["Triage"],
+        "responses": { "202": { "description": "Triage started" } }
+      },
+      "get": {
+        "operationId": "listTriage",
+        "summary": "List triage sessions",
+        "tags": ["Triage"],
+        "parameters": [{ "name": "top", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 } }],
+        "responses": { "200": { "description": "Triage sessions" } }
+      }
+    },
+    "/triage/{id}": {
+      "get": {
+        "operationId": "getTriageSession",
+        "summary": "Get a triage session by workflow ID",
+        "tags": ["Triage"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Triage session" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/triage/{id}/approve": {
+      "post": {
+        "operationId": "approveTriage",
+        "summary": "HITL approval of an AI triage recommendation",
+        "tags": ["Triage"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Triage approved" } }
+      }
+    },
+    "/triage/{id}/reject": {
+      "post": {
+        "operationId": "rejectTriage",
+        "summary": "HITL rejection of an AI triage recommendation",
+        "tags": ["Triage"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Triage rejected" } }
+      }
+    },
+    "/stats": {
+      "get": {
+        "operationId": "getAgentStats",
+        "summary": "Get aggregate agent statistics",
+        "tags": ["Triage"],
+        "responses": { "200": { "description": "Agent statistics" } }
+      }
+    },
+    "/decisions/{workflowId}": {
+      "get": {
+        "operationId": "getDecisionByWorkflow",
+        "summary": "Get agent decision by workflow ID",
+        "tags": ["XAI"],
+        "parameters": [{ "name": "workflowId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Agent decision" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/decisions/{id}/explanation": {
+      "get": {
+        "operationId": "getDecisionExplanation",
+        "summary": "Get XAI explanation for an agent decision (confidence intervals, reasoning steps, RAG chunks)",
+        "tags": ["XAI"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "XAI explanation" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/decisions/ml-confidence": {
+      "post": {
+        "operationId": "computeMlConfidence",
+        "summary": "Compute calibrated 95% confidence intervals for an ML readmission risk probability",
+        "tags": ["XAI"],
+        "responses": { "200": { "description": "Confidence interval and optional feature importance" } }
+      }
+    },
+    "/coding/code-encounter": {
+      "post": {
+        "operationId": "codeEncounter",
+        "summary": "Run the clinical coding ReAct agent to assign ICD-10/CPT codes to an encounter transcript",
+        "tags": ["Clinical Coding"],
+        "responses": { "200": { "description": "Coding result with reasoning steps" } }
+      }
+    },
+    "/experiments/{experimentId}/summary": {
+      "get": {
+        "operationId": "getExperimentSummary",
+        "summary": "Get A/B prompt experiment summary with statistical significance assessment",
+        "tags": ["Experiments"],
+        "parameters": [{ "name": "experimentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Experiment summary" }, "404": { "description": "Experiment not found" } }
+      }
+    },
+    "/feedback": {
+      "post": {
+        "operationId": "submitFeedback",
+        "summary": "Submit clinician feedback on an AI response (ratings 1-5, optional correction ingested into RAG)",
+        "tags": ["Feedback"],
+        "responses": { "201": { "description": "Feedback recorded" } }
+      }
+    },
+    "/feedback/summary": {
+      "get": {
+        "operationId": "getFeedbackSummary",
+        "summary": "Get aggregate clinician feedback quality summary",
+        "tags": ["Feedback"],
+        "parameters": [{ "name": "since", "in": "query", "schema": { "type": "string", "format": "date-time" } }],
+        "responses": { "200": { "description": "Feedback summary" } }
+      }
+    },
+    "/guide/chat": {
+      "post": {
+        "operationId": "guideChat",
+        "summary": "Send a message to the Platform Guide Copilot (blocking JSON response)",
+        "tags": ["Platform Guide"],
+        "responses": { "200": { "description": "Guide response" } }
+      }
+    },
+    "/guide/suggestions": {
+      "get": {
+        "operationId": "getGuideSuggestions",
+        "summary": "Get contextual navigation suggestions from the Platform Guide",
+        "tags": ["Platform Guide"],
+        "responses": { "200": { "description": "Suggestions list" } }
+      }
+    },
+    "/guide/chat/stream": {
+      "get": {
+        "operationId": "guideChatStream",
+        "summary": "Stream Platform Guide chat tokens via Server-Sent Events",
+        "tags": ["Platform Guide"],
+        "parameters": [
+          { "name": "message", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "sessionId", "in": "query", "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "SSE stream of chat tokens" } }
+      }
+    },
+    "/guide/history/{sessionId}": {
+      "get": {
+        "operationId": "getGuideHistory",
+        "summary": "Retrieve conversation history for a guide chat session",
+        "tags": ["Platform Guide"],
+        "parameters": [{ "name": "sessionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Conversation history" }, "404": { "description": "Session not found" } }
+      }
+    },
+    "/governance/register": {
+      "post": {
+        "operationId": "registerModel",
+        "summary": "Register a new AI model version in the model registry",
+        "tags": ["Model Governance"],
+        "responses": { "201": { "description": "Model registered" } }
+      }
+    },
+    "/governance/history": {
+      "get": {
+        "operationId": "getGovernanceHistory",
+        "summary": "Get model registry history",
+        "tags": ["Model Governance"],
+        "responses": { "200": { "description": "Registry entries" } }
+      }
+    },
+    "/governance/{id}": {
+      "get": {
+        "operationId": "getGovernanceEntry",
+        "summary": "Get a single model registry entry by ID",
+        "tags": ["Model Governance"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Registry entry" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/governance/evaluate": {
+      "post": {
+        "operationId": "runEvaluation",
+        "summary": "Run a prompt regression evaluation against the current model",
+        "tags": ["Model Governance"],
+        "responses": { "200": { "description": "Evaluation result" } }
+      }
+    },
+    "/governance/evaluate/history": {
+      "get": {
+        "operationId": "getEvaluationHistory",
+        "summary": "Get evaluation history",
+        "tags": ["Model Governance"],
+        "parameters": [{ "name": "top", "in": "query", "schema": { "type": "integer", "default": 10 } }],
+        "responses": { "200": { "description": "Evaluation history entries" } }
+      }
+    },
+    "/demo/start": {
+      "post": {
+        "operationId": "startDemoSession",
+        "summary": "Start a new demo session",
+        "tags": ["Demo"],
+        "responses": { "201": { "description": "Demo session created" } }
+      }
+    },
+    "/demo/{id}/step": {
+      "post": {
+        "operationId": "advanceDemoStep",
+        "summary": "Advance to the next demo step",
+        "tags": ["Demo"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Step advanced" } }
+      }
+    },
+    "/demo/{id}/insights": {
+      "get": {
+        "operationId": "getDemoInsights",
+        "summary": "Get live insights for a demo session",
+        "tags": ["Demo"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Demo insights" } }
+      }
+    },
+    "/demo/sessions": {
+      "get": {
+        "operationId": "listDemoSessions",
+        "summary": "Admin: list all demo sessions",
+        "tags": ["Demo Admin"],
+        "responses": { "200": { "description": "All demo sessions" } }
+      }
+    },
+    "/demo/insights": {
+      "post": {
+        "operationId": "generateDemoInsights",
+        "summary": "Admin: generate AI-powered aggregate insights across all demo sessions",
+        "tags": ["Demo Admin"],
+        "responses": { "200": { "description": "Aggregate demo insights" } }
+      }
+    },
+    "/workflows/summary": {
+      "get": {
+        "operationId": "getWorkflowSummary",
+        "summary": "Get workflow operational summary",
+        "tags": ["Workflows"],
+        "responses": { "200": { "description": "Workflow summary" } }
+      }
+    },
+    "/workflows": {
+      "get": {
+        "operationId": "listWorkflows",
+        "summary": "List all workflow instances",
+        "tags": ["Workflows"],
+        "responses": { "200": { "description": "Workflow instances" } }
+      }
+    },
+    "/workflows/{id}": {
+      "get": {
+        "operationId": "getWorkflow",
+        "summary": "Get a workflow instance by ID",
+        "tags": ["Workflows"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Workflow instance" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/workflows/{id}/complete": {
+      "post": {
+        "operationId": "completeWorkflow",
+        "summary": "Mark a workflow step as complete",
+        "tags": ["Workflows"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Workflow updated" } }
+      }
+    },
+    "/workflows/{id}/escalate": {
+      "post": {
+        "operationId": "escalateWorkflow",
+        "summary": "Escalate a workflow to HITL review",
+        "tags": ["Workflows"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Workflow escalated" } }
+      }
+    },
+    "/workflows/{id}/hitl-approve": {
+      "post": {
+        "operationId": "hitlApproveWorkflow",
+        "summary": "HITL approve a workflow",
+        "tags": ["Workflows"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "HITL approved" } }
+      }
+    },
+    "/workflows/{id}/claim": {
+      "post": {
+        "operationId": "claimWorkflow",
+        "summary": "Claim a workflow for HITL review",
+        "tags": ["Workflows"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Workflow claimed" } }
+      }
+    },
+    "/workflows/{id}/resolve": {
+      "post": {
+        "operationId": "resolveWorkflow",
+        "summary": "Resolve a workflow",
+        "tags": ["Workflows"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Workflow resolved" } }
+      }
+    },
+    "/workflows/realtime/notifications": {
+      "get": {
+        "operationId": "getRealtimeNotifications",
+        "summary": "Get real-time workflow notifications",
+        "tags": ["Workflows"],
+        "responses": { "200": { "description": "Notifications" } }
+      }
+    },
+    "/workflows/{id}/audit": {
+      "get": {
+        "operationId": "getWorkflowAudit",
+        "summary": "Get audit trail for a workflow",
+        "tags": ["Workflows"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Audit trail" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

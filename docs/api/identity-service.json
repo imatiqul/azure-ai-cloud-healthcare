@@ -1,0 +1,242 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HealthQ Copilot — Identity Service",
+    "description": "User identity management, patient registration, OTP MFA, break-glass emergency access (HIPAA §164.312(a)(2)(ii)), GDPR consent and erasure, PHI audit export, and tenant self-service onboarding.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/api/v1/identity", "description": "Identity Service" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/users": {
+      "post": {
+        "operationId": "createUser",
+        "summary": "Create a new user account",
+        "tags": ["Users"],
+        "responses": { "201": { "description": "User created" } }
+      },
+      "get": {
+        "operationId": "listUsers",
+        "summary": "List users with optional role/active filters",
+        "tags": ["Users"],
+        "parameters": [
+          { "name": "role", "in": "query", "schema": { "type": "string" } },
+          { "name": "active", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": { "200": { "description": "User list" } }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "operationId": "getUserById",
+        "summary": "Get a user account by ID",
+        "tags": ["Users"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "User account" }, "404": { "description": "Not found" } }
+      },
+      "put": {
+        "operationId": "updateUser",
+        "summary": "Update user email and full name",
+        "tags": ["Users"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "User updated" } }
+      }
+    },
+    "/users/by-external": {
+      "get": {
+        "operationId": "getUserByExternalId",
+        "summary": "Get a user by Entra ID external ID",
+        "tags": ["Users"],
+        "parameters": [{ "name": "externalId", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "User account" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/users/{id}/activate": {
+      "post": {
+        "operationId": "activateUser",
+        "summary": "Activate a user account",
+        "tags": ["Users"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "User activated" } }
+      }
+    },
+    "/users/{id}/deactivate": {
+      "post": {
+        "operationId": "deactivateUser",
+        "summary": "Deactivate a user account",
+        "tags": ["Users"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "User deactivated" } }
+      }
+    },
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "Get the authenticated user's own account",
+        "tags": ["Users"],
+        "responses": { "200": { "description": "Current user account" }, "401": { "description": "Unauthorized" } }
+      }
+    },
+    "/patients/register": {
+      "post": {
+        "operationId": "registerPatient",
+        "summary": "Register a new patient (links to FHIR Patient resource)",
+        "tags": ["Patients"],
+        "security": [],
+        "responses": { "201": { "description": "Patient registered" } }
+      }
+    },
+    "/patients/me": {
+      "get": {
+        "operationId": "getPatientMe",
+        "summary": "Get the authenticated patient's own profile",
+        "tags": ["Patients"],
+        "responses": { "200": { "description": "Patient profile" }, "404": { "description": "Not registered" } }
+      }
+    },
+    "/otp/send": {
+      "post": {
+        "operationId": "sendOtp",
+        "summary": "Send a one-time password via ACS SMS for MFA enrollment",
+        "tags": ["OTP"],
+        "security": [],
+        "responses": { "200": { "description": "OTP sent; returns otpId and expiresAt" } }
+      }
+    },
+    "/otp/verify": {
+      "post": {
+        "operationId": "verifyOtp",
+        "summary": "Verify a one-time password code",
+        "tags": ["OTP"],
+        "security": [],
+        "responses": { "200": { "description": "Verification result" } }
+      }
+    },
+    "/break-glass": {
+      "post": {
+        "operationId": "requestBreakGlass",
+        "summary": "Request emergency break-glass access to a patient record (HIPAA §164.312(a)(2)(ii))",
+        "tags": ["Break Glass"],
+        "responses": { "201": { "description": "Access granted; supervisor notification published to Dapr pub/sub" } }
+      },
+      "get": {
+        "operationId": "listBreakGlass",
+        "summary": "List all break-glass access records",
+        "tags": ["Break Glass"],
+        "responses": { "200": { "description": "Break-glass access records" } }
+      }
+    },
+    "/break-glass/{id}": {
+      "get": {
+        "operationId": "getBreakGlass",
+        "summary": "Get a break-glass access record by ID",
+        "tags": ["Break Glass"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Break-glass record" }, "404": { "description": "Not found" } }
+      },
+      "delete": {
+        "operationId": "revokeBreakGlass",
+        "summary": "Revoke an active break-glass access grant",
+        "tags": ["Break Glass"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "204": { "description": "Revoked" } }
+      }
+    },
+    "/consent": {
+      "post": {
+        "operationId": "grantConsent",
+        "summary": "Grant HIPAA/GDPR consent for a purpose and scope",
+        "tags": ["Consent"],
+        "responses": { "201": { "description": "Consent granted" } }
+      },
+      "get": {
+        "operationId": "listConsents",
+        "summary": "List consent records for a patient",
+        "tags": ["Consent"],
+        "responses": { "200": { "description": "Consent records" } }
+      }
+    },
+    "/consent/{id}": {
+      "delete": {
+        "operationId": "revokeConsent",
+        "summary": "Revoke a consent record",
+        "tags": ["Consent"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "204": { "description": "Consent revoked" } }
+      }
+    },
+    "/consent/erasure": {
+      "post": {
+        "operationId": "requestErasure",
+        "summary": "GDPR Art. 17 right-to-erasure request — revokes all consents and publishes async PHI deletion event",
+        "tags": ["Consent"],
+        "responses": { "202": { "description": "Erasure request accepted" } }
+      }
+    },
+    "/admin/audit/export": {
+      "get": {
+        "operationId": "exportAuditLog",
+        "summary": "Export PHI audit log as CSV or NDJSON (HIPAA §164.530(j), 7-year retention)",
+        "tags": ["Audit"],
+        "parameters": [
+          { "name": "format", "in": "query", "schema": { "type": "string", "enum": ["csv", "ndjson"], "default": "csv" } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" } }
+        ],
+        "responses": { "200": { "description": "Audit log file" } }
+      }
+    },
+    "/admin/audit/summary": {
+      "get": {
+        "operationId": "getAuditSummary",
+        "summary": "Get aggregate PHI access activity summary by user and HTTP method",
+        "tags": ["Audit"],
+        "parameters": [{ "name": "days", "in": "query", "schema": { "type": "integer", "default": 30 } }],
+        "responses": { "200": { "description": "Audit summary" } }
+      }
+    },
+    "/tenants": {
+      "post": {
+        "operationId": "provisionTenant",
+        "summary": "Provision a new tenant (self-service onboarding)",
+        "tags": ["Tenants"],
+        "responses": { "201": { "description": "Tenant provisioned" } }
+      },
+      "get": {
+        "operationId": "listTenants",
+        "summary": "List all tenants",
+        "tags": ["Tenants"],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": { "200": { "description": "Tenant list" } }
+      }
+    },
+    "/tenants/{id}": {
+      "get": {
+        "operationId": "getTenant",
+        "summary": "Get a tenant by ID",
+        "tags": ["Tenants"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Tenant config" }, "404": { "description": "Not found" } }
+      },
+      "delete": {
+        "operationId": "offboardTenant",
+        "summary": "Offboard (delete) a tenant and trigger GDPR erasure",
+        "tags": ["Tenants"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "204": { "description": "Tenant deleted" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

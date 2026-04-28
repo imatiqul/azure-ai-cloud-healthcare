@@ -1,0 +1,388 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HealthQ Copilot — FHIR Service",
+    "description": "FHIR R4 clinical resource management: patients, encounters, observations, medications, allergies, conditions, immunizations, coverage, explanation-of-benefit, DICOM imaging proxy, SMART on FHIR, MLLP event ingestion, and patient compartment $everything operation.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/api/v1/fhir", "description": "FHIR Service" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/patients": {
+      "get": {
+        "operationId": "searchPatients",
+        "summary": "Search FHIR patients",
+        "tags": ["Patients"],
+        "parameters": [
+          { "name": "family", "in": "query", "schema": { "type": "string" } },
+          { "name": "given", "in": "query", "schema": { "type": "string" } },
+          { "name": "identifier", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Patient bundle" } }
+      },
+      "post": {
+        "operationId": "createPatient",
+        "summary": "Create a FHIR Patient resource",
+        "tags": ["Patients"],
+        "responses": { "201": { "description": "Patient created" } }
+      }
+    },
+    "/patients/{id}": {
+      "get": {
+        "operationId": "getPatient",
+        "summary": "Get a FHIR Patient resource by ID",
+        "tags": ["Patients"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Patient resource" }, "404": { "description": "Not found" } }
+      },
+      "put": {
+        "operationId": "updatePatient",
+        "summary": "Update a FHIR Patient resource",
+        "tags": ["Patients"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Patient updated" } }
+      }
+    },
+    "/patients/{id}/$everything": {
+      "get": {
+        "operationId": "patientEverything",
+        "summary": "FHIR R4 patient compartment $everything — full clinical record bundle",
+        "tags": ["Patients"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "start", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "end", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "_type", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Patient bundle with all clinical resources" } }
+      }
+    },
+    "/encounters/{patientId}": {
+      "get": {
+        "operationId": "getEncountersByPatient",
+        "summary": "Get FHIR Encounters for a patient",
+        "tags": ["Encounters"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Encounters bundle" } }
+      }
+    },
+    "/encounters": {
+      "get": {
+        "operationId": "searchEncounters",
+        "summary": "Search FHIR Encounters",
+        "tags": ["Encounters"],
+        "responses": { "200": { "description": "Encounters bundle" } }
+      },
+      "post": {
+        "operationId": "createEncounter",
+        "summary": "Create a FHIR Encounter resource",
+        "tags": ["Encounters"],
+        "responses": { "201": { "description": "Encounter created" } }
+      }
+    },
+    "/encounters/{id}": {
+      "put": {
+        "operationId": "updateEncounter",
+        "summary": "Update a FHIR Encounter resource",
+        "tags": ["Encounters"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Encounter updated" } }
+      }
+    },
+    "/observations": {
+      "post": {
+        "operationId": "createObservation",
+        "summary": "Create a FHIR Observation resource (lab result, vital sign)",
+        "tags": ["Observations"],
+        "responses": { "201": { "description": "Observation created" } }
+      },
+      "get": {
+        "operationId": "searchObservations",
+        "summary": "Search FHIR Observations by patient, code, date, category, status",
+        "tags": ["Observations"],
+        "parameters": [
+          { "name": "patient", "in": "query", "schema": { "type": "string" } },
+          { "name": "code", "in": "query", "schema": { "type": "string" } },
+          { "name": "date", "in": "query", "schema": { "type": "string" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Observations bundle" } }
+      }
+    },
+    "/observations/{patientId}": {
+      "get": {
+        "operationId": "getObservationsByPatient",
+        "summary": "Get FHIR Observations for a patient",
+        "tags": ["Observations"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Observations bundle" } }
+      }
+    },
+    "/observations/{id}": {
+      "get": {
+        "operationId": "getObservation",
+        "summary": "Get a FHIR Observation by ID",
+        "tags": ["Observations"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Observation resource" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/medications/{patientId}": {
+      "get": {
+        "operationId": "getMedicationsByPatient",
+        "summary": "Get MedicationRequest resources for a patient",
+        "tags": ["Medications"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Medications bundle" } }
+      }
+    },
+    "/medications/resource/{id}": {
+      "get": {
+        "operationId": "getMedication",
+        "summary": "Get a single MedicationRequest by ID",
+        "tags": ["Medications"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "MedicationRequest resource" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/medications": {
+      "post": {
+        "operationId": "createMedication",
+        "summary": "Create a FHIR MedicationRequest",
+        "tags": ["Medications"],
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/medications/{id}": {
+      "put": {
+        "operationId": "updateMedication",
+        "summary": "Update a FHIR MedicationRequest",
+        "tags": ["Medications"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Updated" } }
+      },
+      "delete": {
+        "operationId": "deleteMedication",
+        "summary": "Delete a FHIR MedicationRequest",
+        "tags": ["Medications"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Deleted" } }
+      }
+    },
+    "/allergies/{patientId}": {
+      "get": {
+        "operationId": "getAllergiesByPatient",
+        "summary": "Get AllergyIntolerance resources for a patient",
+        "tags": ["Allergies"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Allergies bundle" } }
+      }
+    },
+    "/allergies/resource/{id}": {
+      "get": {
+        "operationId": "getAllergy",
+        "summary": "Get a single AllergyIntolerance by ID",
+        "tags": ["Allergies"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "AllergyIntolerance resource" } }
+      }
+    },
+    "/allergies": {
+      "post": {
+        "operationId": "createAllergy",
+        "summary": "Create a FHIR AllergyIntolerance",
+        "tags": ["Allergies"],
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/allergies/{id}": {
+      "put": {
+        "operationId": "updateAllergy",
+        "summary": "Update a FHIR AllergyIntolerance",
+        "tags": ["Allergies"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Updated" } }
+      },
+      "delete": {
+        "operationId": "deleteAllergy",
+        "summary": "Delete a FHIR AllergyIntolerance",
+        "tags": ["Allergies"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Deleted" } }
+      }
+    },
+    "/conditions/{patientId}": {
+      "get": {
+        "operationId": "getConditionsByPatient",
+        "summary": "Get FHIR Condition resources for a patient",
+        "tags": ["Conditions"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Conditions bundle" } }
+      }
+    },
+    "/conditions/resource/{id}": {
+      "get": {
+        "operationId": "getCondition",
+        "summary": "Get a single FHIR Condition by ID",
+        "tags": ["Conditions"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Condition resource" } }
+      }
+    },
+    "/conditions": {
+      "post": {
+        "operationId": "createCondition",
+        "summary": "Create a FHIR Condition",
+        "tags": ["Conditions"],
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/conditions/{id}": {
+      "put": {
+        "operationId": "updateCondition",
+        "summary": "Update a FHIR Condition",
+        "tags": ["Conditions"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Updated" } }
+      },
+      "delete": {
+        "operationId": "deleteCondition",
+        "summary": "Delete a FHIR Condition",
+        "tags": ["Conditions"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Deleted" } }
+      }
+    },
+    "/immunizations/{patientId}": {
+      "get": {
+        "operationId": "getImmunizations",
+        "summary": "Get FHIR Immunization records for a patient",
+        "tags": ["Immunizations"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Immunizations bundle" } }
+      }
+    },
+    "/diagnostic-reports/{patientId}": {
+      "get": {
+        "operationId": "getDiagnosticReports",
+        "summary": "Get FHIR DiagnosticReport resources for a patient",
+        "tags": ["Diagnostics"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "DiagnosticReports bundle" } }
+      }
+    },
+    "/care-teams/{patientId}": {
+      "get": {
+        "operationId": "getCareTeams",
+        "summary": "Get FHIR CareTeam resources for a patient",
+        "tags": ["Care Teams"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "CareTeams bundle" } }
+      }
+    },
+    "/appointments/{patientId}": {
+      "get": {
+        "operationId": "getAppointmentsByPatient",
+        "summary": "Get FHIR Appointment resources for a patient",
+        "tags": ["Appointments"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Appointments bundle" } }
+      }
+    },
+    "/appointments": {
+      "post": {
+        "operationId": "createAppointment",
+        "summary": "Create a FHIR Appointment",
+        "tags": ["Appointments"],
+        "responses": { "201": { "description": "Appointment created" } }
+      }
+    },
+    "/coverage": {
+      "get": {
+        "operationId": "searchCoverage",
+        "summary": "Search FHIR Coverage resources",
+        "tags": ["Coverage"],
+        "responses": { "200": { "description": "Coverage bundle" } }
+      },
+      "post": {
+        "operationId": "createCoverage",
+        "summary": "Create a FHIR Coverage resource",
+        "tags": ["Coverage"],
+        "responses": { "201": { "description": "Coverage created" } }
+      }
+    },
+    "/coverage/{id}": {
+      "get": {
+        "operationId": "getCoverage",
+        "summary": "Get a FHIR Coverage resource by ID",
+        "tags": ["Coverage"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Coverage resource" } }
+      },
+      "put": {
+        "operationId": "updateCoverage",
+        "summary": "Update a FHIR Coverage resource",
+        "tags": ["Coverage"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Coverage updated" } }
+      }
+    },
+    "/coverage/{id}/$eligibility": {
+      "post": {
+        "operationId": "checkEligibility",
+        "summary": "Check insurance eligibility for a coverage resource",
+        "tags": ["Coverage"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Eligibility response" } }
+      }
+    },
+    "/explanation-of-benefit": {
+      "get": {
+        "operationId": "searchExplanationOfBenefit",
+        "summary": "Search FHIR ExplanationOfBenefit resources",
+        "tags": ["Explanation of Benefit"],
+        "responses": { "200": { "description": "EOB bundle" } }
+      },
+      "post": {
+        "operationId": "createExplanationOfBenefit",
+        "summary": "Create a FHIR ExplanationOfBenefit resource",
+        "tags": ["Explanation of Benefit"],
+        "responses": { "201": { "description": "EOB created" } }
+      }
+    },
+    "/explanation-of-benefit/{id}": {
+      "get": {
+        "operationId": "getExplanationOfBenefit",
+        "summary": "Get a FHIR ExplanationOfBenefit by ID",
+        "tags": ["Explanation of Benefit"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "EOB resource" } }
+      }
+    },
+    "/imaging/{studyId}": {
+      "get": {
+        "operationId": "getDicomImaging",
+        "summary": "WADO-RS proxy for DICOM imaging studies (OHIF viewer integration)",
+        "tags": ["Imaging"],
+        "parameters": [{ "name": "studyId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "DICOM study metadata" } }
+      }
+    },
+    "/events": {
+      "post": {
+        "operationId": "ingestHl7Event",
+        "summary": "Ingest HL7v2 MLLP events (ADT/ORU/ORM) via HTTP bridge",
+        "tags": ["Events"],
+        "responses": { "200": { "description": "Event ingested" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

@@ -1,0 +1,277 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HealthQ Copilot — API Gateway",
+    "description": "YARP reverse-proxy API Gateway. All paths are transparently forwarded to the appropriate downstream microservice. No business logic resides at the gateway layer. APIM sits in front of the gateway and enforces JWT validation, rate limiting, and subscription key checks.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/", "description": "API Gateway (YARP)" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/api/v1/agents/{catch-all}": {
+      "get": {
+        "operationId": "proxyAgentsGet",
+        "summary": "Proxy GET requests to the AI Agent Service",
+        "tags": ["Agents Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from AI Agent Service" } }
+      },
+      "post": {
+        "operationId": "proxyAgentsPost",
+        "summary": "Proxy POST requests to the AI Agent Service",
+        "tags": ["Agents Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from AI Agent Service" } }
+      },
+      "put": {
+        "operationId": "proxyAgentsPut",
+        "summary": "Proxy PUT requests to the AI Agent Service",
+        "tags": ["Agents Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from AI Agent Service" } }
+      },
+      "delete": {
+        "operationId": "proxyAgentsDelete",
+        "summary": "Proxy DELETE requests to the AI Agent Service",
+        "tags": ["Agents Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from AI Agent Service" } }
+      }
+    },
+    "/api/v1/voice/{catch-all}": {
+      "get": {
+        "operationId": "proxyVoiceGet",
+        "summary": "Proxy GET requests to the Voice Service",
+        "tags": ["Voice Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Voice Service" } }
+      },
+      "post": {
+        "operationId": "proxyVoicePost",
+        "summary": "Proxy POST requests to the Voice Service",
+        "tags": ["Voice Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Voice Service" } }
+      }
+    },
+    "/api/webpubsub/{catch-all}": {
+      "get": {
+        "operationId": "proxyWebPubSubGet",
+        "summary": "Proxy GET requests to Azure Web PubSub via Voice Service",
+        "tags": ["Voice Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "101": { "description": "WebSocket upgrade / SSE stream established" } }
+      },
+      "post": {
+        "operationId": "proxyWebPubSubPost",
+        "summary": "Proxy POST requests to Azure Web PubSub via Voice Service",
+        "tags": ["Voice Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response" } }
+      }
+    },
+    "/api/v1/scheduling/{catch-all}": {
+      "get": {
+        "operationId": "proxySchedulingGet",
+        "summary": "Proxy GET requests to the Scheduling Service",
+        "tags": ["Scheduling Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Scheduling Service" } }
+      },
+      "post": {
+        "operationId": "proxySchedulingPost",
+        "summary": "Proxy POST requests to the Scheduling Service",
+        "tags": ["Scheduling Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Scheduling Service" } }
+      },
+      "put": {
+        "operationId": "proxySchedulingPut",
+        "summary": "Proxy PUT requests to the Scheduling Service",
+        "tags": ["Scheduling Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Scheduling Service" } }
+      },
+      "delete": {
+        "operationId": "proxySchedulingDelete",
+        "summary": "Proxy DELETE requests to the Scheduling Service",
+        "tags": ["Scheduling Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Proxied response from Scheduling Service" } }
+      }
+    },
+    "/api/v1/population-health/{catch-all}": {
+      "get": {
+        "operationId": "proxyPopHealthGet",
+        "summary": "Proxy GET requests to the Population Health Service",
+        "tags": ["Population Health Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Population Health Service" } }
+      },
+      "post": {
+        "operationId": "proxyPopHealthPost",
+        "summary": "Proxy POST requests to the Population Health Service",
+        "tags": ["Population Health Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Population Health Service" } }
+      }
+    },
+    "/api/v1/revenue/{catch-all}": {
+      "get": {
+        "operationId": "proxyRevenueGet",
+        "summary": "Proxy GET requests to the Revenue Cycle Service",
+        "tags": ["Revenue Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Revenue Cycle Service" } }
+      },
+      "post": {
+        "operationId": "proxyRevenuePost",
+        "summary": "Proxy POST requests to the Revenue Cycle Service",
+        "tags": ["Revenue Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Revenue Cycle Service" } }
+      },
+      "put": {
+        "operationId": "proxyRevenuePut",
+        "summary": "Proxy PUT requests to the Revenue Cycle Service",
+        "tags": ["Revenue Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Revenue Cycle Service" } }
+      }
+    },
+    "/api/v1/fhir/{catch-all}": {
+      "get": {
+        "operationId": "proxyFhirGet",
+        "summary": "Proxy GET requests to the FHIR Service",
+        "tags": ["FHIR Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from FHIR Service" } }
+      },
+      "post": {
+        "operationId": "proxyFhirPost",
+        "summary": "Proxy POST requests to the FHIR Service",
+        "tags": ["FHIR Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from FHIR Service" } }
+      },
+      "put": {
+        "operationId": "proxyFhirPut",
+        "summary": "Proxy PUT requests to the FHIR Service",
+        "tags": ["FHIR Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from FHIR Service" } }
+      },
+      "delete": {
+        "operationId": "proxyFhirDelete",
+        "summary": "Proxy DELETE requests to the FHIR Service",
+        "tags": ["FHIR Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Proxied response from FHIR Service" } }
+      }
+    },
+    "/fhir/metadata": {
+      "get": {
+        "operationId": "fhirCapabilityStatement",
+        "summary": "FHIR R4 capability statement (CapabilityStatement resource) — path rewritten to /api/v1/fhir/metadata",
+        "tags": ["FHIR Proxy"],
+        "security": [],
+        "responses": { "200": { "description": "FHIR CapabilityStatement JSON" } }
+      }
+    },
+    "/.well-known/{catch-all}": {
+      "get": {
+        "operationId": "proxySmartFhirDiscovery",
+        "summary": "SMART on FHIR discovery endpoints (openid-configuration, smart-configuration)",
+        "tags": ["FHIR Proxy"],
+        "security": [],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "SMART on FHIR discovery document" } }
+      }
+    },
+    "/api/v1/identity/{catch-all}": {
+      "get": {
+        "operationId": "proxyIdentityGet",
+        "summary": "Proxy GET requests to the Identity Service",
+        "tags": ["Identity Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Identity Service" } }
+      },
+      "post": {
+        "operationId": "proxyIdentityPost",
+        "summary": "Proxy POST requests to the Identity Service",
+        "tags": ["Identity Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Identity Service" } }
+      },
+      "put": {
+        "operationId": "proxyIdentityPut",
+        "summary": "Proxy PUT requests to the Identity Service",
+        "tags": ["Identity Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Identity Service" } }
+      },
+      "delete": {
+        "operationId": "proxyIdentityDelete",
+        "summary": "Proxy DELETE requests to the Identity Service",
+        "tags": ["Identity Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Identity Service" } }
+      }
+    },
+    "/api/v1/admin/audit/{catch-all}": {
+      "get": {
+        "operationId": "proxyIdentityAdminAuditGet",
+        "summary": "Proxy admin audit GET requests to the Identity Service (short-circuits admin audit path without /identity/ prefix)",
+        "tags": ["Identity Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Identity Service admin audit endpoint" } }
+      }
+    },
+    "/api/v1/notifications/{catch-all}": {
+      "get": {
+        "operationId": "proxyNotificationsGet",
+        "summary": "Proxy GET requests to the Notification Service",
+        "tags": ["Notifications Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Notification Service" } }
+      },
+      "post": {
+        "operationId": "proxyNotificationsPost",
+        "summary": "Proxy POST requests to the Notification Service",
+        "tags": ["Notifications Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from Notification Service" } }
+      },
+      "delete": {
+        "operationId": "proxyNotificationsDelete",
+        "summary": "Proxy DELETE requests to the Notification Service",
+        "tags": ["Notifications Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Proxied response from Notification Service" } }
+      }
+    },
+    "/api/v1/ocr/{catch-all}": {
+      "get": {
+        "operationId": "proxyOcrGet",
+        "summary": "Proxy GET requests to the OCR Service",
+        "tags": ["OCR Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from OCR Service" } }
+      },
+      "post": {
+        "operationId": "proxyOcrPost",
+        "summary": "Proxy POST requests to the OCR Service",
+        "tags": ["OCR Proxy"],
+        "parameters": [{ "name": "catch-all", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied response from OCR Service" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

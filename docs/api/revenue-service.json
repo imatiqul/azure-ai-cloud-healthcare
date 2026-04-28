@@ -1,0 +1,238 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HealthQ Copilot — Revenue Cycle Service",
+    "description": "End-to-end revenue cycle management: AI-assisted ICD-10/CPT coding, prior authorization, claims submission, remittance posting, and denial management with appeal workflow.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/api/v1/revenue", "description": "Revenue Cycle Service" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/coding-jobs": {
+      "get": {
+        "operationId": "listCodingJobs",
+        "summary": "List all coding jobs with optional status filter",
+        "tags": ["Coding"],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "top", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": { "200": { "description": "Coding job list" } }
+      },
+      "post": {
+        "operationId": "createCodingJob",
+        "summary": "Create a new manual coding job",
+        "tags": ["Coding"],
+        "responses": { "201": { "description": "Coding job created" } }
+      }
+    },
+    "/coding-jobs/{id}": {
+      "get": {
+        "operationId": "getCodingJob",
+        "summary": "Get a coding job by ID",
+        "tags": ["Coding"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Coding job details" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/coding-jobs/{id}/review": {
+      "post": {
+        "operationId": "reviewCodingJob",
+        "summary": "Submit coder review and optional code corrections for a coding job",
+        "tags": ["Coding"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Review submitted" } }
+      }
+    },
+    "/coding-jobs/{id}/submit": {
+      "post": {
+        "operationId": "submitCodingJob",
+        "summary": "Submit a reviewed coding job to the claims pipeline",
+        "tags": ["Coding"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Coding job submitted; claim created" } }
+      }
+    },
+    "/coding-jobs/from-triage": {
+      "post": {
+        "operationId": "createCodingJobFromTriage",
+        "summary": "Create a coding job pre-populated from an approved AI triage result",
+        "tags": ["Coding"],
+        "responses": { "201": { "description": "Coding job created from triage data" } }
+      }
+    },
+    "/prior-auths": {
+      "get": {
+        "operationId": "listPriorAuths",
+        "summary": "List prior authorization requests",
+        "tags": ["Prior Authorization"],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "patientId", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Prior authorization list" } }
+      },
+      "post": {
+        "operationId": "createPriorAuth",
+        "summary": "Create a prior authorization request",
+        "tags": ["Prior Authorization"],
+        "responses": { "201": { "description": "Prior auth request created" } }
+      }
+    },
+    "/prior-auths/{id}": {
+      "get": {
+        "operationId": "getPriorAuth",
+        "summary": "Get a prior authorization request by ID",
+        "tags": ["Prior Authorization"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Prior auth details" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/prior-auths/{id}/submit": {
+      "post": {
+        "operationId": "submitPriorAuth",
+        "summary": "Submit a prior authorization request to the payer",
+        "tags": ["Prior Authorization"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Prior auth submitted" } }
+      }
+    },
+    "/prior-auths/{id}/approve": {
+      "post": {
+        "operationId": "approvePriorAuth",
+        "summary": "Mark a prior authorization as approved (payer callback)",
+        "tags": ["Prior Authorization"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Prior auth approved" } }
+      }
+    },
+    "/prior-auths/{id}/deny": {
+      "post": {
+        "operationId": "denyPriorAuth",
+        "summary": "Mark a prior authorization as denied (payer callback)",
+        "tags": ["Prior Authorization"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Prior auth denied with reason" } }
+      }
+    },
+    "/claims/submit": {
+      "post": {
+        "operationId": "submitClaim",
+        "summary": "Submit a claim to the payer (X12 837P/I format via clearinghouse)",
+        "tags": ["Claims"],
+        "responses": { "202": { "description": "Claim submitted; returns claimId and submissionId" } }
+      }
+    },
+    "/claims": {
+      "get": {
+        "operationId": "listClaims",
+        "summary": "List all claims with optional status/payer filter",
+        "tags": ["Claims"],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "payerId", "in": "query", "schema": { "type": "string" } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": { "200": { "description": "Claims list" } }
+      }
+    },
+    "/remittance/post": {
+      "post": {
+        "operationId": "postRemittance",
+        "summary": "Post an ERA remittance (X12 835) and apply payment to claims",
+        "tags": ["Remittance"],
+        "responses": { "200": { "description": "Remittance posted with payment details" } }
+      }
+    },
+    "/remittance/{id}": {
+      "get": {
+        "operationId": "getRemittance",
+        "summary": "Get a remittance record by ID",
+        "tags": ["Remittance"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Remittance record" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/stats": {
+      "get": {
+        "operationId": "getRevenueStats",
+        "summary": "Get revenue cycle KPIs: denial rate, collection rate, net collection ratio, days in AR",
+        "tags": ["Analytics"],
+        "parameters": [{ "name": "period", "in": "query", "schema": { "type": "string", "enum": ["30d", "90d", "YTD"], "default": "30d" } }],
+        "responses": { "200": { "description": "Revenue cycle statistics" } }
+      }
+    },
+    "/denials": {
+      "get": {
+        "operationId": "listDenials",
+        "summary": "List denial records",
+        "tags": ["Denials"],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "reasonCode", "in": "query", "schema": { "type": "string" } },
+          { "name": "top", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": { "200": { "description": "Denial list" } }
+      },
+      "post": {
+        "operationId": "createDenial",
+        "summary": "Record a new claim denial",
+        "tags": ["Denials"],
+        "responses": { "201": { "description": "Denial recorded" } }
+      }
+    },
+    "/denials/analytics": {
+      "get": {
+        "operationId": "getDenialAnalytics",
+        "summary": "Get denial analytics: top denial reason codes, denial rate by payer and provider",
+        "tags": ["Denials"],
+        "parameters": [{ "name": "period", "in": "query", "schema": { "type": "string", "enum": ["30d", "90d", "YTD"], "default": "30d" } }],
+        "responses": { "200": { "description": "Denial analytics summary" } }
+      }
+    },
+    "/denials/{id}": {
+      "get": {
+        "operationId": "getDenial",
+        "summary": "Get a denial record by ID",
+        "tags": ["Denials"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Denial record" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/denials/{id}/appeal": {
+      "put": {
+        "operationId": "appealDenial",
+        "summary": "Submit an appeal for a denied claim",
+        "tags": ["Denials"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Appeal submitted" } }
+      }
+    },
+    "/denials/{id}/resubmit": {
+      "post": {
+        "operationId": "resubmitDenial",
+        "summary": "Resubmit a corrected claim for a denial",
+        "tags": ["Denials"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Claim resubmitted" } }
+      }
+    },
+    "/denials/{id}/resolve": {
+      "put": {
+        "operationId": "resolveDenial",
+        "summary": "Mark a denial as resolved (paid, written-off, or appeal upheld)",
+        "tags": ["Denials"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Denial resolved" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

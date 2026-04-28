@@ -1,0 +1,113 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HealthQ Copilot — Notification Service",
+    "description": "Omnichannel patient engagement: campaign management, SMS/Email/WhatsApp message delivery via Azure Communication Services, delivery analytics, and Web Push subscription management.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/api/v1/notifications", "description": "Notification Service" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/campaigns": {
+      "post": {
+        "operationId": "createCampaign",
+        "summary": "Create a new notification campaign",
+        "tags": ["Campaigns"],
+        "responses": { "201": { "description": "Campaign created in Draft status" } }
+      },
+      "get": {
+        "operationId": "listCampaigns",
+        "summary": "List all notification campaigns",
+        "tags": ["Campaigns"],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["Draft", "Active", "Paused", "Completed"] } },
+          { "name": "top", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": { "200": { "description": "Campaign list" } }
+      }
+    },
+    "/campaigns/{id}/activate": {
+      "post": {
+        "operationId": "activateCampaign",
+        "summary": "Activate a draft campaign and start message delivery",
+        "tags": ["Campaigns"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Campaign activated" }, "409": { "description": "Campaign already active or completed" } }
+      }
+    },
+    "/messages": {
+      "get": {
+        "operationId": "listMessages",
+        "summary": "List all notification messages",
+        "tags": ["Messages"],
+        "parameters": [
+          { "name": "campaignId", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "top", "in": "query", "schema": { "type": "integer", "default": 100 } }
+        ],
+        "responses": { "200": { "description": "Message list" } }
+      }
+    },
+    "/messages/{id}/send": {
+      "post": {
+        "operationId": "sendMessage",
+        "summary": "Send a queued notification message via ACS (SMS/Email/WhatsApp)",
+        "tags": ["Messages"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Message sent; returns deliveryStatus and externalMessageId" } }
+      }
+    },
+    "/messages/{id}/status": {
+      "get": {
+        "operationId": "getMessageStatus",
+        "summary": "Get delivery status for a message",
+        "tags": ["Messages"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Delivery status" }, "404": { "description": "Message not found" } }
+      }
+    },
+    "/analytics/delivery": {
+      "get": {
+        "operationId": "getDeliveryAnalytics",
+        "summary": "Get delivery analytics: open rate, click-through, channel breakdown",
+        "tags": ["Analytics"],
+        "parameters": [
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "channel", "in": "query", "schema": { "type": "string", "enum": ["SMS", "Email", "WhatsApp", "Push"] } }
+        ],
+        "responses": { "200": { "description": "Delivery analytics summary" } }
+      }
+    },
+    "/push-subscriptions": {
+      "post": {
+        "operationId": "registerPushSubscription",
+        "summary": "Register a Web Push subscription (VAPID)",
+        "tags": ["Push Subscriptions"],
+        "responses": { "201": { "description": "Subscription registered" } }
+      },
+      "get": {
+        "operationId": "listPushSubscriptions",
+        "summary": "List push subscriptions for the authenticated user",
+        "tags": ["Push Subscriptions"],
+        "responses": { "200": { "description": "Push subscriptions" } }
+      }
+    },
+    "/push-subscriptions/{id}": {
+      "delete": {
+        "operationId": "unregisterPushSubscription",
+        "summary": "Unregister (delete) a Web Push subscription",
+        "tags": ["Push Subscriptions"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "204": { "description": "Subscription deleted" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

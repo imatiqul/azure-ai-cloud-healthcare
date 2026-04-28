@@ -210,6 +210,57 @@ jobs:
         run: |
           dotnet build src/${{ matrix.project }} --configuration Release
 
+      - name: Export OpenAPI spec baseline
+        id: export-spec
+        if: >
+          (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') &&
+          steps.service-selection.outputs.selected == 'true' &&
+          matrix.service != 'gateway'
+        continue-on-error: true
+        run: |
+          # Service-to-spec-filename mapping (gateway has no Swagger; excluded above)
+          declare -A SPEC_MAP=(
+            ["voice"]="voice-service"
+            ["ai-agent"]="ai-agent-service"
+            ["fhir"]="fhir-service"
+            ["identity"]="identity-service"
+            ["ocr"]="ocr-service"
+            ["scheduling"]="scheduling-service"
+            ["notification"]="notification-service"
+            ["pop-health"]="pop-health-service"
+            ["revenue"]="revenue-service"
+          )
+          SERVICE="${{ matrix.service }}"
+          SPEC_NAME="${SPEC_MAP[$SERVICE]:-}"
+          if [[ -z "$SPEC_NAME" ]]; then
+            echo "No Swagger spec mapping for service: $SERVICE — skipping export."
+            exit 0
+          fi
+          SPEC_FILE="docs/api/${SPEC_NAME}.json"
+
+          # Publish the service to a temporary directory (reuse build cache, --no-build)
+          dotnet publish "src/${{ matrix.project }}" \
+            --configuration Release \
+            --no-build \
+            --output "/tmp/swagger-out/$SERVICE"
+
+          # Install Swashbuckle.AspNetCore.Cli if not already available
+          dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.* 2>/dev/null || true
+
+          # Export OpenAPI spec — dummy env vars prevent live connection attempts during
+          # DI container construction (services guard against missing config gracefully).
+          ASPNETCORE_ENVIRONMENT=Development \
+          ConnectionStrings__DefaultConnection="Host=localhost;Database=dummy;Username=dummy;Password=dummy" \
+          AzureOpenAI__Endpoint="https://dummy.openai.azure.com/" \
+          AzureOpenAI__ApiKey="dummy" \
+          Dapr__HttpEndpoint="http://localhost:3500" \
+            swagger tofile \
+              --output "$SPEC_FILE" \
+              "/tmp/swagger-out/${SERVICE}/${{ matrix.project }}.dll" \
+              v1 \
+          && echo "::notice::OpenAPI spec exported for $SERVICE → $SPEC_FILE" \
+          || echo "::warning::Could not auto-export OpenAPI spec for $SERVICE (service may require live dependencies at startup — committed baseline remains authoritative)"
+
       - name: Format check
         if: (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') && steps.service-selection.outputs.selected == 'true' && !(github.event_name == 'workflow_dispatch' && needs.validate-dispatch-inputs.outputs.skip_format_check == 'true')
         run: |
@@ -429,8 +480,8 @@ jobs:
 
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add infra/helm/values.production.yaml
-          git diff --staged --quiet || git commit -m "ci: update ${{ matrix.service }} image tag to ${{ github.sha }}"
+          git add infra/helm/values.production.yaml docs/api/
+          git diff --staged --quiet || git commit -m "ci: update ${{ matrix.service }} image tag to ${{ github.sha }} and refresh OpenAPI spec"
           git push || true  # Non-fatal: ArgoCD poll will catch next sync anyway
 
   # ── Post-deploy smoke tests ──────────────────────────────────────────────────

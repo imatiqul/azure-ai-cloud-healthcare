@@ -1,0 +1,151 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HealthQ Copilot — Scheduling Service",
+    "description": "Appointment slot availability, patient booking lifecycle, waitlist management with AI conflict detection, and scheduling analytics.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/api/v1/scheduling", "description": "Scheduling Service" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/slots": {
+      "get": {
+        "operationId": "getAvailableSlots",
+        "summary": "Get available appointment slots with optional provider/specialty/date filters",
+        "tags": ["Slots"],
+        "parameters": [
+          { "name": "providerId", "in": "query", "schema": { "type": "string" } },
+          { "name": "specialty", "in": "query", "schema": { "type": "string" } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "location", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Available slots list" } }
+      }
+    },
+    "/slots/{id}/reserve": {
+      "post": {
+        "operationId": "reserveSlot",
+        "summary": "Temporarily reserve a slot for a patient (10 min hold)",
+        "tags": ["Slots"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Slot reserved with reservationExpiry" }, "409": { "description": "Slot already reserved" } }
+      },
+      "delete": {
+        "operationId": "releaseSlotReservation",
+        "summary": "Release a slot reservation before it expires",
+        "tags": ["Slots"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "204": { "description": "Reservation released" } }
+      }
+    },
+    "/bookings": {
+      "post": {
+        "operationId": "createBooking",
+        "summary": "Confirm a slot reservation into a patient booking",
+        "tags": ["Bookings"],
+        "responses": { "201": { "description": "Booking confirmed" } }
+      },
+      "get": {
+        "operationId": "listBookings",
+        "summary": "List bookings with optional date/status filters",
+        "tags": ["Bookings"],
+        "parameters": [
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "patientId", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Bookings list" } }
+      }
+    },
+    "/bookings/{id}": {
+      "get": {
+        "operationId": "getBooking",
+        "summary": "Get a booking by ID",
+        "tags": ["Bookings"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Booking details" }, "404": { "description": "Not found" } }
+      },
+      "delete": {
+        "operationId": "cancelBooking",
+        "summary": "Cancel a booking and release the slot",
+        "tags": ["Bookings"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "204": { "description": "Booking cancelled" } }
+      }
+    },
+    "/bookings/{id}/reschedule": {
+      "put": {
+        "operationId": "rescheduleBooking",
+        "summary": "Reschedule a booking to a new slot",
+        "tags": ["Bookings"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Booking rescheduled" }, "409": { "description": "Target slot unavailable" } }
+      }
+    },
+    "/appointments": {
+      "get": {
+        "operationId": "listAppointments",
+        "summary": "List FHIR-synced appointment records",
+        "tags": ["Appointments"],
+        "parameters": [
+          { "name": "providerId", "in": "query", "schema": { "type": "string" } },
+          { "name": "patientId", "in": "query", "schema": { "type": "string" } },
+          { "name": "date", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": { "200": { "description": "Appointments list" } }
+      }
+    },
+    "/stats": {
+      "get": {
+        "operationId": "getSchedulingStats",
+        "summary": "Get scheduling analytics (utilization, no-show rate, average wait time)",
+        "tags": ["Analytics"],
+        "parameters": [{ "name": "period", "in": "query", "schema": { "type": "string", "enum": ["7d", "30d", "90d"], "default": "30d" } }],
+        "responses": { "200": { "description": "Scheduling statistics" } }
+      }
+    },
+    "/waitlist": {
+      "post": {
+        "operationId": "addToWaitlist",
+        "summary": "Add a patient to the waitlist for an appointment type",
+        "tags": ["Waitlist"],
+        "responses": { "201": { "description": "Added to waitlist" } }
+      }
+    },
+    "/waitlist/{patientId}": {
+      "get": {
+        "operationId": "getWaitlistByPatient",
+        "summary": "Get waitlist entries for a patient",
+        "tags": ["Waitlist"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Waitlist entries" } }
+      }
+    },
+    "/waitlist/{id}": {
+      "delete": {
+        "operationId": "removeFromWaitlist",
+        "summary": "Remove a patient from the waitlist",
+        "tags": ["Waitlist"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "204": { "description": "Removed" } }
+      }
+    },
+    "/waitlist/conflict-check": {
+      "post": {
+        "operationId": "checkWaitlistConflict",
+        "summary": "AI-powered conflict detection before adding to waitlist",
+        "tags": ["Waitlist"],
+        "responses": { "200": { "description": "Conflict check result with suggestions" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HealthQ Copilot — Population Health Service",
+    "description": "AI-powered population health management: readmission risk stratification, HEDIS quality measures, SDOH screening, care gap closure, drug interaction checking, 90-day cost prediction, and risk trajectory analysis.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/api/v1/population-health", "description": "Population Health Service" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/risks": {
+      "get": {
+        "operationId": "getPopulationRisks",
+        "summary": "Get population risk stratification list with optional risk-tier filter",
+        "tags": ["Risk"],
+        "parameters": [
+          { "name": "riskTier", "in": "query", "schema": { "type": "string", "enum": ["High", "Medium", "Low"] } },
+          { "name": "top", "in": "query", "schema": { "type": "integer", "default": 100 } }
+        ],
+        "responses": { "200": { "description": "Population risk assessments" } }
+      }
+    },
+    "/risks/{patientId}": {
+      "get": {
+        "operationId": "getPatientRisk",
+        "summary": "Get the current risk assessment for a patient",
+        "tags": ["Risk"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Patient risk assessment" }, "404": { "description": "No risk assessment found" } }
+      }
+    },
+    "/risks/{patientId}/trajectory": {
+      "get": {
+        "operationId": "getRiskTrajectory",
+        "summary": "Get 6-month risk score trajectory for a patient",
+        "tags": ["Risk"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Risk trajectory with monthly data points and 30-day projection" } }
+      }
+    },
+    "/risks/calculate": {
+      "post": {
+        "operationId": "calculateRisk",
+        "summary": "Calculate a new readmission risk score for a patient (triggers AI scoring pipeline)",
+        "tags": ["Risk"],
+        "responses": { "200": { "description": "Risk calculation result with feature importance" } }
+      }
+    },
+    "/care-gaps": {
+      "get": {
+        "operationId": "listCareGaps",
+        "summary": "List open care gaps across the patient population",
+        "tags": ["Care Gaps"],
+        "parameters": [
+          { "name": "measure", "in": "query", "schema": { "type": "string" } },
+          { "name": "patientId", "in": "query", "schema": { "type": "string" } },
+          { "name": "top", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": { "200": { "description": "Care gaps list" } }
+      }
+    },
+    "/care-gaps/{id}/address": {
+      "post": {
+        "operationId": "addressCareGap",
+        "summary": "Mark a care gap as addressed with a clinical action note",
+        "tags": ["Care Gaps"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Care gap marked as addressed" } }
+      }
+    },
+    "/stats": {
+      "get": {
+        "operationId": "getPopHealthStats",
+        "summary": "Get population health aggregate statistics (risk distribution, care gap closure rate, HEDIS scores)",
+        "tags": ["Analytics"],
+        "responses": { "200": { "description": "Population health statistics" } }
+      }
+    },
+    "/patients/{patientId}/hedis": {
+      "get": {
+        "operationId": "getPatientHedis",
+        "summary": "Get HEDIS quality measure scores for a patient",
+        "tags": ["HEDIS"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "HEDIS measure results" } }
+      }
+    },
+    "/drug-interactions/check": {
+      "post": {
+        "operationId": "checkDrugInteractions",
+        "summary": "Check for clinically significant drug-drug or drug-allergy interactions",
+        "tags": ["Drug Interactions"],
+        "responses": { "200": { "description": "Drug interaction results with severity classification" } }
+      }
+    },
+    "/sdoh": {
+      "post": {
+        "operationId": "recordSdoh",
+        "summary": "Record SDOH screening results (AHC-HRSN instrument)",
+        "tags": ["SDOH"],
+        "responses": { "201": { "description": "SDOH screening recorded" } }
+      }
+    },
+    "/sdoh/{patientId}": {
+      "get": {
+        "operationId": "getSdohByPatient",
+        "summary": "Get SDOH screening history for a patient",
+        "tags": ["SDOH"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "SDOH screening records" } }
+      }
+    },
+    "/cost-prediction": {
+      "post": {
+        "operationId": "predictCost",
+        "summary": "Run 90-day cost prediction for a patient cohort",
+        "tags": ["Cost Prediction"],
+        "responses": { "200": { "description": "Cost prediction result per patient" } }
+      }
+    },
+    "/cost-prediction/{patientId}": {
+      "get": {
+        "operationId": "getCostPrediction",
+        "summary": "Get the latest 90-day cost prediction for a patient",
+        "tags": ["Cost Prediction"],
+        "parameters": [{ "name": "patientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Cost prediction details" }, "404": { "description": "No prediction available" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

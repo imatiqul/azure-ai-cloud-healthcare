@@ -1,0 +1,55 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HealthQ Copilot — OCR Service",
+    "description": "Asynchronous document OCR processing via Azure AI Document Intelligence: insurance cards, referral letters, CMS-1500 forms, clinical intake paperwork.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/api/v1/ocr", "description": "OCR Service" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/jobs": {
+      "post": {
+        "operationId": "createOcrJob",
+        "summary": "Submit a document for OCR processing (multipart/form-data or blob URL)",
+        "tags": ["OCR Jobs"],
+        "responses": { "202": { "description": "Job accepted; returns jobId and status=Queued" } }
+      },
+      "get": {
+        "operationId": "listOcrJobs",
+        "summary": "List OCR jobs with optional status filter",
+        "tags": ["OCR Jobs"],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["Queued", "Processing", "Completed", "Failed"] } },
+          { "name": "top", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": { "200": { "description": "OCR job list" } }
+      }
+    },
+    "/jobs/{id}": {
+      "get": {
+        "operationId": "getOcrJob",
+        "summary": "Get OCR job status and extracted data",
+        "tags": ["OCR Jobs"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Job details including extractedFields when completed" }, "404": { "description": "Job not found" } }
+      }
+    },
+    "/jobs/{id}/process": {
+      "post": {
+        "operationId": "processOcrJob",
+        "summary": "Trigger processing for a queued OCR job (called by background worker or manual retry)",
+        "tags": ["OCR Jobs"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Job processing started" }, "409": { "description": "Already processing or completed" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

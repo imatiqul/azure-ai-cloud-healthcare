@@ -1,0 +1,78 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HealthQ Copilot — Voice Service",
+    "description": "Real-time voice session management, audio streaming, clinical transcript processing, and SOAP note generation via Azure Speech SDK and Web PubSub.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/api/v1/voice", "description": "Voice Service" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/sessions": {
+      "post": {
+        "operationId": "createVoiceSession",
+        "summary": "Start a new voice session",
+        "tags": ["Voice Sessions"],
+        "responses": { "201": { "description": "Session created" } }
+      },
+      "get": {
+        "operationId": "listVoiceSessions",
+        "summary": "List voice sessions (last 50, ordered by StartedAt desc)",
+        "tags": ["Voice Sessions"],
+        "responses": { "200": { "description": "List of voice sessions" } }
+      }
+    },
+    "/sessions/{id}/audio-chunk": {
+      "post": {
+        "operationId": "submitAudioChunk",
+        "summary": "Submit an audio chunk for real-time transcription",
+        "tags": ["Voice Sessions"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Chunk accepted" } }
+      }
+    },
+    "/sessions/{id}": {
+      "get": {
+        "operationId": "getVoiceSession",
+        "summary": "Get a voice session by ID",
+        "tags": ["Voice Sessions"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Voice session details" }, "404": { "description": "Session not found" } }
+      }
+    },
+    "/sessions/{id}/transcript": {
+      "post": {
+        "operationId": "submitTranscript",
+        "summary": "Save final transcript for a voice session",
+        "tags": ["Voice Sessions"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Transcript saved" } }
+      }
+    },
+    "/sessions/{id}/end": {
+      "post": {
+        "operationId": "endVoiceSession",
+        "summary": "End a voice session and trigger SOAP note generation",
+        "tags": ["Voice Sessions"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Session ended" } }
+      }
+    },
+    "/sessions/{id}/soap-note": {
+      "get": {
+        "operationId": "getSoapNote",
+        "summary": "Retrieve the AI-generated SOAP note for a completed voice session",
+        "tags": ["Voice Sessions"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "SOAP note" }, "404": { "description": "Not found or not yet generated" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}
