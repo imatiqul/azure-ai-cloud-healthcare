@@ -10,6 +10,11 @@ services:
     name: voice-service
     port: 8080
     replicas: 2
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
     image:
       repository: healthq-copilot/voice
       tag: latest
@@ -32,6 +37,13 @@ services:
     name: ai-agent-service
     port: 8080
     replicas: 2
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 8
+      targetCPUUtilizationPercentage: 60
+    startupProbe:
+      initialDelaySeconds: 30
     image:
       repository: healthq-copilot/ai-agent
       tag: latest
@@ -58,6 +70,13 @@ services:
     name: fhir-service
     port: 8080
     replicas: 2
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
+    startupProbe:
+      initialDelaySeconds: 30
     image:
       repository: healthq-copilot/fhir
       tag: latest
@@ -80,6 +99,11 @@ services:
     name: identity-service
     port: 8080
     replicas: 2
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
     image:
       repository: healthq-copilot/identity
       tag: latest
@@ -101,7 +125,12 @@ services:
   ocr:
     name: ocr-service
     port: 8080
-    replicas: 1
+    replicas: 2
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 60
     image:
       repository: healthq-copilot/ocr
       tag: latest
@@ -128,6 +157,11 @@ services:
     name: scheduling-service
     port: 8080
     replicas: 2
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 8
+      targetCPUUtilizationPercentage: 70
     image:
       repository: healthq-copilot/scheduling
       tag: latest
@@ -149,7 +183,12 @@ services:
   notification:
     name: notification-service
     port: 8080
-    replicas: 1
+    replicas: 2
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
     image:
       repository: healthq-copilot/notification
       tag: latest
@@ -171,7 +210,12 @@ services:
   pophealth:
     name: pophealth-service
     port: 8080
-    replicas: 1
+    replicas: 2
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 8
+      targetCPUUtilizationPercentage: 60
     image:
       repository: healthq-copilot/pophealth
       tag: latest
@@ -198,6 +242,11 @@ services:
     name: revenue-service
     port: 8080
     replicas: 2
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 8
+      targetCPUUtilizationPercentage: 70
     image:
       repository: healthq-copilot/revenue
       tag: latest
@@ -220,6 +269,11 @@ services:
     name: gateway-service
     port: 8080
     replicas: 2
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
     image:
       repository: healthq-copilot/gateway
       tag: latest
@@ -237,25 +291,8 @@ services:
     env:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-    image:
-      repository: healthq-copilot/revenue
-      tag: latest
-    workloadIdentity:
-      clientId: "" # revenue managed identity client ID
-    resources:
-      requests:
-        cpu: 250m
-        memory: 512Mi
-      limits:
-        cpu: "1"
-        memory: 1Gi
-    nodeSelector:
-      workload: api
-    env:
-      ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: http://+:8080
 
-# -- W1.1 — Microsoft Presidio PHI redactor sidecar -----------------------------
+# -- W1.1 ï¿½ Microsoft Presidio PHI redactor sidecar -----------------------------
 # When enabled, an analyzer container is co-located with ai-agent-service so
 # PHI redaction happens before any prompt leaves the pod boundary. The agents
 # service reads Presidio:AnalyzerEndpoint=http://localhost:5001 via env vars

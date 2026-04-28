@@ -76,7 +76,7 @@ spec:
             httpGet:
               path: /health/live
               port: {{ $svc.port }}
-            initialDelaySeconds: 10
+            initialDelaySeconds: {{ dig "startupProbe" "initialDelaySeconds" 10 $svc }}
             periodSeconds: 5
             failureThreshold: 30
 {{- end }}
