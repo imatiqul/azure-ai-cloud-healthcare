@@ -5,7 +5,8 @@
     "workflow-lint",
     "helm-chart-validation",
     "api-route-ownership-governance",
-    "api-contract-drift"
+    "api-contract-drift",
+    "credential-hygiene"
   ],
   "recommendedPostMergeChecks": [
     "cloud-e2e-tests.yml",
