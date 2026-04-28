@@ -171,6 +171,15 @@ public static class Extensions
             ResponseWriter = WriteHealthCheckResponse
         });
 
+        // /healthz — standardised Kubernetes probe endpoint (Phase 14).
+        // Returns Healthy when all checks pass; Unhealthy otherwise.
+        // Helm livenessProbe, readinessProbe, and YARP ActiveHealthCheck all
+        // target this path so a single endpoint governs all probe traffic.
+        app.MapHealthChecks("/healthz", new HealthCheckOptions
+        {
+            ResponseWriter = WriteHealthCheckResponse
+        });
+
         return app;
     }
 

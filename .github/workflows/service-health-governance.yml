@@ -56,16 +56,16 @@ jobs:
 
             // Known source directory names per service (candidates to search)
             const SERVICE_SOURCE_MAP = {
-              'voice':        ['HealthQCopilot.VoiceService', 'VoiceService'],
-              'ai-agent':     ['HealthQCopilot.AgentService', 'AgentService', 'AiAgentService'],
-              'fhir':         ['HealthQCopilot.FhirService', 'FhirService'],
-              'identity':     ['HealthQCopilot.IdentityService', 'IdentityService'],
-              'ocr':          ['HealthQCopilot.OcrService', 'OcrService'],
-              'scheduling':   ['HealthQCopilot.SchedulingService', 'SchedulingService'],
-              'notification': ['HealthQCopilot.NotificationService', 'NotificationService'],
-              'pop-health':   ['HealthQCopilot.PopHealthService', 'PopHealthService', 'PopulationHealthService'],
-              'revenue':      ['HealthQCopilot.RevenueService', 'RevenueService'],
-              'gateway':      ['HealthQCopilot.Gateway', 'Gateway'],
+              'voice':        ['HealthQCopilot.Voice'],
+              'ai-agent':     ['HealthQCopilot.Agents'],
+              'fhir':         ['HealthQCopilot.Fhir'],
+              'identity':     ['HealthQCopilot.Identity'],
+              'ocr':          ['HealthQCopilot.Ocr'],
+              'scheduling':   ['HealthQCopilot.Scheduling'],
+              'notification': ['HealthQCopilot.Notifications'],
+              'pop-health':   ['HealthQCopilot.PopulationHealth'],
+              'revenue':      ['HealthQCopilot.RevenueCycle'],
+              'gateway':      ['HealthQCopilot.Gateway'],
             };
 
             // .NET health check registration patterns
