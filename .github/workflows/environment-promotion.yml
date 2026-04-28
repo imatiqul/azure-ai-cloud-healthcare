@@ -71,16 +71,18 @@ jobs:
               };
             }
 
-            const [smoke, lint, routeProbe] = await Promise.all([
+            const [smoke, lint, routeProbe, depFreshness] = await Promise.all([
               latestPassOnMain('cloud-e2e-tests.yml'),
               latestPassOnMain('workflow-lint.yml'),
               latestPassOnMain('gateway-route-probes.yml'),
+              latestPassOnMain('dependency-freshness.yml'),
             ]);
 
             const gates = [
               { name: 'Cloud E2E Tests', ...smoke },
               { name: 'Workflow Lint', ...lint },
               { name: 'Gateway Route Probes', ...routeProbe },
+              { name: 'Dependency Freshness', ...depFreshness },
             ];
 
             const allPass = gates.every((g) => g.pass);
@@ -152,11 +154,12 @@ jobs:
               };
             }
 
-            const [convergence, compliance, regression, rollbackReadiness] = await Promise.all([
+            const [convergence, compliance, regression, rollbackReadiness, costGov] = await Promise.all([
               latestPassOnMain('runtime-convergence-audit.yml'),
               latestPassOnMain('compliance-check.yml'),
               latestPassOnMain('cloud-e2e-regression.yml'),
               latestPassOnMain('rollback-drill-readiness.yml'),
+              latestPassOnMain('cost-governance.yml'),
             ]);
 
             const gates = [
@@ -164,6 +167,7 @@ jobs:
               { name: 'Compliance & Security Checks', ...compliance },
               { name: 'Cloud E2E Regression', ...regression },
               { name: 'Rollback Drill Readiness', ...rollbackReadiness },
+              { name: 'Cost Governance', ...costGov },
             ];
 
             const allPass = gates.every((g) => g.pass);
