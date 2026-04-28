@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>HealthQCopilot.Tests.Architecture</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2" />
+    <PackageReference Include="FluentAssertions" Version="7.1.0" />
+    <PackageReference Include="NetArchTest.Rules" Version="1.3.2" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Source assemblies needed so tests can obtain Assembly instances via typeof() -->
+    <ProjectReference Include="..\..\src\HealthQCopilot.Domain\HealthQCopilot.Domain.csproj" />
+    <ProjectReference Include="..\..\src\HealthQCopilot.Infrastructure\HealthQCopilot.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\HealthQCopilot.Agents\HealthQCopilot.Agents.csproj" />
+    <ProjectReference Include="..\..\src\HealthQCopilot.Voice\HealthQCopilot.Voice.csproj" />
+    <ProjectReference Include="..\..\src\HealthQCopilot.Fhir\HealthQCopilot.Fhir.csproj" />
+    <ProjectReference Include="..\..\src\HealthQCopilot.Identity\HealthQCopilot.Identity.csproj" />
+    <ProjectReference Include="..\..\src\HealthQCopilot.Notifications\HealthQCopilot.Notifications.csproj" />
+    <ProjectReference Include="..\..\src\HealthQCopilot.Ocr\HealthQCopilot.Ocr.csproj" />
+    <ProjectReference Include="..\..\src\HealthQCopilot.PopulationHealth\HealthQCopilot.PopulationHealth.csproj" />
+    <ProjectReference Include="..\..\src\HealthQCopilot.RevenueCycle\HealthQCopilot.RevenueCycle.csproj" />
+    <ProjectReference Include="..\..\src\HealthQCopilot.Scheduling\HealthQCopilot.Scheduling.csproj" />
+  </ItemGroup>
+</Project>
