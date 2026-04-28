@@ -287,6 +287,17 @@ public class RevenueEndpointTests : IClassFixture<PostgresFixture>
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task GetDenialAnalytics_ReturnsOk()
+    {
+        var response = await _client.GetAsync("/api/v1/revenue/denials/analytics");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        doc.RootElement.TryGetProperty("totalOpen", out _).Should().BeTrue();
+        doc.RootElement.TryGetProperty("overturnRate", out _).Should().BeTrue();
+        doc.RootElement.TryGetProperty("byCategory", out _).Should().BeTrue();
+    }
+
     // ── Claims ────────────────────────────────────────────────────────────────
 
     [Fact]

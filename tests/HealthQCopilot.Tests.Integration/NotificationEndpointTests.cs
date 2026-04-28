@@ -97,4 +97,17 @@ public class NotificationEndpointTests : IClassFixture<PostgresFixture>
         var doc = JsonDocument.Parse(await activateResponse.Content.ReadAsStringAsync());
         doc.RootElement.GetProperty("messagesCreated").GetInt32().Should().Be(3);
     }
+
+    // ── Delivery analytics ────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetDeliveryAnalytics_ReturnsOk()
+    {
+        var response = await _client.GetAsync("/api/v1/notifications/analytics/delivery");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        doc.RootElement.TryGetProperty("Total", out _).Should().BeTrue();
+        doc.RootElement.TryGetProperty("DeliveryRate", out _).Should().BeTrue();
+        doc.RootElement.GetProperty("Total").GetInt32().Should().Be(0); // fresh DB — no messages
+    }
 }
