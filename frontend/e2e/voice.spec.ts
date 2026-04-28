@@ -207,15 +207,24 @@ test.describe('Voice Sessions MFE — Transcript & SOAP Note', () => {
 
 test.describe('Voice Sessions MFE — Session History', () => {
   test('session history list shows previous sessions', async ({ page }) => {
-    await page.route('**/api/v1/voice/sessions', (route) => {
-      if (route.request().method() === 'GET') {
+    // VoiceSessionHistory now fetches via GQL; session start/end remain REST
+    await page.route('**/graphql', (route) => {
+      const q: string = route.request().postDataJSON()?.query ?? '';
+      if (q.includes('voiceSessions')) {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(mockSessionList),
+          body: JSON.stringify({ data: { voiceSessions: mockSessionList } }),
         });
       } else {
+        route.continue();
+      }
+    });
+    await page.route('**/api/v1/voice/sessions', (route) => {
+      if (route.request().method() !== 'GET') {
         route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockSession) });
+      } else {
+        route.continue();
       }
     });
     await page.goto('/voice');
@@ -230,11 +239,23 @@ test.describe('Voice Sessions MFE — Session History', () => {
   });
 
   test('session status badges are displayed in history', async ({ page }) => {
-    await page.route('**/api/v1/voice/sessions', (route) => {
-      if (route.request().method() === 'GET') {
-        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockSessionList) });
+    await page.route('**/graphql', (route) => {
+      const q: string = route.request().postDataJSON()?.query ?? '';
+      if (q.includes('voiceSessions')) {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ data: { voiceSessions: mockSessionList } }),
+        });
       } else {
+        route.continue();
+      }
+    });
+    await page.route('**/api/v1/voice/sessions', (route) => {
+      if (route.request().method() !== 'GET') {
         route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockSession) });
+      } else {
+        route.continue();
       }
     });
     await page.goto('/voice');

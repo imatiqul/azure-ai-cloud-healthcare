@@ -35,46 +35,32 @@ test.describe('Dashboard — Static Render', () => {
 
 test.describe('Dashboard — Live API Stats', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/v1/scheduling/stats', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          availableSlotsToday: mockStats.availableSlotsToday,
-          bookedToday: mockStats.bookedToday,
-        }),
-      }),
-    );
-    await page.route('**/api/v1/agents/triage/stats', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          pending: mockStats.pendingTriage,
-          completed: mockStats.triageCompleted,
-        }),
-      }),
-    );
-    await page.route('**/api/v1/population-health/stats', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          highRiskPatients: mockStats.highRiskPatients,
-          openCareGaps: mockStats.openCareGaps,
-        }),
-      }),
-    );
-    await page.route('**/api/v1/revenue/stats', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          codingQueue: mockStats.codingQueue,
-          priorAuthsPending: mockStats.priorAuthsPending,
-        }),
-      }),
-    );
+    // Dashboard now fetches all stats via a single GraphQL query against the BFF
+    await page.route('**/graphql', (route) => {
+      const q: string = route.request().postDataJSON()?.query ?? '';
+      if (q.includes('dashboardStats')) {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            data: {
+              dashboardStats: {
+                pendingTriage:       mockStats.pendingTriage,
+                triageCompleted:     mockStats.triageCompleted,
+                availableSlotsToday: mockStats.availableSlotsToday,
+                bookedToday:         mockStats.bookedToday,
+                highRiskPatients:    mockStats.highRiskPatients,
+                openCareGaps:        mockStats.openCareGaps,
+                codingQueue:         mockStats.codingQueue,
+                priorAuthsPending:   mockStats.priorAuthsPending,
+              },
+            },
+          }),
+        });
+      } else {
+        route.continue();
+      }
+    });
   });
 
   test('shows live non-zero stats from API', async ({ page }) => {

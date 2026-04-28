@@ -111,13 +111,19 @@ test.describe('Scheduling MFE — Booking Form', () => {
         body: JSON.stringify(mockSlots),
       }),
     );
-    await page.route('**/api/v1/scheduling/bookings', (route) =>
-      route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({ id: 'booking-1', status: 'confirmed' }),
-      }),
-    );
+    // BookingForm now uses GQL bookAppointment mutation
+    await page.route('**/graphql', (route) => {
+      const q: string = route.request().postDataJSON()?.query ?? '';
+      if (q.includes('bookAppointment')) {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ data: { bookAppointment: { id: 'booking-1', patientId: 'patient-001', status: 'confirmed' } } }),
+        });
+      } else {
+        route.continue();
+      }
+    });
     await page.goto('/scheduling');
 
     const patientInput = page.getByLabel(/patient/i);
@@ -134,15 +140,17 @@ test.describe('Scheduling MFE — Booking Form', () => {
     await page.route('**/api/v1/scheduling/slots**', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockSlots) }),
     );
-    await page.route('**/api/v1/scheduling/bookings', (route) => {
-      if (route.request().method() === 'POST') {
+    // BookingForm uses GQL bookAppointment mutation
+    await page.route('**/graphql', (route) => {
+      const q: string = route.request().postDataJSON()?.query ?? '';
+      if (q.includes('bookAppointment')) {
         route.fulfill({
-          status: 201,
+          status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ id: 'booking-new', status: 'confirmed' }),
+          body: JSON.stringify({ data: { bookAppointment: { id: 'booking-new', status: 'confirmed' } } }),
         });
       } else {
-        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockBookings) });
+        route.continue();
       }
     });
     await page.goto('/scheduling');

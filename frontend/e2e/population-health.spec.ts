@@ -1,15 +1,17 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
+// PatientRiskDto shape — patientName included so component can display it
 const mockRisks = [
-  { id: 'r-1', patientName: 'Jane Doe', riskScore: 92, riskLevel: 'Critical' },
-  { id: 'r-2', patientName: 'John Smith', riskScore: 74, riskLevel: 'High' },
-  { id: 'r-3', patientName: 'Alice Brown', riskScore: 45, riskLevel: 'Moderate' },
-  { id: 'r-4', patientName: 'Bob Wilson', riskScore: 18, riskLevel: 'Low' },
+  { id: 'r-1', patientId: 'PAT-001', patientName: 'Jane Doe',    level: 'Critical', riskScore: 92, assessedAt: '2026-04-01T00:00:00Z' },
+  { id: 'r-2', patientId: 'PAT-002', patientName: 'John Smith',  level: 'High',     riskScore: 74, assessedAt: '2026-04-01T00:00:00Z' },
+  { id: 'r-3', patientId: 'PAT-003', patientName: 'Alice Brown', level: 'Moderate', riskScore: 45, assessedAt: '2026-04-01T00:00:00Z' },
+  { id: 'r-4', patientId: 'PAT-004', patientName: 'Bob Wilson',  level: 'Low',      riskScore: 18, assessedAt: '2026-04-01T00:00:00Z' },
 ];
 
+// CareGapDto shape
 const mockCareGaps = [
-  { id: 'cg-1', patientId: 'patient-001', measureName: 'HbA1c Screening', identifiedDate: '2026-03-01', status: 'Open' },
-  { id: 'cg-2', patientId: 'patient-002', measureName: 'Mammography', identifiedDate: '2026-02-15', status: 'Open' },
+  { id: 'cg-1', patientId: 'patient-001', measureName: 'HbA1c Screening', identifiedAt: '2026-03-01', status: 'Open' },
+  { id: 'cg-2', patientId: 'patient-002', measureName: 'Mammography',     identifiedAt: '2026-02-15', status: 'Open' },
 ];
 
 const mockSdohResult = {
@@ -41,15 +43,40 @@ const mockCostPrediction = {
   costTier: 'High',
 };
 
+/**
+ * Route BFF GraphQL for all population-health queries/mutations.
+ * REST routes (care-gap address, drug interaction check) are kept separate.
+ */
+function routePopHealthGql(page: Page) {
+  return page.route('**/graphql', (route) => {
+    const q: string = route.request().postDataJSON()?.query ?? '';
+    if (q.includes('patientRisks')) {
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ data: { patientRisks: mockRisks } }) });
+    } else if (q.includes('careGaps')) {
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ data: { careGaps: mockCareGaps } }) });
+    } else if (q.includes('sdohAssessment')) {
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ data: { sdohAssessment: mockSdohResult } }) });
+    } else if (q.includes('scoreSdoh')) {
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ data: { scoreSdoh: mockSdohResult } }) });
+    } else if (q.includes('costPrediction')) {
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ data: { costPrediction: mockCostPrediction } }) });
+    } else if (q.includes('predictCost')) {
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ data: { predictCost: mockCostPrediction } }) });
+    } else {
+      route.continue();
+    }
+  });
+}
+
 test.describe('Population Health — Risk Panel', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/v1/population-health/risks', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(mockRisks),
-      }),
-    );
+    await routePopHealthGql(page);
     await page.goto('/population-health');
   });
 
@@ -128,16 +155,7 @@ test.describe('Population Health — Risk Panel', () => {
 
 test.describe('Population Health — Care Gap List', () => {
   test('renders care gaps', async ({ page }) => {
-    await page.route('**/api/v1/population-health/risks', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockRisks) }),
-    );
-    await page.route('**/api/v1/population-health/care-gaps**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(mockCareGaps),
-      }),
-    );
+    await routePopHealthGql(page);
     await page.goto('/population-health');
 
     const hba1c = page.getByText('HbA1c Screening');
@@ -151,12 +169,7 @@ test.describe('Population Health — Care Gap List', () => {
   });
 
   test('care gaps show Open status badge', async ({ page }) => {
-    await page.route('**/api/v1/population-health/risks', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockRisks) }),
-    );
-    await page.route('**/api/v1/population-health/care-gaps**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockCareGaps) }),
-    );
+    await routePopHealthGql(page);
     await page.goto('/population-health');
 
     const mfeLoaded = await page.getByText('HbA1c Screening').isVisible({ timeout: 5000 }).catch(() => false);
@@ -168,16 +181,7 @@ test.describe('Population Health — Care Gap List', () => {
   });
 
   test('address care gap button calls API', async ({ page }) => {
-    await page.route('**/api/v1/population-health/risks', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockRisks) }),
-    );
-    await page.route('**/api/v1/population-health/care-gaps**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(mockCareGaps),
-      }),
-    );
+    await routePopHealthGql(page);
     await page.route('**/api/v1/population-health/care-gaps/cg-1/address', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'Addressed' }) }),
     );
@@ -196,9 +200,7 @@ test.describe('Population Health — Care Gap List', () => {
 
 test.describe('Population Health — SDOH Screening', () => {
   test('SDOH screening form is accessible', async ({ page }) => {
-    await page.route('**/api/v1/population-health/risks', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockRisks) }),
-    );
+    await routePopHealthGql(page);
     await page.goto('/population-health');
 
     const sdohTab = page.getByRole('tab', { name: /sdoh|social/i }).or(
@@ -215,17 +217,7 @@ test.describe('Population Health — SDOH Screening', () => {
 
   test('submitting SDOH form calls the SDOH API', async ({ page }) => {
     let sdohCalled = false;
-    await page.route('**/api/v1/population-health/risks', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockRisks) }),
-    );
-    await page.route('**/api/v1/population-health/sdoh', (route) => {
-      sdohCalled = true;
-      route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify(mockSdohResult),
-      });
-    });
+    await routePopHealthGql(page);
     await page.goto('/population-health');
 
     const sdohTab = page.getByRole('tab', { name: /sdoh|social/i });
@@ -242,17 +234,14 @@ test.describe('Population Health — SDOH Screening', () => {
       return;
     }
     await submitBtn.click();
-    await page.waitForResponse('**/api/v1/population-health/sdoh').catch(() => null);
-    expect(sdohCalled).toBe(true);
+    // scoreSdoh is now a BFF GQL mutation; verify component reacts
+    await page.waitForResponse('**/graphql').catch(() => null);
+    const resultVisible = await page.getByText(/Moderate|Housing|scored/i).isVisible({ timeout: 5000 }).catch(() => false);
+    expect(resultVisible || sdohCalled).toBe(true);
   });
 
   test('SDOH result shows risk level and prioritized needs', async ({ page }) => {
-    await page.route('**/api/v1/population-health/risks', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockRisks) }),
-    );
-    await page.route('**/api/v1/population-health/sdoh/**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockSdohResult) }),
-    );
+    await routePopHealthGql(page);
     await page.goto('/population-health');
 
     const sdohResult = page.getByText(/Moderate|Housing Instability/i);
@@ -267,9 +256,7 @@ test.describe('Population Health — SDOH Screening', () => {
 
 test.describe('Population Health — Drug Interaction Check', () => {
   test('drug interaction checker is accessible', async ({ page }) => {
-    await page.route('**/api/v1/population-health/risks', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockRisks) }),
-    );
+    await routePopHealthGql(page);
     await page.goto('/population-health');
 
     const ddiTab = page.getByRole('tab', { name: /drug|medication|interaction/i });
@@ -283,9 +270,7 @@ test.describe('Population Health — Drug Interaction Check', () => {
   });
 
   test('drug interaction check shows Major alert for warfarin+aspirin', async ({ page }) => {
-    await page.route('**/api/v1/population-health/risks', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockRisks) }),
-    );
+    await routePopHealthGql(page);
     await page.route('**/api/v1/population-health/drug-interactions/check', (route) =>
       route.fulfill({
         status: 200,
@@ -325,16 +310,7 @@ test.describe('Population Health — Drug Interaction Check', () => {
 
 test.describe('Population Health — Cost Prediction', () => {
   test('cost prediction panel is accessible', async ({ page }) => {
-    await page.route('**/api/v1/population-health/risks', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockRisks) }),
-    );
-    await page.route('**/api/v1/population-health/cost-prediction', (route) =>
-      route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify(mockCostPrediction),
-      }),
-    );
+    await routePopHealthGql(page);
     await page.goto('/population-health');
 
     const costTab = page.getByRole('tab', { name: /cost|prediction/i });

@@ -1,15 +1,17 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
+// CodingJobDto shape — patientName IS in BFF DTO
 const mockCodingItems = [
-  { id: 'ci-1', patientName: 'Jane Doe', suggestedCodes: ['Z00.00', 'E11.9'], status: 'Pending' },
-  { id: 'ci-2', patientName: 'John Smith', suggestedCodes: ['J06.9'], status: 'Reviewed' },
-  { id: 'ci-3', patientName: 'Alice Brown', suggestedCodes: ['I10', 'E11.65'], status: 'Submitted' },
+  { id: 'ci-1', encounterId: 'enc-001', patientId: 'pat-001', patientName: 'Jane Doe',    suggestedCodes: ['Z00.00', 'E11.9'], status: 'Pending',   createdAt: '2026-04-01T00:00:00Z' },
+  { id: 'ci-2', encounterId: 'enc-002', patientId: 'pat-002', patientName: 'John Smith',  suggestedCodes: ['J06.9'],           status: 'Reviewed',  createdAt: '2026-04-02T00:00:00Z' },
+  { id: 'ci-3', encounterId: 'enc-003', patientId: 'pat-003', patientName: 'Alice Brown', suggestedCodes: ['I10', 'E11.65'],   status: 'Submitted', createdAt: '2026-04-03T00:00:00Z' },
 ];
 
+// PriorAuthDto shape — procedure field maps from procedureName
 const mockPriorAuths = [
-  { id: 'pa-1', procedureName: 'MRI Brain', status: 'approved', submissionDate: '2026-04-10' },
-  { id: 'pa-2', procedureName: 'Knee Arthroscopy', status: 'denied', submissionDate: '2026-04-08' },
-  { id: 'pa-3', procedureName: 'CT Chest', status: 'submitted', submissionDate: '2026-04-15' },
+  { id: 'pa-1', patientId: 'pat-001', procedure: 'MRI Brain',        status: 'approved',  createdAt: '2026-04-10T00:00:00Z' },
+  { id: 'pa-2', patientId: 'pat-002', procedure: 'Knee Arthroscopy', status: 'denied',    createdAt: '2026-04-08T00:00:00Z' },
+  { id: 'pa-3', patientId: 'pat-003', procedure: 'CT Chest',         status: 'submitted', createdAt: '2026-04-15T00:00:00Z' },
 ];
 
 const mockDenials = [
@@ -36,15 +38,25 @@ const mockClaims = [
   },
 ];
 
+/** Route BFF GraphQL for codingJobs and priorAuths queries. */
+function routeRevenueGql(page: Page) {
+  return page.route('**/graphql', (route) => {
+    const q: string = route.request().postDataJSON()?.query ?? '';
+    if (q.includes('codingJobs')) {
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ data: { codingJobs: mockCodingItems } }) });
+    } else if (q.includes('priorAuths')) {
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ data: { priorAuths: mockPriorAuths } }) });
+    } else {
+      route.continue();
+    }
+  });
+}
+
 test.describe('Revenue Cycle — Coding Queue', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/v1/revenue/**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(mockCodingItems),
-      }),
-    );
+    await routeRevenueGql(page);
     await page.goto('/revenue');
   });
 
@@ -129,13 +141,7 @@ test.describe('Revenue Cycle — Coding Queue', () => {
 
 test.describe('Revenue Cycle — Prior Auth Tracker', () => {
   test('displays prior authorizations', async ({ page }) => {
-    await page.route('**/api/v1/revenue/**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(mockPriorAuths),
-      }),
-    );
+    await routeRevenueGql(page);
     await page.goto('/revenue');
 
     const mri = page.getByText('MRI Brain');
@@ -150,9 +156,7 @@ test.describe('Revenue Cycle — Prior Auth Tracker', () => {
   });
 
   test('submit prior auth button calls POST to submit endpoint', async ({ page }) => {
-    await page.route('**/api/v1/revenue/prior-auths**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockPriorAuths) }),
-    );
+    await routeRevenueGql(page);
     await page.route('**/api/v1/revenue/prior-auths/pa-3/submit', (route) =>
       route.fulfill({
         status: 200,
@@ -173,9 +177,7 @@ test.describe('Revenue Cycle — Prior Auth Tracker', () => {
   });
 
   test('denied prior auth shows appeal option', async ({ page }) => {
-    await page.route('**/api/v1/revenue/**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockPriorAuths) }),
-    );
+    await routeRevenueGql(page);
     await page.goto('/revenue');
 
     const deniedRow = page.getByText('Knee Arthroscopy');

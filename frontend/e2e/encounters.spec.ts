@@ -12,34 +12,28 @@
  * 8. Encounter finalization/sign-off
  * 9. Filter by status
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
-const mockEncounterBundle = {
-  resourceType: 'Bundle',
-  total: 2,
-  entry: [
-    {
-      resource: {
-        resourceType: 'Encounter',
-        id: 'enc-001',
-        status: 'in-progress',
-        class: { code: 'AMB', display: 'Ambulatory' },
-        period: { start: '2025-01-15T09:00:00Z' },
-        reasonCode: [{ coding: [{ display: 'Chest pain evaluation' }] }],
-      },
-    },
-    {
-      resource: {
-        resourceType: 'Encounter',
-        id: 'enc-002',
-        status: 'finished',
-        class: { code: 'EMER', display: 'Emergency' },
-        period: { start: '2025-01-10T14:00:00Z', end: '2025-01-10T16:30:00Z' },
-        reasonCode: [{ coding: [{ display: 'Hypertension follow-up' }] }],
-      },
-    },
-  ],
-};
+// EncounterDto shape — matches what BFF GraphQL returns
+const mockEncounters = [
+  {
+    id:            'enc-001',
+    patientId:     'PAT-001',
+    status:        'in-progress',
+    encounterType: 'Ambulatory',
+    reasonText:    'Chest pain evaluation',
+    startedAt:     '2025-01-15T09:00:00Z',
+  },
+  {
+    id:            'enc-002',
+    patientId:     'PAT-001',
+    status:        'finished',
+    encounterType: 'Emergency',
+    reasonText:    'Hypertension follow-up',
+    startedAt:     '2025-01-10T14:00:00Z',
+    endedAt:       '2025-01-10T16:30:00Z',
+  },
+];
 
 const mockMedications = [
   { id: 'med-1', medicationCodeableConcept: { text: 'Metformin 500mg' }, status: 'active' },
@@ -53,15 +47,25 @@ const mockSoapNote = {
   plan: 'Troponin serial, cardiology consult, heparin protocol',
 };
 
-test.describe('Encounters MFE — Basic Render', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.route('**/api/v1/fhir/encounters/**', (route) =>
+/** Route the BFF GraphQL endpoint for `encounters` queries. */
+function routeEncountersGql(page: Page, encounters = mockEncounters) {
+  return page.route('**/graphql', (route) => {
+    const q: string = route.request().postDataJSON()?.query ?? '';
+    if (q.includes('encounters')) {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockEncounterBundle),
-      }),
-    );
+        body: JSON.stringify({ data: { encounters } }),
+      });
+    } else {
+      route.continue();
+    }
+  });
+}
+
+test.describe('Encounters MFE — Basic Render', () => {
+  test.beforeEach(async ({ page }) => {
+    await routeEncountersGql(page);
     await page.goto('/encounters');
   });
 
@@ -126,13 +130,7 @@ test.describe('Encounters MFE — Basic Render', () => {
   });
 
   test('shows empty state when patient has no encounters', async ({ page }) => {
-    await page.route('**/api/v1/fhir/encounters/**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ resourceType: 'Bundle', total: 0, entry: [] }),
-      }),
-    );
+    await routeEncountersGql(page, []);
 
     const field = page.getByLabel(/patient id/i);
     const mfeLoaded = await field.isVisible({ timeout: 8_000 }).catch(() => false);
@@ -151,9 +149,7 @@ test.describe('Encounters MFE — Basic Render', () => {
 
 test.describe('Encounters MFE — Create Encounter', () => {
   test('opens create encounter modal', async ({ page }) => {
-    await page.route('**/api/v1/fhir/encounters/**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockEncounterBundle) }),
-    );
+    await routeEncountersGql(page);
     await page.route('**/api/v1/fhir/encounters', (route) =>
       route.fulfill({
         status: 201,
@@ -184,21 +180,15 @@ test.describe('Encounters MFE — Create Encounter', () => {
   });
 
   test('submitting create form creates a new encounter', async ({ page }) => {
-    await page.route('**/api/v1/fhir/encounters/**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockEncounterBundle) }),
-    );
+    await routeEncountersGql(page);
     let createCalled = false;
     await page.route('**/api/v1/fhir/encounters', (route) => {
-      if (route.request().method() === 'POST') {
-        createCalled = true;
-        route.fulfill({
-          status: 201,
-          contentType: 'application/json',
-          body: JSON.stringify({ id: 'enc-new', status: 'in-progress' }),
-        });
-      } else {
-        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockEncounterBundle) });
-      }
+      createCalled = true;
+      route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 'enc-new', status: 'in-progress' }),
+      });
     });
     await page.goto('/encounters');
 
@@ -239,9 +229,7 @@ test.describe('Encounters MFE — Create Encounter', () => {
 
 test.describe('Encounters MFE — SOAP Note Integration', () => {
   test('SOAP note auto-fill panel is accessible in encounter detail', async ({ page }) => {
-    await page.route('**/api/v1/fhir/encounters/**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockEncounterBundle) }),
-    );
+    await routeEncountersGql(page);
     await page.route('**/api/v1/voice/sessions/**/transcript', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockSoapNote) }),
     );
@@ -275,9 +263,7 @@ test.describe('Encounters MFE — SOAP Note Integration', () => {
 
 test.describe('Encounters MFE — Medication List', () => {
   test('medication list is visible in encounter detail', async ({ page }) => {
-    await page.route('**/api/v1/fhir/encounters/**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockEncounterBundle) }),
-    );
+    await routeEncountersGql(page);
     await page.route('**/api/v1/fhir/medication**', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockMedications) }),
     );
@@ -306,9 +292,7 @@ test.describe('Encounters MFE — Medication List', () => {
 
 test.describe('Encounters MFE — ICD-10 Code Search', () => {
   test('ICD-10 code search field accepts input and returns suggestions', async ({ page }) => {
-    await page.route('**/api/v1/fhir/encounters/**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockEncounterBundle) }),
-    );
+    await routeEncountersGql(page);
     await page.route('**/api/v1/fhir/codesystem/icd10**', (route) =>
       route.fulfill({
         status: 200,
@@ -351,9 +335,7 @@ test.describe('Encounters MFE — ICD-10 Code Search', () => {
 
 test.describe('Encounters MFE — Status Filter', () => {
   test('filter by in-progress status shows only in-progress encounters', async ({ page }) => {
-    await page.route('**/api/v1/fhir/encounters/**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockEncounterBundle) }),
-    );
+    await routeEncountersGql(page);
     await page.goto('/encounters');
 
     const field = page.getByLabel(/patient id/i);
@@ -385,9 +367,7 @@ test.describe('Encounters MFE — Status Filter', () => {
   });
 
   test('filter by finished status shows only finished encounters', async ({ page }) => {
-    await page.route('**/api/v1/fhir/encounters/**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockEncounterBundle) }),
-    );
+    await routeEncountersGql(page);
     await page.goto('/encounters');
 
     const field = page.getByLabel(/patient id/i);
