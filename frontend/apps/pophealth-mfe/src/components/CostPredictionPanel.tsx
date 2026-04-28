@@ -10,8 +10,35 @@ import InputLabel from '@mui/material/InputLabel';
 import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import Slider from '@mui/material/Slider';
+import { gqlFetch } from '@healthcare/graphql-client';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const GET_COST_PREDICTION = /* GraphQL */ `
+  query GetCostPrediction($patientId: String!) {
+    costPrediction(patientId: $patientId) {
+      patientId
+      predicted12mCostUsd
+      lowerBound95Usd
+      upperBound95Usd
+      costTier
+      costDrivers
+      predictedAt
+    }
+  }
+`;
+
+const PREDICT_COST_MUTATION = /* GraphQL */ `
+  mutation PredictCost($input: CostPredictionInput!) {
+    predictCost(input: $input) {
+      patientId
+      predicted12mCostUsd
+      lowerBound95Usd
+      upperBound95Usd
+      costTier
+      costDrivers
+      predictedAt
+    }
+  }
+`;
 
 const RISK_LEVELS = ['Low', 'Medium', 'High', 'Critical'] as const;
 
@@ -86,21 +113,22 @@ export function CostPredictionPanel() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/v1/population-health/cost-prediction`, {
-        signal: AbortSignal.timeout(10_000),
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          patientId: patientId.trim(),
-          riskLevel,
-          conditions,
-          sdohWeight,
-        }),
-      });
-      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
-      setPrediction(await res.json());
+      const data = await gqlFetch<{ predictCost: CostPrediction }>(
+        {
+          query: PREDICT_COST_MUTATION,
+          variables: {
+            input: {
+              patientId: patientId.trim(),
+              riskLevel,
+              conditions,
+              sdohWeight,
+            },
+          },
+        },
+      );
+      setPrediction(data.predictCost);
     } catch {
-      setPrediction({ ...DEMO_PREDICTION, patientId: patientId.trim(), riskLevel } as CostPrediction & { riskLevel: string });
+      setPrediction({ ...DEMO_PREDICTION, patientId: patientId.trim() } as CostPrediction);
       setError('');
     } finally {
       setLoading(false);
@@ -110,11 +138,10 @@ export function CostPredictionPanel() {
   const fetchLatest = async () => {
     if (!patientId.trim()) return;
     try {
-      const res = await fetch(
-        `${API_BASE}/api/v1/population-health/cost-prediction/${encodeURIComponent(patientId.trim())}`,
-        { signal: AbortSignal.timeout(10_000) },
+      const data = await gqlFetch<{ costPrediction: CostPrediction | null }>(
+        { query: GET_COST_PREDICTION, variables: { patientId: patientId.trim() } },
       );
-      if (res.ok) setPrediction(await res.json());
+      if (data.costPrediction) setPrediction(data.costPrediction);
     } catch {
       // silent — best effort load
     }

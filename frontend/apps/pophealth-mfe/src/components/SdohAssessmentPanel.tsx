@@ -10,8 +10,37 @@ import InputLabel from '@mui/material/InputLabel';
 import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import LinearProgress from '@mui/material/LinearProgress';
+import { gqlFetch } from '@healthcare/graphql-client';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const GET_SDOH_ASSESSMENT = /* GraphQL */ `
+  query GetSdohAssessment($patientId: String!) {
+    sdohAssessment(patientId: $patientId) {
+      id
+      patientId
+      totalScore
+      riskLevel
+      compositeRiskWeight
+      prioritizedNeeds
+      recommendedActions
+      assessedAt
+    }
+  }
+`;
+
+const SCORE_SDOH_MUTATION = /* GraphQL */ `
+  mutation ScoreSdoh($input: SdohInput!) {
+    scoreSdoh(input: $input) {
+      id
+      patientId
+      totalScore
+      riskLevel
+      compositeRiskWeight
+      prioritizedNeeds
+      recommendedActions
+      assessedAt
+    }
+  }
+`;
 
 const DEMO_SDOH_RESULT: SdohResult = {
   id: 'sdoh-demo-001',
@@ -97,11 +126,12 @@ export function SdohAssessmentPanel() {
 
   const fetchLatest = useCallback(async (pid: string) => {
     try {
-      const res = await fetch(
-        `${API_BASE}/api/v1/population-health/sdoh/${encodeURIComponent(pid)}`,
-        { signal: AbortSignal.timeout(10_000) },
+      const data = await gqlFetch<{ sdohAssessment: Omit<SdohResult, 'domainScores'> | null }>(
+        { query: GET_SDOH_ASSESSMENT, variables: { patientId: pid } },
       );
-      if (res.ok) setResult(await res.json());
+      if (data.sdohAssessment) {
+        setResult({ ...data.sdohAssessment, domainScores: {} });
+      }
     } catch {
       // ignore — GET is best-effort on load
     }
@@ -115,18 +145,19 @@ export function SdohAssessmentPanel() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/v1/population-health/sdoh`, {
-        signal: AbortSignal.timeout(10_000),
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          patientId: patientId.trim(),
-          domainScores,
-          assessedBy: assessedBy.trim() || undefined,
-        }),
-      });
-      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
-      setResult(await res.json());
+      const data = await gqlFetch<{ scoreSdoh: Omit<SdohResult, 'domainScores'> }>(
+        {
+          query: SCORE_SDOH_MUTATION,
+          variables: {
+            input: {
+              patientId: patientId.trim(),
+              domainScores,
+              assessedBy: assessedBy.trim() || undefined,
+            },
+          },
+        },
+      );
+      setResult({ ...data.scoreSdoh, domainScores });
     } catch {
       setResult({ ...DEMO_SDOH_RESULT, patientId: patientId.trim() });
     } finally {

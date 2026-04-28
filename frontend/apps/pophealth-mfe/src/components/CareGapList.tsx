@@ -3,8 +3,21 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
+import { gqlFetch } from '@healthcare/graphql-client';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+const GET_CARE_GAPS = /* GraphQL */ `
+  query GetCareGaps {
+    careGaps {
+      id
+      patientId
+      measureName
+      status
+      identifiedAt
+    }
+  }
+`;
 
 const DEMO_GAPS: CareGap[] = [
   { id: 'cg-1', patientId: 'PAT-00142', measureName: 'HbA1c Control (Diabetes)', status: 'Open', identifiedAt: new Date(Date.now() - 45 * 86_400_000).toISOString() },
@@ -29,13 +42,9 @@ export function CareGapList() {
 
   async function fetchGaps() {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/population-health/care-gaps?status=Open`, { signal: AbortSignal.timeout(10_000) });
-      if (res.ok) {
-        const data: CareGap[] = await res.json();
-        setGaps(data.length > 0 ? data : DEMO_GAPS);
-      } else {
-        setGaps(DEMO_GAPS);
-      }
+      const data = await gqlFetch<{ careGaps: CareGap[] }>({ query: GET_CARE_GAPS });
+      const open = (data.careGaps ?? []).filter(g => g.status === 'Open');
+      setGaps(open.length > 0 ? open : DEMO_GAPS);
     } catch { setGaps(DEMO_GAPS); }
   }
 

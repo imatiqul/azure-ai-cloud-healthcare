@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -8,8 +8,19 @@ import FormControl from '@mui/material/FormControl';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
+import { gqlFetch } from '@healthcare/graphql-client';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const GET_PATIENT_RISKS = /* GraphQL */ `
+  query GetPatientRisks {
+    patientRisks {
+      id
+      patientId
+      level
+      riskScore
+      assessedAt
+    }
+  }
+`;
 
 const DEMO_RISKS: PatientRisk[] = [
   { id: 'r-1',  patientId: 'PAT-00142', patientName: 'Alice Morgan',     level: 'Critical', riskScore: 94, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
@@ -32,25 +43,20 @@ interface PatientRisk {
 }
 
 export function RiskPanel() {
-  const [risks, setRisks] = useState<PatientRisk[]>([]);
+  const [allRisks, setAllRisks] = useState<PatientRisk[]>([]);
   const [filter, setFilter] = useState('');
 
+  // Fetch all risks once via GraphQL BFF; filter client-side
   useEffect(() => {
-    fetchRisks();
-  }, [filter]);
+    gqlFetch<{ patientRisks: PatientRisk[] }>({ query: GET_PATIENT_RISKS })
+      .then(data => setAllRisks(data.patientRisks ?? []))
+      .catch(() => setAllRisks(DEMO_RISKS));
+  }, []);
 
-  async function fetchRisks() {
-    try {
-      const query = filter ? `?riskLevel=${filter}&top=20` : '?top=20';
-      const res = await fetch(`${API_BASE}/api/v1/population-health/risks${query}`, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setRisks(Array.isArray(data) ? data : []);
-    } catch {
-      const demo = filter ? DEMO_RISKS.filter(r => r.level === filter) : DEMO_RISKS;
-      setRisks(demo);
-    }
-  }
+  const risks = useMemo(
+    () => (filter ? allRisks.filter(r => r.level === filter) : allRisks),
+    [allRisks, filter],
+  );
 
   function getRiskBadge(level: string) {
     switch (level) {

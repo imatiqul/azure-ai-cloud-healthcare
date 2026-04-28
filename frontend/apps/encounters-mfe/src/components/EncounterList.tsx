@@ -5,15 +5,39 @@ import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Chip from '@mui/material/Chip';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
-import type { Bundle, Encounter } from '@healthcare/fhir-types';
+import { gqlFetch } from '@healthcare/graphql-client';
 import { CreateEncounterModal } from './CreateEncounterModal';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const GET_ENCOUNTERS = /* GraphQL */ `
+  query GetEncounters($patientId: String) {
+    encounters(patientId: $patientId) {
+      id
+      patientId
+      patientName
+      status
+      encounterType
+      reasonText
+      startedAt
+      endedAt
+    }
+  }
+`;
 
-const DEMO_ENCOUNTERS: Encounter[] = [
-  { resourceType: 'Encounter', id: 'enc-demo-001', status: 'in-progress', class: { code: 'AMB', display: 'Ambulatory' }, period: { start: new Date(Date.now() - 2 * 3_600_000).toISOString() }, reasonCode: [{ coding: [{ display: 'Type 2 Diabetes — quarterly follow-up' }] }] },
-  { resourceType: 'Encounter', id: 'enc-demo-002', status: 'finished',    class: { code: 'IMP', display: 'Inpatient'   }, period: { start: new Date(Date.now() - 30 * 86_400_000).toISOString(), end: new Date(Date.now() - 27 * 86_400_000).toISOString() }, reasonCode: [{ coding: [{ display: 'Hypertensive urgency management' }] }] },
-  { resourceType: 'Encounter', id: 'enc-demo-003', status: 'planned',     class: { code: 'AMB', display: 'Ambulatory' }, period: { start: new Date(Date.now() + 7  * 86_400_000).toISOString() }, reasonCode: [{ coding: [{ display: 'Annual wellness visit' }] }] },
+interface EncounterItem {
+  id:            string;
+  patientId:     string;
+  patientName?:  string;
+  status:        string;
+  encounterType: string;
+  reasonText?:   string;
+  startedAt:     string;
+  endedAt?:      string;
+}
+
+const DEMO_ENCOUNTERS: EncounterItem[] = [
+  { id: 'enc-demo-001', patientId: 'demo-patient', status: 'in-progress', encounterType: 'Ambulatory',  reasonText: 'Type 2 Diabetes — quarterly follow-up',  startedAt: new Date(Date.now() - 2 * 3_600_000).toISOString() },
+  { id: 'enc-demo-002', patientId: 'demo-patient', status: 'finished',    encounterType: 'Inpatient',   reasonText: 'Hypertensive urgency management',         startedAt: new Date(Date.now() - 30 * 86_400_000).toISOString(), endedAt: new Date(Date.now() - 27 * 86_400_000).toISOString() },
+  { id: 'enc-demo-003', patientId: 'demo-patient', status: 'planned',     encounterType: 'Ambulatory',  reasonText: 'Annual wellness visit',                   startedAt: new Date(Date.now() + 7  * 86_400_000).toISOString() },
 ];
 
 // AI-generated flags keyed by encounter ID — shown as colour-coded chips on each card
@@ -23,9 +47,7 @@ const DEMO_AI_FLAGS: Record<string, string[]> = {
   'enc-demo-003': ['Preventive Screening Due', 'Flu Vaccination Pending'],
 };
 
-type EncounterStatus = Encounter['status'];
-
-function statusBadgeVariant(status: EncounterStatus) {
+function statusBadgeVariant(status: string) {
   switch (status) {
     case 'in-progress': return 'warning' as const;
     case 'finished':    return 'success' as const;
@@ -37,7 +59,7 @@ function statusBadgeVariant(status: EncounterStatus) {
 export function EncounterList({ patientId: propId }: { patientId?: string } = {}) {
   const [patientId, setPatientId] = useState(propId ?? '');
   const [searchInput, setSearchInput] = useState('');
-  const [encounters, setEncounters] = useState<Encounter[]>([]);
+  const [encounters, setEncounters] = useState<EncounterItem[]>([]);
   const [aiFlags, setAiFlags] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,10 +73,10 @@ export function EncounterList({ patientId: propId }: { patientId?: string } = {}
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/fhir/encounters/${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const bundle: Bundle<Encounter> = await res.json();
-      setEncounters(bundle.entry?.map((e) => e.resource) ?? []);
+      const data = await gqlFetch<{ encounters: EncounterItem[] }>(
+        { query: GET_ENCOUNTERS, variables: { patientId: id } },
+      );
+      setEncounters(data.encounters ?? []);
       setAiFlags({});
     } catch {
       setEncounters(DEMO_ENCOUNTERS);
@@ -147,13 +169,13 @@ export function EncounterList({ patientId: propId }: { patientId?: string } = {}
             </Card>
           )}
           {encounters.map((enc) => {
-            const dateLabel = enc.period?.start
-              ? new Date(enc.period.start).toLocaleString()
+            const dateLabel = enc.startedAt
+              ? new Date(enc.startedAt).toLocaleString()
               : 'Unknown date';
-            const endLabel = enc.period?.end
-              ? new Date(enc.period.end).toLocaleString()
+            const endLabel = enc.endedAt
+              ? new Date(enc.endedAt).toLocaleString()
               : null;
-            const reason = enc.reasonCode?.[0]?.coding?.[0]?.display ?? enc.class?.display ?? enc.class?.code;
+            const reason = enc.reasonText ?? enc.encounterType;
 
             return (
               <Card key={enc.id ?? Math.random().toString()}>
@@ -161,7 +183,7 @@ export function EncounterList({ patientId: propId }: { patientId?: string } = {}
                   <CardTitle>
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                       <span>
-                        {enc.class?.display ?? enc.class?.code ?? 'Encounter'}{' '}
+                        {enc.encounterType}{' '}
                         <Typography component="span" variant="body2" color="text.secondary">
                           #{enc.id?.substring(0, 8)}
                         </Typography>

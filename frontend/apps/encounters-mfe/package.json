@@ -13,6 +13,7 @@
   "dependencies": {
     "@healthcare/design-system": "workspace:*",
     "@healthcare/fhir-types": "workspace:*",
+    "@healthcare/graphql-client": "workspace:*",
     "@healthcare/mfe-events": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
