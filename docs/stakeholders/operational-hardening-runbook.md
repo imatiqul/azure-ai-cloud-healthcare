@@ -43,6 +43,14 @@ These are required pass conditions before declaring rollback complete:
 - Live data gate: seed/assertion workflow in [prepare-live-seed-data.sh](../../.github/scripts/prepare-live-seed-data.sh).
 - Route integrity gate: route probes must not return `404`, `405`, `502`, `503`, `504`, or network failure (`000`) for mapped gateway prefixes.
 
+## Readiness Automation
+
+- Weekly KPI aggregation: [weekly-platform-scorecard.yml](../../.github/workflows/weekly-platform-scorecard.yml)
+   - Includes rollback completion trend and average rollback duration metrics.
+- Weekly/manual threshold check: [rollback-drill-readiness.yml](../../.github/workflows/rollback-drill-readiness.yml)
+   - Evaluates drill cadence (14-day window) and MTTR target (240 minutes) readiness.
+   - In strict mode, fails when thresholds are not met.
+
 ## Incident Playbooks
 
 ### 1) OIDC Federation or Azure Auth Failure

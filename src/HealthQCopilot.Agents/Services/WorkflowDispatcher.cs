@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using HealthQCopilot.Agents.Infrastructure;
 using HealthQCopilot.Agents.Sagas;
 using HealthQCopilot.Domain.Agents;
+using HealthQCopilot.Infrastructure.Messaging;
 using Microsoft.EntityFrameworkCore;
 
 namespace HealthQCopilot.Agents.Services;
@@ -15,26 +16,56 @@ public sealed class WorkflowDispatcher : IWorkflowDispatcher
     private readonly HttpClient _http;
     private readonly ILogger<WorkflowDispatcher> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IEventHubAuditService? _audit;
 
-    public WorkflowDispatcher(HttpClient http, ILogger<WorkflowDispatcher> logger, IServiceScopeFactory scopeFactory)
+    public WorkflowDispatcher(
+        HttpClient http,
+        ILogger<WorkflowDispatcher> logger,
+        IServiceScopeFactory scopeFactory,
+        IEventHubAuditService? audit = null)
     {
         _http = http;
         _logger = logger;
         _scopeFactory = scopeFactory;
+        _audit = audit;
     }
 
     public async Task DispatchAsync(TriageWorkflow workflow, string patientId, CancellationToken ct)
     {
+        // W1.5 — record which targets were attempted so the audit log links the
+        // AI triage decision to the cross-service dispatch chain (HIPAA § 164.312(b)).
+        var targets = new List<string>(4) { "revenue", "fhir" };
+
         await DispatchRevenueCodingJobAsync(workflow, patientId, ct);
         await DispatchFhirEncounterAsync(workflow, patientId, ct);
 
         if (workflow.AssignedLevel is TriageLevel.P1_Immediate or TriageLevel.P2_Urgent)
         {
+            targets.Add("escalation_notification");
             await DispatchEscalationNotificationAsync(workflow, ct);
         }
         else
         {
+            targets.Add("auto_schedule");
             await DispatchAutoScheduleAsync(workflow, ct);
+        }
+
+        if (_audit is not null)
+        {
+            try
+            {
+                await _audit.PublishAsync(
+                    AuditEvent.WorkflowDispatched(
+                        workflow.SessionId,
+                        workflow.Id,
+                        workflow.AssignedLevel?.ToString() ?? "Unknown",
+                        targets),
+                    ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "WorkflowDispatched audit publish failed for session {SessionId}", workflow.SessionId);
+            }
         }
     }
 

@@ -56,6 +56,14 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
           privateEndpointNetworkPolicies: 'Disabled'
         }
       }
+      // /23 minimum recommended for ACA Consumption + Workload Profiles environments.
+      {
+        name: 'aca-subnet'
+        properties: {
+          addressPrefix: '10.2.0.0/23'
+          privateEndpointNetworkPolicies: 'Disabled'
+        }
+      }
     ]
   }
 }
@@ -83,4 +91,5 @@ output apimSubnetId string = vnet.properties.subnets[1].id
 output postgresSubnetId string = vnet.properties.subnets[2].id
 output redisSubnetId string = vnet.properties.subnets[3].id
 output privateEndpointsSubnetId string = vnet.properties.subnets[4].id
+output acaSubnetId string = vnet.properties.subnets[5].id
 output postgresDnsZoneId string = postgresDnsZone.id

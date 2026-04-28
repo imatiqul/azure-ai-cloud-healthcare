@@ -87,6 +87,27 @@ public sealed class WebPubSubService : IWebPubSubService
             timestamp = DateTimeOffset.UtcNow,
         }, ct);
 
+    public Task SendToolInvokedAsync(string sessionId, string agentName, string pluginName, string functionName, CancellationToken ct = default) =>
+        SendToSessionAsync(sessionId, new
+        {
+            type = "ToolInvoked",
+            agentName,
+            pluginName,
+            functionName,
+            timestamp = DateTimeOffset.UtcNow,
+        }, ct);
+
+    public Task SendToolCompletedAsync(string sessionId, string pluginName, string functionName, double durationMs, bool success, CancellationToken ct = default) =>
+        SendToSessionAsync(sessionId, new
+        {
+            type = "ToolCompleted",
+            pluginName,
+            functionName,
+            durationMs,
+            success,
+            timestamp = DateTimeOffset.UtcNow,
+        }, ct);
+
     public async Task<string> GetClientAccessUriAsync(string sessionId, string userId, CancellationToken ct = default)
     {
         if (_client is null)

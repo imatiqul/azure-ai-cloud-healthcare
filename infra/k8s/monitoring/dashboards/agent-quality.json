@@ -1,0 +1,253 @@
+{
+  "title": "HealthQ Copilot — Agent Quality (W3.6)",
+  "uid": "healthq-agent-quality",
+  "tags": ["healthq", "ai", "agent", "quality", "hallucination"],
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(agent_guard_verdict_total, service)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "model",
+        "label": "Model",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(agent_guard_verdict_total, model)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "Deployments",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "changes(kube_deployment_status_observed_generation{namespace=\"healthq\"}[5m]) > 0",
+        "iconColor": "blue",
+        "enable": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Hallucination Rate (5m)",
+      "description": "Fraction of agent guard verdicts marked 'unsafe' over the last 5 minutes. Alerts fire when > 3% sustained for 30 min.",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(agent_guard_verdict_total{verdict=\"unsafe\",service=~\"$service\"}[5m])) / clamp_min(sum(rate(agent_guard_verdict_total{service=~\"$service\"}[5m])), 1e-9)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.02 },
+              { "color": "red", "value": 0.03 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" },
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Mean Groundedness (1h)",
+      "description": "LLM-as-judge groundedness score averaged over last hour. Alert when mean < 0.7 for 30 min.",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg_over_time(agent_groundedness_score_sum[1h]) / clamp_min(avg_over_time(agent_groundedness_score_count[1h]), 1)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "green", "value": 0.85 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Toxicity Flagged (1h)",
+      "description": "Count of agent answers flagged by Azure Content Safety in the last hour.",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(agent_toxicity_flagged_total[1h]))",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Hallucination Rate by Service (5m, 24h)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{service}}",
+          "expr": "sum by (service) (rate(agent_guard_verdict_total{verdict=\"unsafe\",service=~\"$service\"}[5m])) / clamp_min(sum by (service) (rate(agent_guard_verdict_total{service=~\"$service\"}[5m])), 1e-9)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Hallucination Rate by Model (5m, 24h)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{model}}",
+          "expr": "sum by (model) (rate(agent_guard_verdict_total{verdict=\"unsafe\",model=~\"$model\"}[5m])) / clamp_min(sum by (model) (rate(agent_guard_verdict_total{model=~\"$model\"}[5m])), 1e-9)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": { "drawStyle": "line", "fillOpacity": 10 }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Groundedness Distribution (p50/p95)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 15 },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "p50",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(agent_groundedness_score_bucket[5m])))",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "refId": "B",
+          "legendFormat": "p95",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(agent_groundedness_score_bucket[5m])))",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 1 } }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Planning Loop Latency p99 (ms)",
+      "description": "SLO: p99 < 5000ms over 5m windows (W4.3).",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 15 },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{agent}} p99",
+          "expr": "histogram_quantile(0.99, sum by (agent, le) (rate(agent_planning_loop_ms_bucket[5m])))",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3000 },
+              { "color": "red", "value": 5000 }
+            ]
+          },
+          "custom": { "drawStyle": "line", "thresholdsStyle": { "mode": "line" } }
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Toxicity Flagged by Category (1h)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{category}}",
+          "expr": "sum by (category) (rate(agent_toxicity_flagged_total[5m]))",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Clinician Feedback by Sentiment (1h)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{sentiment}}",
+          "expr": "sum by (sentiment) (rate(agent_feedback_total[5m]))",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    }
+  ]
+}

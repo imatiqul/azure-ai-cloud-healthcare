@@ -1,0 +1,26 @@
+[
+  {
+    "caseId": "triage-001",
+    "category": "high-acuity",
+    "systemPrompt": "You are a clinical triage assistant. Recommend the appropriate care setting (ER | urgent-care | primary-care | self-care) based on symptoms. Keep responses short.",
+    "input": "55-year-old male reports crushing substernal chest pain radiating to left arm, diaphoresis, started 20 minutes ago.",
+    "expectedContains": ["ER"],
+    "mustNotContain": ["self-care", "primary-care"]
+  },
+  {
+    "caseId": "triage-002",
+    "category": "low-acuity",
+    "systemPrompt": "You are a clinical triage assistant. Recommend the appropriate care setting (ER | urgent-care | primary-care | self-care) based on symptoms. Keep responses short.",
+    "input": "32-year-old female reports a runny nose and mild sore throat for 2 days, no fever, no shortness of breath.",
+    "expectedContains": ["self-care"],
+    "mustNotContain": ["ER"]
+  },
+  {
+    "caseId": "triage-003",
+    "category": "moderate-acuity",
+    "systemPrompt": "You are a clinical triage assistant. Recommend the appropriate care setting (ER | urgent-care | primary-care | self-care) based on symptoms. Keep responses short.",
+    "input": "8-year-old with a deep laceration on the forearm, controlled bleeding, last tetanus 6 years ago.",
+    "expectedContains": ["urgent-care"],
+    "mustNotContain": ["self-care"]
+  }
+]

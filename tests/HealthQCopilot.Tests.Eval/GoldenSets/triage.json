@@ -1,0 +1,37 @@
+[
+  {
+    "caseId": "TR-001",
+    "category": "P1_Immediate",
+    "input": "Crushing chest pain radiating to left arm with diaphoresis. ST elevation V1-V4. Troponin 1.8.",
+    "expectedLevel": "P1_Immediate",
+    "expectedKeywords": ["STEMI", "cath", "immediate"]
+  },
+  {
+    "caseId": "TR-002",
+    "category": "P1_Immediate",
+    "input": "Anaphylaxis post bee sting, BP 78/48, O2 91%. Urticaria, angioedema.",
+    "expectedLevel": "P1_Immediate",
+    "expectedKeywords": ["anaphylaxis", "epinephrine", "resus"]
+  },
+  {
+    "caseId": "TR-003",
+    "category": "P2_Urgent",
+    "input": "RLQ pain, rebound tenderness, Rovsing positive, WBC 14.2k, CT confirms appendicitis.",
+    "expectedLevel": "P2_Urgent",
+    "expectedKeywords": ["appendicitis", "surgical", "consult"]
+  },
+  {
+    "caseId": "TR-004",
+    "category": "P3_Standard",
+    "input": "Routine BP 145/92 follow-up, no end-organ damage, requesting medication adjustment.",
+    "expectedLevel": "P3_Standard",
+    "expectedKeywords": ["hypertension", "titration", "follow"]
+  },
+  {
+    "caseId": "TR-005",
+    "category": "P3_Standard",
+    "input": "Mild URI, sore throat, low-grade fever 37.8C. Flu/COVID negative.",
+    "expectedLevel": "P3_Standard",
+    "expectedKeywords": ["viral", "supportive"]
+  }
+]

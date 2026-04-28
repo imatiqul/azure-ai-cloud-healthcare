@@ -1,0 +1,114 @@
+# P4.1 — Agent quality AnalysisTemplate for the safety-flag canary rollout.
+#
+# Used by the runbook docs/compliance/runbooks/agent-flag-rollout-p4.1.md.
+# Pivots on the agent-specific quality metrics defined by W3.x / W4.x:
+#   • hallucination rate  (agent_guard_verdict_total{verdict="unsafe"})
+#   • groundedness score  (agent_groundedness_score histogram)
+#   • planning-loop p99   (agent_planning_loop_ms histogram)
+#   • cost per 1k req     (agent_llm_cost_usd_total counter)
+#   • HTTP 5xx rate       (http_server_requests_seconds_count)
+#
+# Apply with: kubectl apply -f infra/argocd/agent-rollout-analysis.yaml
+#
+# This template is invoked by an AnalysisRun (one per soak window) rather than
+# being attached to a Rollout — because P4.1 is a CONFIG (feature-flag) rollout,
+# not an image rollout, the existing image-level Rollout in rollouts.yaml is
+# untouched. Trigger an AnalysisRun manually after each flag-weight bump:
+#
+#   kubectl argo rollouts run-analysis-template agent-quality-gate \
+#     --argument service-name=healthq-agents \
+#     --argument soak-window=30m
+#
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: agent-quality-gate
+  namespace: healthq-copilot
+  labels:
+    healthq/purpose: agent-flag-rollout
+    healthq/phase: p4.1
+spec:
+  args:
+    - name: service-name
+      value: healthq-agents
+    - name: soak-window
+      value: 30m
+  metrics:
+    # 1) Hallucination rate < 2% over the latest 5m, evaluated every 60s for
+    #    the full soak window. failureLimit:3 tolerates transient blips but
+    #    aborts on sustained regression.
+    - name: hallucination-rate
+      interval: 60s
+      count: 30                # 30 evaluations × 60s = 30m soak
+      failureLimit: 3
+      successCondition: result[0] < 0.02
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc:9090
+          query: |
+            (sum(rate(agent_guard_verdict_total{verdict="unsafe",service="{{args.service-name}}"}[5m])) or vector(0))
+              /
+            (sum(rate(agent_guard_verdict_total{service="{{args.service-name}}"}[5m])) > 0)
+
+    # 2) Mean groundedness ≥ 0.85 (LLM-as-judge from W3.2). Uses the
+    #    pre-computed _sum/_count ratio over a 5m window to avoid quantile
+    #    estimation noise on a sparsely-populated histogram.
+    - name: groundedness-mean
+      interval: 60s
+      count: 30
+      failureLimit: 3
+      successCondition: result[0] >= 0.85
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc:9090
+          query: |
+            (sum(rate(agent_groundedness_score_sum{service="{{args.service-name}}"}[5m])) or vector(0))
+              /
+            (sum(rate(agent_groundedness_score_count{service="{{args.service-name}}"}[5m])) > 0)
+
+    # 3) Planning-loop p99 ≤ 5s (Phase-3 SLO; same threshold as the P3.2 load test).
+    - name: planning-loop-p99
+      interval: 60s
+      count: 30
+      failureLimit: 3
+      successCondition: result[0] <= 5000
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc:9090
+          query: |
+            histogram_quantile(0.99,
+              sum(rate(agent_planning_loop_ms_bucket{service="{{args.service-name}}"}[5m])) by (le)
+            )
+
+    # 4) HTTP 5xx error rate < 1% — broad infrastructure-health gate.
+    - name: error-rate
+      interval: 60s
+      count: 30
+      failureLimit: 3
+      successCondition: result[0] < 0.01
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc:9090
+          query: |
+            (sum(rate(http_server_requests_seconds_count{service="{{args.service-name}}",status=~"5.."}[5m])) or vector(0))
+              /
+            (sum(rate(http_server_requests_seconds_count{service="{{args.service-name}}"}[5m])) > 0)
+
+    # 5) Cost ceiling: USD per 1000 successful requests, capped at 0.50 USD.
+    #    The 0.50 figure is the projected baseline (gpt-4o-mini, ~800 tok/req)
+    #    × 1.25 headroom — sized to alert on a runaway loop or a model-tier
+    #    misconfiguration that suddenly routes traffic to gpt-4o or larger.
+    #    Tighten to 0.40 after 7 days at 100% (per runbook step 3 note).
+    - name: cost-per-1k-requests-usd
+      interval: 60s
+      count: 30
+      failureLimit: 3
+      successCondition: result[0] <= 0.50
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc:9090
+          query: |
+            (sum(rate(agent_llm_cost_usd_total{service="{{args.service-name}}"}[5m])) or vector(0))
+              /
+            (sum(rate(http_server_requests_seconds_count{service="{{args.service-name}}",status=~"2.."}[5m])) > 0)
+              * 1000

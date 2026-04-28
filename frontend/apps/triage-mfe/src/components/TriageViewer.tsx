@@ -23,6 +23,9 @@ import {
   upsertWorkflowHandoff,
 } from '@healthcare/mfe-events';
 import { HitlEscalationModal } from './HitlEscalationModal';
+import { AgentTraceViewer, useLiveToolEvents } from './AgentTrace';
+
+const AGENT_TRACE_ENABLED = import.meta.env.VITE_AGENT_TRACE_ENABLED === 'true';
 
 /**
  * Streams the agentReasoning text word-by-word on first mount.
@@ -746,6 +749,21 @@ export function TriageViewer() {
           onClose={() => setShowEscalation(false)}
         />
       )}
+      {AGENT_TRACE_ENABLED && selectedWorkflowData?.sessionId && (
+        <Box sx={{ mt: 3 }} aria-label="Agent trace for selected workflow">
+          <LiveAgentTrace sessionId={selectedWorkflowData.sessionId} />
+        </Box>
+      )}
     </>
   );
+}
+
+/**
+ * W5.2 — wraps AgentTraceViewer with a live ToolInvoked/ToolCompleted feed
+ * sourced from Web PubSub. Kept as a separate component so its hooks remount
+ * cleanly when the selected session changes.
+ */
+function LiveAgentTrace({ sessionId }: { sessionId: string }) {
+  const liveEvents = useLiveToolEvents(sessionId);
+  return <AgentTraceViewer sessionId={sessionId} liveEvents={liveEvents} />;
 }

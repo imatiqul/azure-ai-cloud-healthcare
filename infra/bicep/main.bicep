@@ -21,6 +21,9 @@ param b2cCountryCode string = 'US'
 @description('AKS Nginx Ingress Controller internal load balancer URL. Updated by configure-apim CI/CD job after AKS bootstrap. Default placeholder is safe at provision time.')
 param aksIngressUrl string = 'http://127.0.0.1'
 
+@description('When true, deploy the Microsoft Presidio analyzer to a dedicated internal Azure Container Apps environment (W1.1). Off by default to keep dev costs low; the Agents service falls back to its regex redactor when no endpoint is configured.')
+param deployPresidio bool = false
+
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: '${envName}-rg'
   location: location
@@ -195,6 +198,19 @@ module monitorAlerts 'modules/monitor-alerts.bicep' = {
   }
 }
 
+// W1.1 — Microsoft Presidio analyzer in an internal ACA environment.
+// Opt-in via `deployPresidio` so dev environments default to the regex fallback.
+module presidio 'modules/presidio.bicep' = if (deployPresidio) {
+  name: 'presidio-deploy'
+  scope: rg
+  params: {
+    envName: envName
+    location: location
+    logAnalyticsWorkspaceId: logAnalytics.outputs.workspaceId
+    infraSubnetId: network.outputs.acaSubnetId
+  }
+}
+
 output aksClusterName string = aks.outputs.clusterName
 output acrLoginServer string = acr.outputs.loginServer
 output apimGatewayUrl string = apim.outputs.gatewayUrl
@@ -203,3 +219,4 @@ output webPubSubEndpoint string = webPubSub.outputs.endpoint
 output eventHubsNamespace string = eventHubs.outputs.namespaceName
 output b2cTenantDomain string = b2c.outputs.b2cTenantDomain
 output b2cAuthority string = b2c.outputs.b2cAuthority
+output presidioAnalyzerEndpoint string = presidio.?outputs.analyzerEndpoint ?? ''

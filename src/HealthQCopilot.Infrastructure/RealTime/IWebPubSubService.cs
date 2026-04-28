@@ -18,6 +18,12 @@ public interface IWebPubSubService
     /// <summary>Sends a live transcript chunk to the session's frontend.</summary>
     Task SendTranscriptChunkAsync(string sessionId, string text, CancellationToken ct = default);
 
+    /// <summary>(W5.2) Notifies the session that an agent tool/function is being invoked.</summary>
+    Task SendToolInvokedAsync(string sessionId, string agentName, string pluginName, string functionName, CancellationToken ct = default);
+
+    /// <summary>(W5.2) Notifies the session that an agent tool/function has completed.</summary>
+    Task SendToolCompletedAsync(string sessionId, string pluginName, string functionName, double durationMs, bool success, CancellationToken ct = default);
+
     /// <summary>
     /// Generates a client access URL for the specified session.
     /// The URL embeds a time-limited JWT allowing the client to join the session group.

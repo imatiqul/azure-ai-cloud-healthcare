@@ -15,5 +15,14 @@ public interface ILlmUsageTracker
     /// <param name="agentName">Logical agent name (e.g., "TriageAgent", "GuideAgent").</param>
     /// <param name="tenantId">Tenant identifier for cost allocation.</param>
     /// <param name="latencyMs">End-to-end call latency in milliseconds.</param>
-    void TrackUsage(int promptTokens, int completionTokens, string agentName, string tenantId, double latencyMs);
+    /// <param name="estimatedCostUsd">Estimated USD spend for this call (from <c>IModelPricing.Estimate</c>); when &gt; 0 emits <c>agent_llm_cost_usd_total</c>.</param>
+    /// <param name="modelId">Concrete model id (e.g. <c>gpt-4o-mini</c>) used to tag the cost counter for per-model attribution.</param>
+    void TrackUsage(
+        int promptTokens,
+        int completionTokens,
+        string agentName,
+        string tenantId,
+        double latencyMs,
+        decimal estimatedCostUsd = 0m,
+        string? modelId = null);
 }

@@ -17,4 +17,8 @@
     <ProjectReference Include="..\HealthQCopilot.Infrastructure\HealthQCopilot.Infrastructure.csproj" />
     <ProjectReference Include="..\HealthQCopilot.ServiceDefaults\HealthQCopilot.ServiceDefaults.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- W3.1 — clinical evaluation golden sets shipped alongside the binary. -->
+    <Content Update="Evaluation\golden-sets\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

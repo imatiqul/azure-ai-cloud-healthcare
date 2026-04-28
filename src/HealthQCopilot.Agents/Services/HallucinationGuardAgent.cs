@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using HealthQCopilot.Agents.Prompts;
 using HealthQCopilot.Infrastructure.Metrics;
 using Microsoft.SemanticKernel;
 
@@ -19,6 +20,7 @@ namespace HealthQCopilot.Agents.Services;
 public sealed class HallucinationGuardAgent(
     BusinessMetrics metrics,
     ILogger<HallucinationGuardAgent> logger,
+    IAgentPromptRegistry? prompts = null,
     Kernel? kernel = null)
 {
     private static readonly Regex ForbiddenPatterns = new(
@@ -34,6 +36,13 @@ public sealed class HallucinationGuardAgent(
         @"\bconfirmed\b.*?\bunconfirmed\b|\bcertain\b.*?\buncertain\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.Singleline);
 
+    // W1.4 — HIPAA leakage: catches residual PHI (SSN / MRN / phone / email)
+    // surfacing in model output after redaction. Any hit forces a HIPAA verdict
+    // and blocks the response from reaching the clinician UI.
+    private static readonly Regex HipaaLeakPattern = new(
+        @"\b\d{3}-\d{2}-\d{4}\b|\bMRN[:\s-]*\d{6,10}\b|\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b|\b(?:\+?1[-\s.]?)?\(?\d{3}\)?[-\s.]?\d{3}[-\s.]?\d{4}\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     private const string AgentName = "TriageAgent";
 
     /// <summary>
@@ -44,6 +53,13 @@ public sealed class HallucinationGuardAgent(
     {
         // ── Fast heuristic checks ──────────────────────────────────────────────
         var findings = new List<string>();
+        var hipaaViolation = false;
+
+        if (HipaaLeakPattern.IsMatch(agentOutput))
+        {
+            findings.Add("hipaa-phi-leak");
+            hipaaViolation = true;
+        }
 
         if (ForbiddenPatterns.IsMatch(agentOutput))
             findings.Add("forbidden-clinical-claim");
@@ -59,16 +75,15 @@ public sealed class HallucinationGuardAgent(
         {
             try
             {
-                var prompt = $"""
-                    You are a clinical AI safety auditor. Assess the following AI-generated text 
-                    for hallucinations, fabricated facts, or clinically dangerous statements.
-                    Respond with exactly one word: SAFE or UNSAFE.
-                    
-                    Text to evaluate:
-                    ---
-                    {agentOutput}
-                    ---
-                    """;
+                // W4.5 — prompt template comes from the registry when available so we
+                // can roll the judge wording forward without redeploying. The {0}
+                // placeholder is filled with the agent output.
+                var template = prompts is not null && prompts.TryGet(InMemoryPromptRegistry.Ids.HallucinationJudge, out var def)
+                    ? def.Template
+                    : "You are a clinical AI safety auditor. Assess the following AI-generated text " +
+                      "for hallucinations, fabricated facts, or clinically dangerous statements. " +
+                      "Respond with exactly one word: SAFE or UNSAFE.\n\nText to evaluate:\n---\n{0}\n---";
+                var prompt = string.Format(System.Globalization.CultureInfo.InvariantCulture, template, agentOutput);
 
                 var result = await kernel.InvokePromptAsync<string>(prompt,
                     cancellationToken: ct);
@@ -84,7 +99,15 @@ public sealed class HallucinationGuardAgent(
         }
 
         var isUnsafe = findings.Count > 0;
-        var verdict = isUnsafe ? "unsafe" : "safe";
+        var outcome = hipaaViolation ? GuardOutcome.HipaaViolation
+                                     : isUnsafe ? GuardOutcome.Unsafe
+                                                : GuardOutcome.Safe;
+        var verdict = outcome switch
+        {
+            GuardOutcome.HipaaViolation => "hipaa_violation",
+            GuardOutcome.Unsafe => "unsafe",
+            _ => "safe"
+        };
 
         // ── Emit Prometheus metric ─────────────────────────────────────────────
         metrics.AgentGuardVerdictTotal.Add(1,
@@ -94,17 +117,18 @@ public sealed class HallucinationGuardAgent(
         if (isUnsafe)
         {
             logger.LogWarning(
-                "HallucinationGuard UNSAFE verdict for {Agent}. Findings: {Findings}. Output preview: {Preview}",
-                AgentName, string.Join(", ", findings), agentOutput[..Math.Min(200, agentOutput.Length)]);
+                "HallucinationGuard {Verdict} for {Agent}. Findings: {Findings}. Output preview: {Preview}",
+                verdict, AgentName, string.Join(", ", findings), agentOutput[..Math.Min(200, agentOutput.Length)]);
         }
 
-        return new GuardVerdict(isUnsafe ? GuardOutcome.Unsafe : GuardOutcome.Safe, findings);
+        return new GuardVerdict(outcome, findings);
     }
 }
 
 public sealed record GuardVerdict(GuardOutcome Outcome, IReadOnlyList<string> Findings)
 {
     public bool IsSafe => Outcome == GuardOutcome.Safe;
+    public bool IsHipaaViolation => Outcome == GuardOutcome.HipaaViolation;
 }
 
-public enum GuardOutcome { Safe, Unsafe }
+public enum GuardOutcome { Safe, Unsafe, HipaaViolation }

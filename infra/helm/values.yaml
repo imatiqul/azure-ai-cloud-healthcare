@@ -254,3 +254,23 @@ services:
     env:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
+
+# -- W1.1 — Microsoft Presidio PHI redactor sidecar -----------------------------
+# When enabled, an analyzer container is co-located with ai-agent-service so
+# PHI redaction happens before any prompt leaves the pod boundary. The agents
+# service reads Presidio:AnalyzerEndpoint=http://localhost:5001 via env vars
+# wired by the rollout template.
+presidio:
+  enabled: false
+  timeoutMs: 2000
+  minScore: 0.5
+  analyzer:
+    image: mcr.microsoft.com/presidio-analyzer
+    tag: latest
+    resources:
+      requests:
+        cpu: 250m
+        memory: 768Mi
+      limits:
+        cpu: "1"
+        memory: 1.5Gi

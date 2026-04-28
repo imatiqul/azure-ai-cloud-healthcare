@@ -38,12 +38,33 @@ export interface EscalationRequiredMessage {
   reason?: string;
 }
 
+/** W5.2 — agent has begun a tool/function invocation. */
+export interface ToolInvokedMessage {
+  type: 'ToolInvoked';
+  agentName: string;
+  pluginName: string;
+  functionName: string;
+  timestamp: string;
+}
+
+/** W5.2 — agent tool/function invocation has finished. */
+export interface ToolCompletedMessage {
+  type: 'ToolCompleted';
+  pluginName: string;
+  functionName: string;
+  durationMs: number;
+  success: boolean;
+  timestamp: string;
+}
+
 export type VoiceSessionMessage =
   | AiThinkingMessage
   | AgentResponseMessage
   | TranscriptReceivedMessage
   | TranscriptionStartedMessage
-  | EscalationRequiredMessage;
+  | EscalationRequiredMessage
+  | ToolInvokedMessage
+  | ToolCompletedMessage;
 
 // ── Client wrapper ────────────────────────────────────────────────────────────
 

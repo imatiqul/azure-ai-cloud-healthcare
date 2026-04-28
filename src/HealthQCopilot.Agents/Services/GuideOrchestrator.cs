@@ -5,8 +5,10 @@ using HealthQCopilot.Agents.Plugins;
 using HealthQCopilot.Agents.Rag;
 using HealthQCopilot.Domain.Agents;
 using HealthQCopilot.Infrastructure.AI;
+using HealthQCopilot.ServiceDefaults.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.FeatureManagement;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -22,6 +24,8 @@ public sealed class GuideOrchestrator
     private readonly ILlmUsageTracker _usageTracker;
     private readonly IPromptRegistry _promptRegistry;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IFeatureManager _features;
+    private readonly IPhiRedactor _phiRedactor;
     private readonly ILogger<GuideOrchestrator> _logger;
     private readonly bool _hasLlm;
 
@@ -47,6 +51,8 @@ public sealed class GuideOrchestrator
         ILlmUsageTracker usageTracker,
         IPromptRegistry promptRegistry,
         IHttpContextAccessor httpContextAccessor,
+        IFeatureManager features,
+        IPhiRedactor phiRedactor,
         ILogger<GuideOrchestrator> logger,
         IRagContextProvider? rag = null)
     {
@@ -56,6 +62,8 @@ public sealed class GuideOrchestrator
         _usageTracker = usageTracker;
         _promptRegistry = promptRegistry;
         _httpContextAccessor = httpContextAccessor;
+        _features = features;
+        _phiRedactor = phiRedactor;
         _rag = rag;
         _logger = logger;
         _hasLlm = kernel.GetAllServices<IChatCompletionService>().Any();
@@ -117,11 +125,28 @@ public sealed class GuideOrchestrator
 
             var history = new ChatHistory(effectiveSystemPrompt);
 
+            // W1.2 — PHI redaction guard: mask any user-authored content before
+            // it leaves the process for Azure OpenAI. Assistant messages are
+            // already redaction-safe because they were generated from masked input.
+            var redactPhi = await _features.IsEnabledAsync(HealthQFeatures.PhiRedaction);
+
             // Add conversation context (last 20 messages to stay within token limits)
             foreach (var msg in conversation.Messages.OrderBy(m => m.Timestamp).TakeLast(20))
             {
-                if (msg.Role == "user") history.AddUserMessage(msg.Content);
-                else if (msg.Role == "assistant") history.AddAssistantMessage(msg.Content);
+                if (msg.Role == "user")
+                {
+                    var content = msg.Content;
+                    if (redactPhi)
+                    {
+                        var r = await _phiRedactor.RedactAsync(content, conversation.Id.ToString(), ct);
+                        content = r.RedactedText;
+                    }
+                    history.AddUserMessage(content);
+                }
+                else if (msg.Role == "assistant")
+                {
+                    history.AddAssistantMessage(msg.Content);
+                }
             }
 
             var settings = new OpenAIPromptExecutionSettings

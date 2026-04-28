@@ -23,7 +23,9 @@ public sealed class LlmUsageTracker(BusinessMetrics metrics) : ILlmUsageTracker
         int completionTokens,
         string agentName,
         string tenantId,
-        double latencyMs)
+        double latencyMs,
+        decimal estimatedCostUsd = 0m,
+        string? modelId = null)
     {
         var tags = new TagList
         {
@@ -39,5 +41,20 @@ public sealed class LlmUsageTracker(BusinessMetrics metrics) : ILlmUsageTracker
 
         if (latencyMs > 0)
             metrics.LlmCallLatencyMs.Record(latencyMs, tags);
+
+        // W4.2 — cost-per-call USD counter feeds the agent-cost Grafana dashboard
+        // and Azure Cost Management tag-based billing analysis. Tag by model so a
+        // model-mix change (e.g. swapping gpt-4o-mini for gpt-4o on the triage path)
+        // shows up cleanly on the panel without losing per-tenant attribution.
+        if (estimatedCostUsd > 0m)
+        {
+            var costTags = new TagList
+            {
+                { "agent", agentName },
+                { "tenant", tenantId },
+                { "model", modelId ?? "unknown" },
+            };
+            metrics.AgentLlmCostUsdTotal.Add((double)estimatedCostUsd, costTags);
+        }
     }
 }

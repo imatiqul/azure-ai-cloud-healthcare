@@ -31,6 +31,15 @@ spec:
             - containerPort: 8080
           resources:
             {{- toYaml (index .Values.services "ai-agent" "resources") | nindent 12 }}
+          {{- if .Values.presidio.enabled }}
+          env:
+            - name: Presidio__AnalyzerEndpoint
+              value: "http://localhost:5001"
+            - name: Presidio__TimeoutMs
+              value: "{{ .Values.presidio.timeoutMs | default 2000 }}"
+            - name: Presidio__MinScore
+              value: "{{ .Values.presidio.minScore | default 0.5 }}"
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /health/live
@@ -43,6 +52,31 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
+        {{- if .Values.presidio.enabled }}
+        # ── W1.1 — Microsoft Presidio analyzer sidecar ─────────────────────────
+        # Runs in the same pod so PHI never leaves the network boundary on its
+        # way to the redactor. Bound to localhost via the shared pod network
+        # namespace; ai-agent-service reads Presidio:AnalyzerEndpoint from env.
+        - name: presidio-analyzer
+          image: "{{ .Values.presidio.analyzer.image }}:{{ .Values.presidio.analyzer.tag }}"
+          ports:
+            - containerPort: 5001
+              name: analyzer
+          resources:
+            {{- toYaml .Values.presidio.analyzer.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5001
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+        {{- end }}
   strategy:
     canary:
       steps:

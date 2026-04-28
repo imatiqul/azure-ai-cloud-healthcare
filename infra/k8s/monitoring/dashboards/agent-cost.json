@@ -1,0 +1,187 @@
+{
+  "title": "HealthQ Copilot — Agent Cost (W4.2)",
+  "uid": "healthq-agent-cost",
+  "tags": ["healthq", "ai", "agent", "cost", "finops"],
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "tenant",
+        "label": "Tenant",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(agent_llm_cost_usd_total, tenant)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "agent",
+        "label": "Agent",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(agent_llm_cost_usd_total, agent)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "model",
+        "label": "Model",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(agent_llm_cost_usd_total, model)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "USD spend (24h)",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 100 },
+              { "color": "red", "value": 500 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(agent_llm_cost_usd_total{tenant=~\"$tenant\",agent=~\"$agent\",model=~\"$model\"}[24h]))"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "USD spend (1h)",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(agent_llm_cost_usd_total{tenant=~\"$tenant\",agent=~\"$agent\",model=~\"$model\"}[1h]))"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Avg USD / call (1h)",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 4 } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(agent_llm_cost_usd_total{tenant=~\"$tenant\",agent=~\"$agent\",model=~\"$model\"}[1h])) / clamp_min(sum(rate(healthq_llm_completion_tokens_total{tenant=~\"$tenant\",agent=~\"$agent\"}[1h])) / 100, 0.0001)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Tokens / sec (1h)",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 1 } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(healthq_llm_prompt_tokens_total{tenant=~\"$tenant\",agent=~\"$agent\"}[1h])) + sum(rate(healthq_llm_completion_tokens_total{tenant=~\"$tenant\",agent=~\"$agent\"}[1h]))"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "USD/min by tenant",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (tenant) (rate(agent_llm_cost_usd_total{tenant=~\"$tenant\",agent=~\"$agent\",model=~\"$model\"}[5m])) * 60",
+          "legendFormat": "{{tenant}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "USD/min by model",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (model) (rate(agent_llm_cost_usd_total{tenant=~\"$tenant\",agent=~\"$agent\",model=~\"$model\"}[5m])) * 60",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "barchart",
+      "title": "USD spend by agent (24h)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (agent) (increase(agent_llm_cost_usd_total{tenant=~\"$tenant\",agent=~\"$agent\",model=~\"$model\"}[24h]))",
+          "legendFormat": "{{agent}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Top 10 sessions by USD spend (24h)",
+      "description": "Per-session spend rolled up from CosmosTokenLedger via the trace API (see /api/v1/agents/traces/{sessionId}/cost). Use the sessionId column to drill into the agent trace viewer.",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 4 } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (session) (increase(agent_llm_cost_usd_total{tenant=~\"$tenant\",agent=~\"$agent\",model=~\"$model\"}[24h])))",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "name": "Canary cutover",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "enable": true,
+        "iconColor": "rgba(255,96,96,1)",
+        "tags": ["argo-rollouts", "canary"]
+      }
+    ]
+  }
+}

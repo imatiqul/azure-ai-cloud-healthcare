@@ -425,6 +425,9 @@ importers:
       '@healthcare/mfe-events':
         specifier: workspace:*
         version: link:../../packages/mfe-events
+      '@healthcare/web-pubsub-client':
+        specifier: workspace:*
+        version: link:../../packages/web-pubsub-client
       react:
         specifier: ^19.0.0
         version: 19.2.4

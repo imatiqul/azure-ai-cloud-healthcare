@@ -1,5 +1,6 @@
 using HealthQCopilot.Agents.Infrastructure;
 using HealthQCopilot.Agents.Plugins;
+using HealthQCopilot.Agents.Prompts;
 using HealthQCopilot.Domain.Agents;
 using Microsoft.SemanticKernel;
 
@@ -24,32 +25,20 @@ public sealed class ClinicalCoderAgent
     private readonly AgentPlanningLoop _loop;
     private readonly Kernel _kernel;
     private readonly AgentDbContext _db;
+    private readonly IAgentPromptRegistry _prompts;
     private readonly ILogger<ClinicalCoderAgent> _logger;
-
-    private const string SystemPrompt =
-        """
-        You are a board-certified clinical coding specialist (CPC, CCS) integrated into the HealthQ Copilot platform.
-        Your role is to accurately code clinical encounters using ICD-10-CM and CPT-4 codes.
-
-        You have access to the following tools:
-        - suggest_clinical_codes: to generate initial code suggestions from encounter text
-        - validate_code_combination: to verify codes are payer-compatible and compliant
-        - identify_care_gaps: to flag preventive care opportunities from the encounter
-
-        Always validate your code suggestions before returning them.
-        If validation identifies conflicts, self-correct by adjusting the codes and re-validating.
-        Provide reasoning for each code selection.
-        """;
 
     public ClinicalCoderAgent(
         AgentPlanningLoop loop,
         Kernel kernel,
         AgentDbContext db,
+        IAgentPromptRegistry prompts,
         ILogger<ClinicalCoderAgent> logger)
     {
         _loop = loop;
         _kernel = kernel;
         _db = db;
+        _prompts = prompts;
         _logger = logger;
     }
 
@@ -84,7 +73,7 @@ public sealed class ClinicalCoderAgent
         var loopResult = await _loop.RunAsync(
             workflowId,
             agentName: "ClinicalCoderAgent",
-            systemPrompt: SystemPrompt,
+            systemPrompt: _prompts.Get(InMemoryPromptRegistry.Ids.ClinicalCoder).Template,
             userGoal: goal,
             ct);
 

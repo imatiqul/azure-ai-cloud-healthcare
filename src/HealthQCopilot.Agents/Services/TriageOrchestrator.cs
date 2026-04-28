@@ -2,8 +2,11 @@ using System.Diagnostics;
 using Dapr.Client;
 using HealthQCopilot.Agents.Infrastructure;
 using HealthQCopilot.Agents.Plugins;
+using HealthQCopilot.Agents.Prompts;
 using HealthQCopilot.Agents.Rag;
+using HealthQCopilot.Agents.Services.Orchestration;
 using HealthQCopilot.Domain.Agents;
+using HealthQCopilot.Domain.Agents.Contracts;
 using HealthQCopilot.Infrastructure.AI;
 using HealthQCopilot.Infrastructure.Messaging;
 using HealthQCopilot.Infrastructure.RealTime;
@@ -30,6 +33,11 @@ public sealed class TriageOrchestrator
     private readonly ConfidenceRouter _confidenceRouter;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IFeatureManager _features;
+    private readonly IPhiRedactor _phiRedactor;
+    private readonly IAgentPromptRegistry _prompts;
+    private readonly IConsentService _consent;
+    private readonly IConfiguration _config;
+    private readonly ICriticAgent _critic;
     private readonly ILogger<TriageOrchestrator> _logger;
 
     public TriageOrchestrator(Kernel kernel, AgentDbContext db, WorkflowDispatcher dispatcher,
@@ -39,6 +47,11 @@ public sealed class TriageOrchestrator
                                ConfidenceRouter confidenceRouter,
                                IHttpContextAccessor httpContextAccessor,
                                IFeatureManager features,
+                               IPhiRedactor phiRedactor,
+                               IAgentPromptRegistry prompts,
+                               IConsentService consent,
+                               IConfiguration config,
+                               ICriticAgent critic,
                                ILogger<TriageOrchestrator> logger,
                                IRagContextProvider? rag = null)
     {
@@ -53,6 +66,11 @@ public sealed class TriageOrchestrator
         _confidenceRouter = confidenceRouter;
         _httpContextAccessor = httpContextAccessor;
         _features = features;
+        _phiRedactor = phiRedactor;
+        _prompts = prompts;
+        _consent = consent;
+        _config = config;
+        _critic = critic;
         _rag = rag;
         _logger = logger;
     }
@@ -61,6 +79,59 @@ public sealed class TriageOrchestrator
     {
         var workflow = TriageWorkflow.Create(Guid.NewGuid(), sessionId.ToString(), transcriptText, patientId);
         _db.TriageWorkflows.Add(workflow);
+
+        // W1.6 — patient consent gate. Before any LLM call, verify the patient
+        // has authorized AI-assisted triage. On deny we record a deterministic
+        // P3 (routine) workflow with a non-AI reasoning string + audit event
+        // and short-circuit — no PHI leaves the process for inference.
+        // Gated by HealthQ:PatientConsentGate so the existing prod path is
+        // unchanged until ops opt in.
+        if (await _features.IsEnabledAsync(HealthQFeatures.PatientConsentGate))
+        {
+            var consent = await _consent.CheckAsync(
+                sessionId.ToString(), patientId, scope: "triage", ct);
+            if (!consent.Granted)
+            {
+                _logger.LogInformation(
+                    "Triage consent denied for session {SessionId} (reason={Reason}); returning non-AI fallback.",
+                    sessionId, consent.Reason);
+
+                workflow.AssignTriage(
+                    TriageLevel.P3_Standard,
+                    "AI-assisted triage was not performed because the patient has not consented to AI processing. "
+                    + "Please complete an in-person clinical assessment.");
+
+                try
+                {
+                    // W1.6b — dedicated ConsentDecision audit event (was previously
+                    // shoehorned into AgentDecision with triageLevel="consent-denied").
+                    // Stable EventType="consent_decision" makes the Kusto compliance
+                    // queries (right-of-access reports) much simpler.
+                    await _auditService.PublishAsync(
+                        AuditEvent.ConsentDecision(
+                            sessionId.ToString(),
+                            patientId: patientId,
+                            scope: "triage",
+                            granted: false,
+                            reason: consent.Reason,
+                            grantedBy: consent.GrantedBy,
+                            grantedAt: consent.GrantedAt),
+                        ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Consent-denied audit publish failed (non-fatal)");
+                }
+
+                await _db.SaveChangesAsync(ct);
+                return workflow;
+            }
+        }
+
+        // W5.2 — tag the kernel so LiveToolEventFilter can stream ToolInvoked/ToolCompleted
+        // events to the right Web PubSub session group.
+        _kernel.Data["sessionId"] = sessionId.ToString();
+        _kernel.Data["agentName"] = "TriageAgent";
 
         // Track guard verdict across all code paths (true = safe or rule-based fallback)
         var guardApproved = true;
@@ -105,6 +176,35 @@ public sealed class TriageOrchestrator
 
                 if (guardVerdict.IsSafe)
                 {
+                    // W2.3 — cross-agent CriticAgent. Verifies the AI reasoning is
+                    // supported by retrieved RAG citations before commit. When the
+                    // critic is disabled, no RAG context was fetched, or no citations
+                    // are available the critic returns NotApplicable (Supported=true)
+                    // and the existing path is unchanged.
+                    var criticEnabled = await _features.IsEnabledAsync(HealthQFeatures.CriticReview);
+                    if (criticEnabled && !string.IsNullOrEmpty(ragContext))
+                    {
+                        var citations = new[]
+                        {
+                            new RagCitation(
+                                SourceId: "rag-triage-context",
+                                Title: "Retrieved clinical protocols",
+                                Url: null,
+                                Score: 1.0,
+                                Snippet: ragContext)
+                        };
+                        var critique = await _critic.ReviewAsync(result.Reasoning ?? string.Empty, citations, ct);
+                        if (!critique.Supported)
+                        {
+                            _logger.LogWarning(
+                                "Critic rejected triage reasoning for session {SessionId}. Reason: {Reason}. Falling back to rule-based.",
+                                sessionId, critique.Reason);
+                            guardApproved = false;
+                            // Fall through to the rule-based fallback below by skipping the AssignTriage block.
+                            goto guardOrCriticRejected;
+                        }
+                    }
+
                     workflow.AssignTriage(result.Level, result.Reasoning ?? string.Empty);
                     _logger.LogInformation(
                         "Triage completed for session {SessionId}: {Level} - {Reasoning}",
@@ -117,6 +217,7 @@ public sealed class TriageOrchestrator
                     sessionId, string.Join(", ", guardVerdict.Findings));
             }
 
+        guardOrCriticRejected:
             // null result or guard-rejected: fall back to rule-based plugin
             var fallback = new TriagePlugin();
             var classification = fallback.ClassifyUrgency(transcriptText);
@@ -164,9 +265,27 @@ public sealed class TriageOrchestrator
             await _pubSub.SendAgentResponseAsync(
                 sessionId.ToString(), responseText, triageLevelText, guardApproved);
 
-            // Publish audit event to Event Hubs
+            // Publish audit event to Event Hubs — W4.6: stamp model + prompt id/version
+            // so an auditor can correlate the AI decision back to the exact deployment
+            // and prompt template used. modelVersion is per-response (captured in the
+            // token ledger / trace step), not available at this emission site.
+            var triagePrompt = _prompts.Get(InMemoryPromptRegistry.Ids.TriageReasoning);
+            var modelId = _config["AzureOpenAI:DeploymentName"];
+            // W1.5b — read the cumulative masked-entity count from the SK decorator's
+            // session-scoped map. Stamps a single rolling number on the decision audit
+            // so an auditor sees both the per-call PhiRedacted rows AND the totals
+            // captured at decision time, all keyed on sessionId.
+            var redactionEntityCount = HealthQCopilot.Agents.Services.Safety.RedactingChatCompletionDecorator
+                .GetSessionMaskedCount(sessionId.ToString());
             await _auditService.PublishAsync(
-                AuditEvent.AgentDecision(sessionId.ToString(), triageLevelText, guardApproved));
+                AuditEvent.AgentDecision(
+                    sessionId.ToString(),
+                    triageLevelText,
+                    guardApproved,
+                    modelId: modelId,
+                    promptId: triagePrompt.Id,
+                    promptVersion: triagePrompt.Version,
+                    redactionEntityCount: redactionEntityCount > 0 ? redactionEntityCount : null));
         }, CancellationToken.None);
 
         // Dispatch cross-service workflow events (fire-and-forget with structured error handling)
@@ -216,14 +335,36 @@ public sealed class TriageOrchestrator
             return;
         }
 
+        // W1.2 — PHI redaction before any prompt leaves the process for Azure OpenAI.
+        // HIPAA technical safeguard (45 CFR § 164.312(a)(1)): mask SSN/MRN/PHONE/EMAIL/DOB.
+        var promptText = transcriptText;
+        if (await _features.IsEnabledAsync(HealthQFeatures.PhiRedaction))
+        {
+            var redaction = await _phiRedactor.RedactAsync(transcriptText, sessionId, ct);
+            promptText = redaction.RedactedText;
+            if (redaction.Entities.Count > 0)
+            {
+                _logger.LogInformation(
+                    "PHI redactor masked {Count} entities for session {SessionId} before LLM call.",
+                    redaction.Entities.Count, sessionId);
+
+                // W1.5 — proof-of-redaction audit (counts only; never raw values)
+                var kindCounts = redaction.Entities
+                    .GroupBy(e => e.EntityType)
+                    .ToDictionary(g => g.Key, g => g.Count());
+                _ = _auditService.PublishAsync(
+                    AuditEvent.PhiRedacted(sessionId, "TriageAgent", redaction.Entities.Count, kindCounts),
+                    ct);
+            }
+        }
+
         var history = new ChatHistory();
-        history.AddSystemMessage(
-            "You are a senior emergency medicine physician performing real-time clinical triage. " +
-            "Analyze the patient transcript step-by-step, explaining your clinical reasoning clearly. " +
-            "Think aloud about symptoms, differentials, and urgency indicators. " +
-            "Keep your analysis focused and clinical. Format: numbered reasoning steps.");
+        // W4.5 — system prompt sourced from the prompt registry so we can roll the
+        // wording forward without redeploying agent code; v1.0 is byte-identical
+        // to the previous hard-coded string.
+        history.AddSystemMessage(_prompts.Get(InMemoryPromptRegistry.Ids.TriageReasoning).Template);
         history.AddUserMessage(
-            $"Patient transcript for triage analysis:\n\n{transcriptText}\n\n" +
+            $"Patient transcript for triage analysis:\n\n{promptText}\n\n" +
             "Walk through your clinical reasoning step by step before reaching a triage decision.");
 
         await _pubSub.SendAiThinkingAsync(sessionId, "🔍 Analyzing patient transcript...", isFinal: false, ct);

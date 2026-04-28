@@ -1,4 +1,5 @@
 using HealthQCopilot.Agents.Rag;
+using HealthQCopilot.Infrastructure.Metrics;
 using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel.Embeddings;
 
@@ -30,6 +31,7 @@ public sealed class ClinicianFeedbackService(
     IClinicalKnowledgeStore knowledgeStore,
     IEmbeddingGenerator<string, Embedding<float>> embedder,
     ClinicianFeedbackRepository repository,
+    BusinessMetrics metrics,
     ILogger<ClinicianFeedbackService> logger)
 {
     /// <summary>
@@ -40,7 +42,6 @@ public sealed class ClinicianFeedbackService(
         ClinicianFeedbackInput input,
         CancellationToken ct = default)
     {
-        // 1. Persist feedback record
         var record = await repository.SaveAsync(input, ct);
 
         string action = "logged";
@@ -106,8 +107,14 @@ public sealed class ClinicianFeedbackService(
             }
         }
 
+        metrics.AgentFeedbackTotal.Add(1,
+            new KeyValuePair<string, object?>("sentiment", Sentiment(input.Rating)),
+            new KeyValuePair<string, object?>("action", action));
         return new ClinicianFeedbackResult(record.Id, action, record.CreatedAt);
     }
+
+    private static string Sentiment(int rating) =>
+        rating >= 4 ? "positive" : (rating <= 2 ? "negative" : "neutral");
 
     /// <summary>
     /// Returns a summary of feedback statistics for model quality monitoring.

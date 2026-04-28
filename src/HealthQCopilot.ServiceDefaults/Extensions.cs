@@ -143,6 +143,15 @@ public static class Extensions
                 timeout: TimeSpan.FromSeconds(5));
         }
 
+        // ── W1.3 Data-residency policy: AOAI region allow-list ───────────────
+        // Failing this probe drains the pod from the K8s ready set so no PHI
+        // crosses a non-allowed sovereign boundary, even when the endpoint is
+        // network-reachable.
+        checks.AddCheck<HealthQCopilot.ServiceDefaults.HealthChecks.AzureOpenAIRegionHealthCheck>(
+            name: "azure-openai-region",
+            failureStatus: HealthStatus.Unhealthy,
+            tags: ["ready", "compliance"]);
+
         return builder;
     }
 

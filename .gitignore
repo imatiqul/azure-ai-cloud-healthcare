@@ -36,3 +36,7 @@ artifacts/
 publish/
 coverage/
 build-output*.txt
+
+# Playwright test artifacts
+frontend/test-results/
+frontend/playwright-report/

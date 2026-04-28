@@ -1,0 +1,69 @@
+name: Agent Evaluation
+
+# W3.5 — Runs the clinical evaluation harness on PRs that touch agent code,
+# golden sets, or the evaluator. Fails the build if accuracy regresses by
+# more than 2pp from the committed baseline on any suite. Runs offline with
+# a deterministic stub chat so there is no Azure OpenAI dependency.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/HealthQCopilot.Agents/**'
+      - 'src/HealthQCopilot.Domain/Agents/**'
+      - 'src/HealthQCopilot.Infrastructure/AI/**'
+      - 'tests/HealthQCopilot.Tests.Unit/Agents/**'
+      - '.github/workflows/agent-eval.yml'
+  pull_request:
+    paths:
+      - 'src/HealthQCopilot.Agents/**'
+      - 'src/HealthQCopilot.Domain/Agents/**'
+      - 'src/HealthQCopilot.Infrastructure/AI/**'
+      - 'tests/HealthQCopilot.Tests.Unit/Agents/**'
+      - '.github/workflows/agent-eval.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: agent-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  agent-eval:
+    name: Clinical accuracy gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore tests/HealthQCopilot.Tests.Unit/HealthQCopilot.Tests.Unit.csproj
+
+      - name: Build
+        run: dotnet build tests/HealthQCopilot.Tests.Unit/HealthQCopilot.Tests.Unit.csproj --configuration Release --no-restore
+
+      - name: Run agent evaluation harness (Category=Eval)
+        run: |
+          dotnet test tests/HealthQCopilot.Tests.Unit/HealthQCopilot.Tests.Unit.csproj \
+            --configuration Release --no-build \
+            --filter "Category=Eval" \
+            --logger "trx;LogFileName=agent-eval.trx" \
+            --results-directory artifacts/eval
+
+      - name: Upload eval reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-eval-reports
+          path: artifacts/eval/**/*.trx
+          if-no-files-found: warn
+          retention-days: 14
+

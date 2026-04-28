@@ -78,6 +78,30 @@ public sealed class BusinessMetrics
     /// <summary>Latency histogram per LLM call from first token to completion (ms).</summary>
     public Histogram<double> LlmCallLatencyMs { get; }
 
+    /// <summary>W4.2 — estimated USD spend per LLM call. Tagged by agent + tenant + model. Drives <c>agent_llm_cost_usd_total</c> on the agent-cost Grafana dashboard and feeds Azure Cost Management tag-based billing.</summary>
+    public Counter<double> AgentLlmCostUsdTotal { get; }
+
+    /// <summary>W4.3 — end-to-end agentic planning loop latency (ms). Tagged by agent + outcome.</summary>
+    public Histogram<double> AgentPlanningLoopMs { get; }
+
+    /// <summary>W3.2 — LLM-as-judge groundedness score (0.0–1.0) per evaluated answer.</summary>
+    public Histogram<double> AgentGroundednessScore { get; }
+
+    /// <summary>W3.3 — normalized toxicity severity (0.0–1.0) per evaluated answer (Azure Content Safety).</summary>
+    public Histogram<double> AgentToxicityScore { get; }
+
+    /// <summary>W3.3 — count of agent answers flagged above the toxicity threshold. Tagged by category.</summary>
+    public Counter<long> AgentToxicityFlaggedTotal { get; }
+
+    /// <summary>W3.4 — clinician feedback submissions. Tagged by sentiment=positive|neutral|negative and action.</summary>
+    public Counter<long> AgentFeedbackTotal { get; }
+
+    /// <summary>W2.4 — count of plugin invocations denied by tool-RBAC. Tagged by agent + plugin.</summary>
+    public Counter<long> AgentToolRbacDeniedTotal { get; }
+
+    /// <summary>P4.2 — per-session handoff depth (number of agent-to-agent handoffs within one planning session). Tagged by from_agent + to_agent. Used by the Argo AnalysisTemplate quality gate once a sufficient baseline is established.</summary>
+    public Histogram<int> AgentHandoffDepth { get; }
+
     // ── Idempotency (Phase 39 — duplicate request prevention) ─────────────────
     /// <summary>POST requests served from idempotency cache (client retry deduplication).</summary>
     public Counter<long> IdempotencyHitsTotal { get; }
@@ -206,6 +230,49 @@ public sealed class BusinessMetrics
         LlmCallLatencyMs = _meter.CreateHistogram<double>(
             "healthq.llm.call.latency.ms", "ms",
             "End-to-end LLM call latency (prompt submission to full response receipt).");
+
+        // W4.2 — cost attribution counter. Friendly metric name `agent_llm_cost_usd_total`
+        // (matches the documented contract on `TokenUsageRecord` and the cost dashboard).
+        AgentLlmCostUsdTotal = _meter.CreateCounter<double>(
+            "agent_llm_cost_usd_total", "USD",
+            "Estimated USD spend per LLM call. Tags: agent, tenant, model.");
+
+        // W4.3 — planning-loop latency SLO (alert when p99 > 5 s).
+        AgentPlanningLoopMs = _meter.CreateHistogram<double>(
+            "agent_planning_loop_ms", "ms",
+            "End-to-end agentic planning loop latency. Tags: agent, outcome=goal_met|max_iterations|error|guard_rejected.");
+
+        // W3.2 — groundedness score from LLM-as-judge (0.0–1.0; alert mean < 0.7).
+        AgentGroundednessScore = _meter.CreateHistogram<double>(
+            "agent_groundedness_score", "score",
+            "LLM-as-judge groundedness score per evaluated agent answer (0.0–1.0).");
+
+        // W3.3 — toxicity / bias screening (Azure Content Safety).
+        AgentToxicityScore = _meter.CreateHistogram<double>(
+            "agent_toxicity_score", "score",
+            "Normalized max-category toxicity severity (0.0–1.0) per evaluated agent answer.");
+        AgentToxicityFlaggedTotal = _meter.CreateCounter<long>(
+            "agent_toxicity_flagged_total",
+            description: "Agent answers flagged above the toxicity severity threshold. Tags: category=Hate|Violence|SelfHarm|Sexual.");
+
+        // W3.4 — clinician feedback ingestion telemetry.
+        AgentFeedbackTotal = _meter.CreateCounter<long>(
+            "agent_feedback_total",
+            description: "Clinician feedback submissions. Tags: sentiment=positive|neutral|negative, action=logged|ingested-into-qdrant|correction-ingested|logged-qdrant-failed.");
+
+        // Tool RBAC (W2.4)
+        AgentToolRbacDeniedTotal = _meter.CreateCounter<long>(
+            "agent_tool_rbac_denied_total",
+            description: "Plugin invocations denied by AgentToolPolicy. Tags: agent=<name>, plugin=<name>.");
+
+        // P4.2 — handoff depth histogram. Incremented once per HandoffAsync call
+        // with the current cumulative depth for the session so Prometheus sees
+        // both the per-hop value and the full per-session distribution.
+        // Enables the Argo quality gate to replace the Kusto sidecar probe
+        // documented in the P4.2 runbook § 4 as future work.
+        AgentHandoffDepth = _meter.CreateHistogram<int>(
+            "agent_handoff_depth",
+            description: "Cumulative handoff depth within a planning session. Tags: from_agent, to_agent.");
 
         // Idempotency (Phase 39)
         IdempotencyHitsTotal = _meter.CreateCounter<long>(
