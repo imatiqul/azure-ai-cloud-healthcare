@@ -71,47 +71,6 @@ public class NotificationsSubscriberController : ControllerBase
     }
 
     /// <summary>
-    /// When a slot is booked, notify the patient of their appointment.
-    /// </summary>
-    [Topic("pubsub", "scheduling.slot.booked")]
-    [HttpPost("/dapr/sub/slot-booked")]
-    public async Task<IActionResult> HandleSlotBooked(
-        [FromBody] SlotBookedEvent payload,
-        CancellationToken ct)
-    {
-        _logger.LogInformation("Received scheduling.slot.booked for booking {BookingId}", payload.BookingId);
-
-        if (await IsFrequencyCappedAsync(payload.PatientId, CampaignType.Reminder, ct))
-        {
-            _logger.LogInformation("Frequency cap hit — skipping duplicate appointment notification for patient {PatientId}", payload.PatientId);
-            return Ok();
-        }
-
-        var campaign = OutreachCampaign.Create(
-            Guid.NewGuid(),
-            $"Appointment Confirmation — {payload.PatientId[..Math.Min(8, payload.PatientId.Length)]}",
-            CampaignType.Reminder,
-            payload.PatientId);
-
-        campaign.Activate(DateTime.UtcNow);
-
-        var message = Message.Create(campaign.Id, payload.PatientId,
-            MessageChannel.Email,
-            $"Your appointment with {payload.PractitionerId} is confirmed for " +
-            $"{payload.AppointmentTime:dddd, MMMM d 'at' h:mm tt} UTC.",
-            recipientAddress: null);  // Resolved from Identity service when available
-
-        _db.OutreachCampaigns.Add(campaign);
-        _db.Messages.Add(message);
-        await _db.SaveChangesAsync(ct);
-
-        _logger.LogInformation("Appointment notification campaign {CampaignId} created for patient {PatientId}",
-            campaign.Id, payload.PatientId);
-
-        return Ok();
-    }
-
-    /// <summary>
     /// When prior auth is approved, notify the patient that their procedure is authorized.
     /// </summary>
     [Topic("pubsub", "revenue.prior-auth.approved")]
@@ -271,6 +230,5 @@ public class NotificationsSubscriberController : ControllerBase
 }
 
 public record EscalationEvent(Guid WorkflowId, string SessionId, string? Level);
-public record SlotBookedEvent(Guid BookingId, Guid SlotId, string PatientId, string PractitionerId, DateTime AppointmentTime);
 public record PriorAuthApprovedEvent(Guid Id, string PatientId, string PatientName, string Procedure, string? InsurancePayer, DateTime ResolvedAt);
 public record PriorAuthDeniedEvent(Guid Id, string PatientId, string PatientName, string Procedure, string? InsurancePayer, string? DenialReason, DateTime ResolvedAt);

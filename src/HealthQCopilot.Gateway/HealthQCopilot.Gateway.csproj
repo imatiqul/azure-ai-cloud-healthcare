@@ -10,5 +10,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HealthQCopilot.ServiceDefaults\HealthQCopilot.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\HealthQCopilot.Infrastructure\HealthQCopilot.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

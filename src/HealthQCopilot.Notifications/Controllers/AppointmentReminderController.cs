@@ -18,6 +18,7 @@ namespace HealthQCopilot.Notifications.Controllers;
 [ApiController]
 public sealed class AppointmentReminderController(
     NotificationDbContext db,
+    IHttpClientFactory httpClientFactory,
     ILogger<AppointmentReminderController> logger) : ControllerBase
 {
     // ── Dapr subscriber: scheduling.slot.booked ──────────────────────────────
@@ -86,7 +87,7 @@ public sealed class AppointmentReminderController(
             @event.PatientId,
             MessageChannel.Email,
             content,
-            recipientAddress: null /* resolved by CampaignDispatchService */);
+            recipientAddress: await ResolvePatientEmailAsync(@event.PatientId, ct));
 
         db.Messages.Add(message);
         await db.SaveChangesAsync(ct);
@@ -134,6 +135,39 @@ public sealed class AppointmentReminderController(
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Updated message {Id} status to {Status}", msgId, payload.Status);
         return Ok();
+    }
+
+    // ── Identity service patient email resolution ─────────────────────────────
+    // Looks up the patient's email via the Identity service so that reminder
+    // messages have a valid RecipientAddress and can be dispatched by ACS.
+    private async Task<string?> ResolvePatientEmailAsync(string patientId, CancellationToken ct)
+    {
+        try
+        {
+            var client = httpClientFactory.CreateClient("IdentityService");
+            var response = await client.GetAsync(
+                $"api/v1/identity/users/{patientId}", ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(ct);
+                using var doc = System.Text.Json.JsonDocument.Parse(body);
+                if (doc.RootElement.TryGetProperty("email", out var emailProp))
+                {
+                    var email = emailProp.GetString();
+                    if (!string.IsNullOrEmpty(email))
+                        return email;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Could not resolve email for patient {PatientId} from Identity service — reminder will be queued without address",
+                patientId);
+        }
+
+        return null;
     }
 }
 

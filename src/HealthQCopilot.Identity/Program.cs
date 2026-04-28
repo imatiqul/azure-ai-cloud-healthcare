@@ -74,9 +74,12 @@ app.MapBreakGlassEndpoints();
 app.MapTenantOnboardingEndpoints();
 app.MapAuditExportEndpoints();
 
-// ── Demo seed endpoint (idempotent — safe to call on every startup) ───────────
-app.MapPost("/api/v1/identity/seed", async (IdentityDbContext db) =>
+// ── Demo seed endpoint — guarded: requires Admin role, disabled in production ──
+app.MapPost("/api/v1/identity/seed", async (IdentityDbContext db, IWebHostEnvironment env) =>
 {
+    if (env.IsProduction())
+        return Results.NotFound(); // Hide the endpoint entirely in prod
+
     if (await db.UserAccounts.AnyAsync()) return Results.Ok(new { message = "Already seeded" });
 
     // ── Clinician accounts (known IDs so break-glass FK references work) ──────
@@ -143,7 +146,8 @@ app.MapPost("/api/v1/identity/seed", async (IdentityDbContext db) =>
     return Results.Ok(new { message = "Seeded", users = users.Length + patients.Length, breakGlass = 3, consents = consents.Length });
 })
 .WithTags("Seed")
-.WithSummary("Seed demo identity data (idempotent)");
+.WithSummary("Seed demo identity data (idempotent)")
+.RequireAuthorization("Admin");
 
 app.Run();
 

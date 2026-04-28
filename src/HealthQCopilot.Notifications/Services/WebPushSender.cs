@@ -1,6 +1,7 @@
 using HealthQCopilot.Domain.Notifications;
 using HealthQCopilot.Notifications.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using WebPush;
 
 namespace HealthQCopilot.Notifications.Services;
 
@@ -18,18 +19,15 @@ public sealed class WebPushSender
 {
     private readonly NotificationDbContext _db;
     private readonly IConfiguration _config;
-    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<WebPushSender> _logger;
 
     public WebPushSender(
         NotificationDbContext db,
         IConfiguration config,
-        IHttpClientFactory httpClientFactory,
         ILogger<WebPushSender> logger)
     {
         _db = db;
         _config = config;
-        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
@@ -91,7 +89,7 @@ public sealed class WebPushSender
         return delivered;
     }
 
-    // ── Low-level RFC 8030 push delivery ─────────────────────────────────────
+    // ── Low-level RFC 8030 + RFC 8292 VAPID push delivery ────────────────────
     private async Task DeliverAsync(
         WebPushSubscription sub,
         string payloadJson,
@@ -100,22 +98,20 @@ public sealed class WebPushSender
         string vapidPrivateKey,
         CancellationToken ct)
     {
-        // Build a minimal VAPID-signed POST to the push endpoint.
-        // In production this should use the `WebPush` NuGet package which handles
-        // ECDH payload encryption. The stub below sends an unencrypted body for
-        // internal alerting on push services that accept it (APNS via HTTP/2 token auth).
-        // Replace with a full VAPID library call once keys are provisioned.
+        var pushClient = new WebPushClient();
+        var vapidDetails = new VapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+        var subscription = new PushSubscription(sub.Endpoint, sub.P256dh, sub.Auth);
 
-        var client = _httpClientFactory.CreateClient("WebPush");
-        var request = new HttpRequestMessage(HttpMethod.Post, sub.Endpoint);
-        request.Headers.Add("TTL", "86400"); // 24 h
-        request.Headers.Add("Urgency", "normal");
-        request.Content = new StringContent(payloadJson, System.Text.Encoding.UTF8, "application/json");
-        // VAPID Authorization header would be built here using JWT signed with vapidPrivateKey
-        request.Headers.TryAddWithoutValidation("Authorization", $"vapid t=placeholder,k={vapidPublicKey}");
-
-        var response = await client.SendAsync(request, ct);
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Push service returned {(int)response.StatusCode}");
+        try
+        {
+            await pushClient.SendNotificationAsync(subscription, payloadJson, vapidDetails);
+        }
+        catch (WebPushException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Gone)
+        {
+            // Subscription expired — mark inactive so we stop sending to it
+            sub.Deactivate();
+            await _db.SaveChangesAsync(ct);
+            throw new HttpRequestException("410");
+        }
     }
 }

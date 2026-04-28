@@ -12,7 +12,8 @@ public static class OcrEndpoints
     {
         var group = app.MapGroup("/api/v1/ocr")
             .WithTags("OCR")
-            .WithAutoValidation();
+            .WithAutoValidation()
+            .RequireAuthorization("Clinician");
 
         group.MapPost("/jobs", async (
             CreateOcrJobRequest request,
