@@ -45,6 +45,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HealthQCopilot.Tests.Eval",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HealthQCopilot.Tests.Architecture", "tests\HealthQCopilot.Tests.Architecture\HealthQCopilot.Tests.Architecture.csproj", "{A2B3C4D5-0030-0030-0030-000000000030}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HealthQCopilot.Tests.AppHost", "tests\HealthQCopilot.Tests.AppHost\HealthQCopilot.Tests.AppHost.csproj", "{A2B3C4D5-0034-0034-0034-000000000034}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -283,6 +285,18 @@ Global
 		{A2B3C4D5-0030-0030-0030-000000000030}.Release|x64.Build.0 = Release|Any CPU
 		{A2B3C4D5-0030-0030-0030-000000000030}.Release|x86.ActiveCfg = Release|Any CPU
 		{A2B3C4D5-0030-0030-0030-000000000030}.Release|x86.Build.0 = Release|Any CPU
+		{A2B3C4D5-0034-0034-0034-000000000034}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2B3C4D5-0034-0034-0034-000000000034}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2B3C4D5-0034-0034-0034-000000000034}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A2B3C4D5-0034-0034-0034-000000000034}.Debug|x64.Build.0 = Debug|Any CPU
+		{A2B3C4D5-0034-0034-0034-000000000034}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A2B3C4D5-0034-0034-0034-000000000034}.Debug|x86.Build.0 = Debug|Any CPU
+		{A2B3C4D5-0034-0034-0034-000000000034}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2B3C4D5-0034-0034-0034-000000000034}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A2B3C4D5-0034-0034-0034-000000000034}.Release|x64.ActiveCfg = Release|Any CPU
+		{A2B3C4D5-0034-0034-0034-000000000034}.Release|x64.Build.0 = Release|Any CPU
+		{A2B3C4D5-0034-0034-0034-000000000034}.Release|x86.ActiveCfg = Release|Any CPU
+		{A2B3C4D5-0034-0034-0034-000000000034}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -292,5 +306,6 @@ Global
 		{330AACB5-0352-43AE-BC17-3E0F238636AF} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{14BAD0B7-B20C-44E1-BCEF-82B32DE18100} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{A2B3C4D5-0030-0030-0030-000000000030} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{A2B3C4D5-0034-0034-0034-000000000034} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

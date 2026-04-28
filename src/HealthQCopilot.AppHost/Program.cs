@@ -128,10 +128,38 @@ builder.AddContainer("dapr-placement", "daprio/dapr", "1.14")
     .WithEndpoint(port: 50006, targetPort: 50006);
 
 // ──────────────────────────────────────────────
-// Frontend shell (Vite dev server)
+// Frontend MFEs (Vite dev servers)
 // ──────────────────────────────────────────────
 builder.AddNpmApp("shell", "../../frontend/apps/shell")
     .WithHttpEndpoint(port: 3000, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+builder.AddNpmApp("voice-mfe", "../../frontend/apps/voice-mfe")
+    .WithHttpEndpoint(port: 3001, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+builder.AddNpmApp("triage-mfe", "../../frontend/apps/triage-mfe")
+    .WithHttpEndpoint(port: 3002, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+builder.AddNpmApp("scheduling-mfe", "../../frontend/apps/scheduling-mfe")
+    .WithHttpEndpoint(port: 3003, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+builder.AddNpmApp("pophealth-mfe", "../../frontend/apps/pophealth-mfe")
+    .WithHttpEndpoint(port: 3004, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+builder.AddNpmApp("revenue-mfe", "../../frontend/apps/revenue-mfe")
+    .WithHttpEndpoint(port: 3005, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+builder.AddNpmApp("encounters-mfe", "../../frontend/apps/encounters-mfe")
+    .WithHttpEndpoint(port: 3006, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+builder.AddNpmApp("engagement-mfe", "../../frontend/apps/engagement-mfe")
+    .WithHttpEndpoint(port: 3007, env: "PORT")
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();
