@@ -439,6 +439,45 @@ jobs:
             --type "$INGRESS_TYPE" \
             --target-port 8080
 
+      - name: Apply gateway CORS allowed origins
+        if: (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') && steps.service-selection.outputs.selected == 'true' && matrix.service == 'gateway'
+        env:
+          RG: ${{ env.ACA_RESOURCE_GROUP }}
+          SHELL_URL: ${{ vars.HEALTHQ_SHELL_URL }}
+          VOICE_URL: ${{ vars.HEALTHQ_VOICE_URL }}
+          TRIAGE_URL: ${{ vars.HEALTHQ_TRIAGE_URL }}
+          SCHEDULING_URL: ${{ vars.HEALTHQ_SCHEDULING_URL }}
+          POPHEALTH_URL: ${{ vars.HEALTHQ_POPHEALTH_URL }}
+          REVENUE_URL: ${{ vars.HEALTHQ_REVENUE_URL }}
+          ENCOUNTERS_URL: ${{ vars.HEALTHQ_ENCOUNTERS_URL }}
+          ENGAGEMENT_URL: ${{ vars.HEALTHQ_ENGAGEMENT_URL }}
+        run: |
+          set -euo pipefail
+          # Build the CORS origin list from repo variables; skip any blanks so
+          # the gateway never gets an empty origin entry that would crash CORS init.
+          ORIGINS=()
+          for url in "$SHELL_URL" "$VOICE_URL" "$TRIAGE_URL" "$SCHEDULING_URL" \
+                     "$POPHEALTH_URL" "$REVENUE_URL" "$ENCOUNTERS_URL" "$ENGAGEMENT_URL" \
+                     "http://localhost:3000"; do
+            if [ -n "$url" ]; then
+              ORIGINS+=("$url")
+            fi
+          done
+          if [ "${#ORIGINS[@]}" -eq 0 ]; then
+            echo "::warning::No HEALTHQ_*_URL repo variables set; leaving gateway CORS unchanged."
+            exit 0
+          fi
+          ENV_VARS=()
+          for i in "${!ORIGINS[@]}"; do
+            ENV_VARS+=("Cors__AllowedOrigins__${i}=${ORIGINS[$i]}")
+          done
+          echo "Setting gateway CORS allowed origins: ${ORIGINS[*]}"
+          az containerapp update \
+            --name gateway \
+            --resource-group "$RG" \
+            --set-env-vars "${ENV_VARS[@]}" \
+            --query "properties.provisioningState" -o tsv
+
       - name: Update Helm image tag for GitOps (ArgoCD)
         if: (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') && steps.service-selection.outputs.selected == 'true' && github.ref == 'refs/heads/main'
         run: |
