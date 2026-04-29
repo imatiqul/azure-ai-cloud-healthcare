@@ -1,0 +1,197 @@
+name: Release Readiness Orchestrator
+
+# Computes a single release go/no-go decision by evaluating the latest
+# completed runs for required workflow gates on main.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Which release tier to evaluate'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+      max_run_age_hours:
+        description: 'Maximum allowed age (hours) for each required workflow run'
+        required: false
+        default: '168'
+      create_failure_issue:
+        description: 'Create a triage issue if readiness fails'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  evaluate-readiness:
+    name: Evaluate Release Readiness
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.evaluate.outputs.ready }}
+      failed_count: ${{ steps.evaluate.outputs.failed_count }}
+      failed_workflows: ${{ steps.evaluate.outputs.failed_workflows }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Evaluate required workflow gates
+        id: evaluate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const target = '${{ github.event.inputs.target_environment }}';
+            const maxAgeHours = Number('${{ github.event.inputs.max_run_age_hours }}' || '168');
+
+            const requiredByTarget = {
+              dev: [
+                'cloud-e2e-tests.yml',
+                'workflow-lint.yml',
+                'gateway-route-probes.yml',
+                'dependency-freshness.yml',
+              ],
+              staging: [
+                'environment-promotion.yml',
+                'runtime-convergence-audit.yml',
+                'compliance-check.yml',
+                'cloud-e2e-regression.yml',
+                'rollback-drill-readiness.yml',
+                'cost-governance.yml',
+              ],
+              production: [
+                'environment-promotion.yml',
+                'go-live-gate.yml',
+                'release-gate-policy-audit.yml',
+                'security-scorecard.yml',
+                'cloud-e2e-tests.yml',
+                'cloud-e2e-regression.yml',
+                'deployment-health.yml',
+                'runtime-convergence-audit.yml',
+                'compliance-check.yml',
+              ],
+            };
+
+            const required = requiredByTarget[target] || requiredByTarget.production;
+            const now = Date.now();
+            const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
+
+            async function latestCompleted(workflowFile) {
+              const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                owner,
+                repo,
+                workflow_id: workflowFile,
+                branch: 'main',
+                per_page: 20,
+              });
+              return runs.find((r) => r.status === 'completed') || null;
+            }
+
+            const rows = [];
+            const failures = [];
+
+            for (const wf of required) {
+              let latest = null;
+              let status = 'FAIL';
+              let reason = 'no completed run found';
+              let runUrl = '';
+              let conclusion = 'none';
+              let updatedAt = 'never';
+
+              try {
+                latest = await latestCompleted(wf);
+                if (latest) {
+                  runUrl = latest.html_url || '';
+                  conclusion = latest.conclusion || 'none';
+                  updatedAt = latest.updated_at || 'unknown';
+
+                  const ageMs = now - new Date(latest.updated_at).getTime();
+                  const stale = Number.isFinite(ageMs) ? ageMs > maxAgeMs : true;
+
+                  if (latest.conclusion === 'success' && !stale) {
+                    status = 'PASS';
+                    reason = 'latest completed run is successful and fresh';
+                  } else if (latest.conclusion !== 'success') {
+                    reason = `latest run conclusion is ${latest.conclusion}`;
+                  } else if (stale) {
+                    reason = `latest run is older than ${maxAgeHours}h`;
+                  }
+                }
+              } catch (error) {
+                reason = `error reading workflow runs: ${error.message}`;
+              }
+
+              if (status !== 'PASS') {
+                failures.push(`${wf} (${reason})`);
+              }
+
+              rows.push({ wf, status, conclusion, updatedAt, reason, runUrl });
+            }
+
+            const allPass = failures.length === 0;
+            const table = rows
+              .map((r) => `| ${r.wf} | ${r.status === 'PASS' ? 'PASS' : 'FAIL'} | ${r.conclusion} | ${r.updatedAt} | ${r.reason} | ${r.runUrl ? `[run](${r.runUrl})` : 'n/a'} |`)
+              .join('\n');
+
+            const summary = [
+              '# Release Readiness Orchestrator',
+              '',
+              `Target: ${target}`,
+              `Max run age: ${maxAgeHours}h`,
+              `Overall: ${allPass ? 'READY' : 'NOT READY'}`,
+              '',
+              '| Workflow | Status | Conclusion | Updated At | Reason | Link |',
+              '|---|---|---|---|---|---|',
+              table,
+            ].join('\n') + '\n';
+
+            await core.summary.addRaw(summary, true).write();
+
+            core.setOutput('ready', allPass ? 'true' : 'false');
+            core.setOutput('failed_count', String(failures.length));
+            core.setOutput('failed_workflows', failures.join('; '));
+
+            if (!allPass) {
+              core.setFailed('Release readiness failed. See summary table for details.');
+            }
+
+  open-triage-issue:
+    name: Open Release Readiness Issue
+    runs-on: ubuntu-latest
+    needs: evaluate-readiness
+    if: always() && needs.evaluate-readiness.outputs.ready != 'true' && github.event.inputs.create_failure_issue == 'true'
+    steps:
+      - name: Create issue for failed readiness
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const target = '${{ github.event.inputs.target_environment }}';
+            const failed = `${{ needs.evaluate-readiness.outputs.failed_workflows }}`;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title: `Release readiness failed (${target}) - ${new Date().toISOString().slice(0, 10)}`,
+              body: [
+                'Release readiness orchestrator reported NOT READY.',
+                '',
+                `Target environment: ${target}`,
+                '',
+                'Failed workflow gates:',
+                failed ? failed.split('; ').map((f) => `- ${f}`).join('\n') : '- unknown',
+                '',
+                `Workflow run: ${runUrl}`,
+              ].join('\n'),
+              labels: ['ops', 'high-priority'],
+            });

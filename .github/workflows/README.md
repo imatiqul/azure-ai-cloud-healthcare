@@ -44,6 +44,7 @@ This catalog describes all CI/CD and quality workflows in this repository.
 | `rollback-drill-readiness.yml` | `schedule`, `workflow_dispatch` | Evaluates rollback drill cadence and MTTR readiness thresholds and publishes readiness artifact. |
 | `dora-metrics.yml` | `schedule`, `workflow_dispatch` | Calculates the four DORA metrics (deployment frequency, lead time, change failure rate, MTTR) and publishes artifact. |
 | `slo-error-budget.yml` | `schedule`, `workflow_dispatch` | Computes availability SLI from Cloud E2E and route probe run history; alerts when 28-day error budget < 20% remaining. |
+| `release-readiness-orchestrator.yml` | `workflow_dispatch` | Aggregates required gate workflows by environment tier (dev/staging/production) and emits a single release go/no-go decision. Optionally opens a triage issue on failure. |
 | `environment-promotion.yml` | `push` to `main`, `workflow_dispatch` | Dev → Staging → Production promotion pipeline with automated quality gate checks and environment-protected production approval. |
 | `security-scorecard.yml` | `push` to `main`, `schedule`, `workflow_dispatch` | OpenSSF Scorecard supply-chain hygiene check and CodeQL SAST for C# and JavaScript/TypeScript. |
 | `chaos-readiness.yml` | `schedule`, `pull_request`, `workflow_dispatch` | Audits Helm values for readiness/liveness probes, resource requests/limits, and replica redundancy across all 10 services. |
@@ -74,6 +75,24 @@ This catalog describes all CI/CD and quality workflows in this repository.
 - `service-health-governance.yml` uploads `service-health-governance-<date>` with per-service probe and health endpoint compliance table (60-day retention).
 - `infra-deploy.yml` validate job also uploads `release-evidence-<env>-<sha>` release checklist artifact.
 - `frontend-deploy.yml` uploads `swa-deploy-evidence-<app>-<sha>` per-MFE deploy evidence artifact.
+
+## Environment URL Variables
+
+Cloud validation workflows support environment-specific URL overrides through repository variables and workflow-dispatch inputs.
+The primary repository variables are:
+
+- `HEALTHQ_API_BASE_URL`
+- `HEALTHQ_GATEWAY_ACA_URL`
+- `HEALTHQ_SHELL_URL`
+- `HEALTHQ_VOICE_URL`
+- `HEALTHQ_TRIAGE_URL`
+- `HEALTHQ_SCHEDULING_URL`
+- `HEALTHQ_POPHEALTH_URL`
+- `HEALTHQ_REVENUE_URL`
+- `HEALTHQ_ENCOUNTERS_URL`
+- `HEALTHQ_ENGAGEMENT_URL`
+
+Resolution order in parameterized workflows is: workflow-dispatch input -> repository variable -> baked-in fallback default.
 
 ## Local Validation Tip
 

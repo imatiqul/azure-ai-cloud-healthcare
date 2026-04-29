@@ -21,6 +21,46 @@ on:
         description: 'Release tag (e.g. go-live-v2025-07-01). Leave blank to auto-generate.'
         required: false
         default: ''
+      shell_url:
+        description: 'Shell frontend base URL override (optional)'
+        required: false
+        default: ''
+      voice_url:
+        description: 'Voice MFE base URL override (optional)'
+        required: false
+        default: ''
+      triage_url:
+        description: 'Triage MFE base URL override (optional)'
+        required: false
+        default: ''
+      scheduling_url:
+        description: 'Scheduling MFE base URL override (optional)'
+        required: false
+        default: ''
+      pophealth_url:
+        description: 'Population Health MFE base URL override (optional)'
+        required: false
+        default: ''
+      revenue_url:
+        description: 'Revenue MFE base URL override (optional)'
+        required: false
+        default: ''
+      encounters_url:
+        description: 'Encounters MFE base URL override (optional)'
+        required: false
+        default: ''
+      engagement_url:
+        description: 'Engagement MFE base URL override (optional)'
+        required: false
+        default: ''
+      gateway_url:
+        description: 'Gateway ACA URL override (optional)'
+        required: false
+        default: ''
+      api_base_url:
+        description: 'Public API base URL override (optional)'
+        required: false
+        default: ''
       skip_dr_drill:
         description: 'Skip DR drill gate (use only when a drill ran separately same day)'
         required: false
@@ -37,17 +77,19 @@ permissions:
 
 env:
   ACA_RG: healthq-copilot-rg
-  APIM_BASE: https://healthq-copilot-apim.azure-api.net
-  SHELL_URL:  https://gentle-tree-03115af0f.7.azurestaticapps.net
-  GATEWAY_URL: https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io
+  # Resolution order: workflow_dispatch input -> repository variable -> baked-in default
+  APIM_BASE: ${{ github.event.inputs.api_base_url || vars.HEALTHQ_API_BASE_URL || 'https://healthq-copilot-apim.azure-api.net' }}
+  SHELL_URL: ${{ github.event.inputs.shell_url || vars.HEALTHQ_SHELL_URL || 'https://gentle-tree-03115af0f.7.azurestaticapps.net' }}
+  GATEWAY_URL: ${{ github.event.inputs.gateway_url || vars.HEALTHQ_GATEWAY_ACA_URL || 'https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io' }}
 
   # MFE static web app base URLs (sprint 12 targets: performance ≥ 0.90)
-  VOICE_URL:       https://happy-smoke-09cca540f.7.azurestaticapps.net
-  TRIAGE_URL:      https://brave-hill-0a1b2c3d4.7.azurestaticapps.net
-  SCHEDULING_URL:  https://yellow-smoke-0a1b2c3d4.7.azurestaticapps.net
-  POPHEALTH_URL:   https://orange-bay-0a1b2c3d4.7.azurestaticapps.net
-  REVENUE_URL:     https://lemon-pond-0a1b2c3d4.7.azurestaticapps.net
-  ENCOUNTERS_URL:  https://calm-river-0a1b2c3d4.7.azurestaticapps.net
+  VOICE_URL: ${{ github.event.inputs.voice_url || vars.HEALTHQ_VOICE_URL || 'https://happy-smoke-09cca540f.7.azurestaticapps.net' }}
+  TRIAGE_URL: ${{ github.event.inputs.triage_url || vars.HEALTHQ_TRIAGE_URL || 'https://brave-hill-0a1b2c3d4.7.azurestaticapps.net' }}
+  SCHEDULING_URL: ${{ github.event.inputs.scheduling_url || vars.HEALTHQ_SCHEDULING_URL || 'https://yellow-smoke-0a1b2c3d4.7.azurestaticapps.net' }}
+  POPHEALTH_URL: ${{ github.event.inputs.pophealth_url || vars.HEALTHQ_POPHEALTH_URL || 'https://orange-bay-0a1b2c3d4.7.azurestaticapps.net' }}
+  REVENUE_URL: ${{ github.event.inputs.revenue_url || vars.HEALTHQ_REVENUE_URL || 'https://lemon-pond-0a1b2c3d4.7.azurestaticapps.net' }}
+  ENCOUNTERS_URL: ${{ github.event.inputs.encounters_url || vars.HEALTHQ_ENCOUNTERS_URL || 'https://calm-river-0a1b2c3d4.7.azurestaticapps.net' }}
+  ENGAGEMENT_URL: ${{ github.event.inputs.engagement_url || vars.HEALTHQ_ENGAGEMENT_URL || 'https://agreeable-hill-0d3115b0f.7.azurestaticapps.net' }}
 
   # Thresholds
   COVERAGE_MIN: '80'
@@ -216,7 +258,8 @@ jobs:
                   "${{ env.SCHEDULING_URL }}",
                   "${{ env.POPHEALTH_URL }}",
                   "${{ env.REVENUE_URL }}",
-                  "${{ env.ENCOUNTERS_URL }}"
+                  "${{ env.ENCOUNTERS_URL }}",
+                  "${{ env.ENGAGEMENT_URL }}"
                 ],
                 "numberOfRuns": 3,
                 "settings": {

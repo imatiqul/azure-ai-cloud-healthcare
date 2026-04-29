@@ -9,6 +9,47 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      shell_url:
+        description: 'Shell frontend base URL override (optional)'
+        required: false
+        default: ''
+      voice_url:
+        description: 'Voice MFE base URL override (optional)'
+        required: false
+        default: ''
+      triage_url:
+        description: 'Triage MFE base URL override (optional)'
+        required: false
+        default: ''
+      scheduling_url:
+        description: 'Scheduling MFE base URL override (optional)'
+        required: false
+        default: ''
+      pophealth_url:
+        description: 'Population Health MFE base URL override (optional)'
+        required: false
+        default: ''
+      revenue_url:
+        description: 'Revenue MFE base URL override (optional)'
+        required: false
+        default: ''
+      encounters_url:
+        description: 'Encounters MFE base URL override (optional)'
+        required: false
+        default: ''
+      engagement_url:
+        description: 'Engagement MFE base URL override (optional)'
+        required: false
+        default: ''
+      gateway_aca_url:
+        description: 'Gateway ACA base URL override (optional)'
+        required: false
+        default: ''
+      api_base_url:
+        description: 'Public API base URL override (optional)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -22,16 +63,17 @@ defaults:
     working-directory: frontend
 
 env:
-  SHELL_URL: https://gentle-tree-03115af0f.7.azurestaticapps.net
-  VOICE_URL: https://happy-smoke-0ba02780f.7.azurestaticapps.net
-  TRIAGE_URL: https://brave-hill-0d76ab10f.7.azurestaticapps.net
-  SCHEDULING_URL: https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net
-  POPHEALTH_URL: https://orange-bay-00f28280f.7.azurestaticapps.net
-  REVENUE_URL: https://lemon-pond-067d2f40f.7.azurestaticapps.net
-  ENCOUNTERS_URL: https://calm-river-02bddc70f.7.azurestaticapps.net
-  ENGAGEMENT_URL: https://agreeable-hill-0d3115b0f.7.azurestaticapps.net
-  GATEWAY_ACA_URL: https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io
-  API_BASE_URL: https://healthq-copilot-apim.azure-api.net
+  # Resolution order: workflow_dispatch input -> repository variable -> baked-in default
+  SHELL_URL: ${{ github.event.inputs.shell_url || vars.HEALTHQ_SHELL_URL || 'https://gentle-tree-03115af0f.7.azurestaticapps.net' }}
+  VOICE_URL: ${{ github.event.inputs.voice_url || vars.HEALTHQ_VOICE_URL || 'https://happy-smoke-0ba02780f.7.azurestaticapps.net' }}
+  TRIAGE_URL: ${{ github.event.inputs.triage_url || vars.HEALTHQ_TRIAGE_URL || 'https://brave-hill-0d76ab10f.7.azurestaticapps.net' }}
+  SCHEDULING_URL: ${{ github.event.inputs.scheduling_url || vars.HEALTHQ_SCHEDULING_URL || 'https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net' }}
+  POPHEALTH_URL: ${{ github.event.inputs.pophealth_url || vars.HEALTHQ_POPHEALTH_URL || 'https://orange-bay-00f28280f.7.azurestaticapps.net' }}
+  REVENUE_URL: ${{ github.event.inputs.revenue_url || vars.HEALTHQ_REVENUE_URL || 'https://lemon-pond-067d2f40f.7.azurestaticapps.net' }}
+  ENCOUNTERS_URL: ${{ github.event.inputs.encounters_url || vars.HEALTHQ_ENCOUNTERS_URL || 'https://calm-river-02bddc70f.7.azurestaticapps.net' }}
+  ENGAGEMENT_URL: ${{ github.event.inputs.engagement_url || vars.HEALTHQ_ENGAGEMENT_URL || 'https://agreeable-hill-0d3115b0f.7.azurestaticapps.net' }}
+  GATEWAY_ACA_URL: ${{ github.event.inputs.gateway_aca_url || vars.HEALTHQ_GATEWAY_ACA_URL || 'https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io' }}
+  API_BASE_URL: ${{ github.event.inputs.api_base_url || vars.HEALTHQ_API_BASE_URL || 'https://healthq-copilot-apim.azure-api.net' }}
   CLOUD_REGRESSION_SPECS: >-
     e2e-cloud/mfe-integration.spec.ts
     e2e-cloud/phase41-features.spec.ts
@@ -58,7 +100,7 @@ jobs:
             if (context.eventName !== 'workflow_run') {
               await core.summary
                 .addHeading('Cloud E2E Regression Gate')
-                .addRaw('Manual run detected — no upstream Cloud E2E smoke verification required.')
+                .addRaw('Manual run detected - no upstream Cloud E2E smoke verification required.')
                 .write();
               return 'true';
             }
@@ -148,17 +190,17 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           OUTCOME="${{ steps.regression.outcome }}"
           if [ "$OUTCOME" = "success" ]; then
-            echo "✅ All cloud regression coverage specs passed." >> $GITHUB_STEP_SUMMARY
+            echo "All cloud regression coverage specs passed." >> $GITHUB_STEP_SUMMARY
           elif [ "$OUTCOME" = "failure" ]; then
-            echo "⚠️ Some cloud regression coverage specs failed — inspect the report artifacts below." >> $GITHUB_STEP_SUMMARY
+            echo "Some cloud regression coverage specs failed - inspect the report artifacts below." >> $GITHUB_STEP_SUMMARY
           else
-            echo "⏭️ Cloud regression coverage was skipped or cancelled." >> $GITHUB_STEP_SUMMARY
+            echo "Cloud regression coverage was skipped or cancelled." >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "This workflow covers the broader cloud regression and mock-backed coverage specs that are intentionally excluded from the live-seeded Cloud E2E Tests workflow." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Trigger: \`${{ github.event_name }}\` | Branch: \`${{ github.event.workflow_run.head_branch || github.ref_name }}\` | SHA: \`${{ github.event.workflow_run.head_sha || github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Trigger: ${{ github.event_name }} | Branch: ${{ github.event.workflow_run.head_branch || github.ref_name }} | SHA: ${{ github.event.workflow_run.head_sha || github.sha }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload regression HTML report
         uses: actions/upload-artifact@v4
