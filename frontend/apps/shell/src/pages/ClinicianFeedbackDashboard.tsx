@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -55,6 +55,11 @@ const RATING_LABELS: Record<number, string> = {
   5: '5 — Strongly Agree',
 };
 
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
+
 export default function ClinicianFeedbackDashboard() {
   const [summary, setSummary] = useState<FeedbackSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -71,8 +76,15 @@ export default function ClinicianFeedbackDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const summaryRequest = useRef<AbortController | null>(null);
+  const submitRequest = useRef<AbortController | null>(null);
 
   const fetchSummary = useCallback(async () => {
+    summaryRequest.current?.abort();
+    const controller = new AbortController();
+    summaryRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
     setLoading(true);
     setError(null);
     try {
@@ -80,22 +92,40 @@ export default function ClinicianFeedbackDashboard() {
       since.setDate(since.getDate() - sinceDays);
       const res = await fetch(
         `${API_BASE}/api/v1/agents/feedback/summary?since=${since.toISOString()}`,
-        { signal: AbortSignal.timeout(10_000) },
+        { signal: controller.signal },
       );
+      if (controller.signal.aborted) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: FeedbackSummary = await res.json();
+      if (controller.signal.aborted) return;
       setSummary(data);
-    } catch {
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        return;
+      }
       setSummary(DEMO_FEEDBACK_SUMMARY);
       setError(null);
     } finally {
-      setLoading(false);
+      window.clearTimeout(timeoutId);
+      if (summaryRequest.current === controller) {
+        summaryRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [sinceDays]);
 
   useEffect(() => {
-    fetchSummary();
+    void fetchSummary();
   }, [fetchSummary]);
+
+  useEffect(() => {
+    return () => {
+      summaryRequest.current?.abort();
+      submitRequest.current?.abort();
+    };
+  }, []);
 
   const canSubmit =
     clinicianId.trim() !== '' &&
@@ -104,6 +134,12 @@ export default function ClinicianFeedbackDashboard() {
 
   async function handleSubmit() {
     if (!canSubmit) return;
+
+    submitRequest.current?.abort();
+    const controller = new AbortController();
+    submitRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
     setSubmitting(true);
     setSubmitSuccess(null);
     setSubmitError(null);
@@ -117,13 +153,15 @@ export default function ClinicianFeedbackDashboard() {
         comment: comment.trim() || undefined,
       };
       const res = await fetch(`${API_BASE}/api/v1/agents/feedback`, {
-        signal: AbortSignal.timeout(10_000),
+        signal: controller.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      if (controller.signal.aborted) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      if (controller.signal.aborted) return;
       setSubmitSuccess(`Feedback recorded — action: ${data.action}`);
       setClinicianId('');
       setSessionId('');
@@ -131,8 +169,11 @@ export default function ClinicianFeedbackDashboard() {
       setRating(3);
       setCorrectedText('');
       setComment('');
-      fetchSummary();
-    } catch {
+      await fetchSummary();
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        return;
+      }
       // Backend offline — accept feedback locally so clinicians aren't blocked
       setSubmitSuccess('Feedback recorded locally — will sync when backend is available');
       setClinicianId('');
@@ -143,7 +184,13 @@ export default function ClinicianFeedbackDashboard() {
       setComment('');
       setSubmitError(null);
     } finally {
-      setSubmitting(false);
+      window.clearTimeout(timeoutId);
+      if (submitRequest.current === controller) {
+        submitRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setSubmitting(false);
+      }
     }
   }
 

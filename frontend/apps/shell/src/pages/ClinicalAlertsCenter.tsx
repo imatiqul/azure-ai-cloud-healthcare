@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
@@ -101,6 +101,11 @@ function daysUntil(dateStr: string): number {
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
 }
 
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ClinicalAlertsCenter() {
@@ -111,28 +116,46 @@ export default function ClinicalAlertsCenter() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const backendOnline = useGlobalStore(s => s.backendOnline);
 
   const fetchAll = useCallback(async () => {
-    if (backendOnline === false) {
-      setRisks(DEMO_RISKS);
-      setBreakGlass(DEMO_BREAK_GLASS);
-      setWaitlist(DEMO_WAITLIST);
-      setDenials(DEMO_DENIALS);
-      setLastRefreshed(new Date());
-      setLoading(false);
-      return;
-    }
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
     setLoading(true);
     setError('');
+
+    if (backendOnline === false) {
+      if (!controller.signal.aborted) {
+        setRisks(DEMO_RISKS);
+        setBreakGlass(DEMO_BREAK_GLASS);
+        setWaitlist(DEMO_WAITLIST);
+        setDenials(DEMO_DENIALS);
+        setLastRefreshed(new Date());
+      }
+      window.clearTimeout(timeoutId);
+      if (inFlightRequest.current === controller) {
+        inFlightRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       const [riskRes, bgRes, wlRes, denRes] = await Promise.allSettled([
-        fetch(`${API_BASE}/api/v1/population-health/risks?top=20`, { signal: AbortSignal.timeout(10_000) }),
-        fetch(`${API_BASE}/api/v1/identity/break-glass`, { signal: AbortSignal.timeout(10_000) }),
-        fetch(`${API_BASE}/api/v1/scheduling/waitlist`, { signal: AbortSignal.timeout(10_000) }),
-        fetch(`${API_BASE}/api/v1/revenue/denials`, { signal: AbortSignal.timeout(10_000) }),
+        fetch(`${API_BASE}/api/v1/population-health/risks?top=20`, { signal: controller.signal }),
+        fetch(`${API_BASE}/api/v1/identity/break-glass`, { signal: controller.signal }),
+        fetch(`${API_BASE}/api/v1/scheduling/waitlist`, { signal: controller.signal }),
+        fetch(`${API_BASE}/api/v1/revenue/denials`, { signal: controller.signal }),
       ]);
+
+      if (controller.signal.aborted) return;
 
       if (riskRes.status === 'fulfilled' && riskRes.value.ok)
         setRisks(await riskRes.value.json() as RiskEntry[]);
@@ -151,10 +174,16 @@ export default function ClinicalAlertsCenter() {
       else setDenials(DEMO_DENIALS);
 
       const allFailed = [riskRes, bgRes, wlRes, denRes].every(r => r.status === 'rejected');
-      if (allFailed) setError('Failed to load clinical alerts');
+      const allAbortLike = [riskRes, bgRes, wlRes, denRes].every(
+        r => r.status === 'rejected' && isAbortLikeError(r.reason),
+      );
+      if (allFailed && !allAbortLike) setError('Failed to load clinical alerts');
 
       setLastRefreshed(new Date());
-    } catch {
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        return;
+      }
       // Complete network failure — seed all sections with demo data
       setRisks(DEMO_RISKS);
       setBreakGlass(DEMO_BREAK_GLASS);
@@ -162,11 +191,22 @@ export default function ClinicalAlertsCenter() {
       setDenials(DEMO_DENIALS);
       setLastRefreshed(new Date());
     } finally {
-      setLoading(false);
+      window.clearTimeout(timeoutId);
+      if (inFlightRequest.current === controller) {
+        inFlightRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [backendOnline]);
 
-  useEffect(() => { void fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    void fetchAll();
+    return () => {
+      inFlightRequest.current?.abort();
+    };
+  }, [fetchAll]);
 
   // Derived alert collections
   const criticalRisks   = risks.filter(r => r.riskLevel === 'Critical');
