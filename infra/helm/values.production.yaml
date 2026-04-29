@@ -22,7 +22,7 @@ services:
       tag: b7a27cd144a220c5c368d4f83aa4f2999cc8bdf4
   pop-health:
     image:
-      tag: f0f3766a037e2f5b2509db7025d885557441ec91
+      tag: 879eb828d012565a9b35841367bcb910339796bb
   notification:
     image:
       tag: afb6ed8b89329e6fabe5fa9522de3e7813333917
