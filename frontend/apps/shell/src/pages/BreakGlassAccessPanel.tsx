@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
@@ -24,6 +24,11 @@ import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@health
 import { loadPreferences } from './UserPreferencesPanel'; // Phase 57
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
 
 const DEMO_ACCESSES: BreakGlassAccess[] = [
   { id: 'bg-001', requestedByUserId: 'usr-dr-patel',  targetPatientId: 'PAT-00142', clinicalJustification: 'Patient transferred to ICU — urgent medication review required', grantedAt: new Date(Date.now() - 2 * 3600_000).toISOString(), expiresAt: new Date(Date.now() + 2 * 3600_000).toISOString(), isRevoked: false },
@@ -67,26 +72,38 @@ export default function BreakGlassAccessPanel() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired' | 'revoked'>('all');
   const [page, setPage] = useState(0);
   const rowsPerPage = loadPreferences().rowsPerPage;
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   // Reset page whenever filters change
   useEffect(() => { setPage(0); }, [searchQuery, statusFilter]);
 
   const fetchAccesses = useCallback(async () => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/identity/break-glass`, { signal: AbortSignal.timeout(10_000) });
+      const res = await fetch(`${API_BASE}/api/v1/identity/break-glass`, { signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: BreakGlassAccess[] = await res.json();
-      setAccesses(data);
-    } catch {
-      setAccesses(DEMO_ACCESSES);
+      if (!controller.signal.aborted) setAccesses(data);
+    } catch (err) {
+      if (!isAbortLikeError(err) && !controller.signal.aborted) setAccesses(DEMO_ACCESSES);
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) {
+        inFlightRequest.current = null;
+        setLoading(false);
+      }
     }
   }, []);
 
-  useEffect(() => { fetchAccesses(); }, [fetchAccesses]);
+  useEffect(() => {
+    void fetchAccesses();
+    return () => { inFlightRequest.current?.abort(); };
+  }, [fetchAccesses]);
 
   async function requestAccess() {
     if (

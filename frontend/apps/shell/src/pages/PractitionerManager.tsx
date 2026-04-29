@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@healthcare/design-system';
 import TextField from '@mui/material/TextField';
 import Alert from '@mui/material/Alert';
@@ -16,6 +16,11 @@ import Stack from '@mui/material/Stack';
 import { useGlobalStore } from '../store';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
 
 interface PractitionerSummary {
   id: string;
@@ -78,6 +83,7 @@ export default function PractitionerManager() {
   const [submitError, setSubmitError] = useState('');
 
   const backendOnline = useGlobalStore(s => s.backendOnline);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const fetchPractitioners = useCallback(async () => {
     if (backendOnline === false) {
@@ -85,22 +91,36 @@ export default function PractitionerManager() {
       setLoading(false);
       return;
     }
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError('');
     try {
       const url = `${API_BASE}/api/v1/scheduling/practitioners/?activeOnly=${showAll ? 'false' : 'true'}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) { setError(`HTTP ${res.status}`); setLoading(false); return; }
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) {
+        if (!controller.signal.aborted) { setError(`HTTP ${res.status}`); }
+        return;
+      }
       const data = (await res.json()) as PractitionerSummary[];
-      setPractitioners(data);
-    } catch {
-      setPractitioners(DEMO_PRACTITIONERS);
+      if (!controller.signal.aborted) setPractitioners(data);
+    } catch (err) {
+      if (!isAbortLikeError(err) && !controller.signal.aborted) setPractitioners(DEMO_PRACTITIONERS);
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) {
+        inFlightRequest.current = null;
+        setLoading(false);
+      }
     }
   }, [showAll, backendOnline]);
 
-  useEffect(() => { void fetchPractitioners(); }, [fetchPractitioners]);
+  useEffect(() => {
+    void fetchPractitioners();
+    return () => { inFlightRequest.current?.abort(); };
+  }, [fetchPractitioners]);
 
   function openCreate() {
     setEditId(null);
