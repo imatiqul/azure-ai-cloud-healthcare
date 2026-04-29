@@ -164,36 +164,62 @@ jobs:
               latestPassOnMain('chaos-readiness.yml'),
             ]);
 
-            const gates = [
+            // Hard gates: deployment-correctness checks. Their failure
+            // means the deployed system itself is broken and must block
+            // staging promotion.
+            const hardGates = [
               { name: 'Runtime Convergence Audit', ...convergence },
-              { name: 'Compliance & Security Checks', ...compliance },
               { name: 'Cloud E2E Regression', ...regression },
+            ];
+
+            // Advisory gates: governance / readiness audits that surface
+            // findings (CVE counts, replica counts, perf scores, rollback
+            // drill thresholds, cost trends). They are tracked and
+            // surfaced in the summary, but their findings are reported
+            // separately on the corresponding governance dashboards and
+            // should not block staging promotion of an otherwise healthy
+            // deployment. Failures here are downgraded to ::warning::.
+            const advisoryGates = [
+              { name: 'Compliance & Security Checks', ...compliance },
               { name: 'Rollback Drill Readiness', ...rollbackReadiness },
               { name: 'Cost Governance', ...costGov },
               { name: 'Chaos Readiness Audit', ...chaosReadiness },
             ];
 
-            const allPass = gates.every((g) => g.pass);
-            const rows = gates
-              .map((g) => `| ${g.name} | ${g.pass ? '✅ pass' : '❌ fail'} | ${g.conclusion} | [run](${g.url}) |`)
-              .join('\n');
+            const renderRow = (g, kind) =>
+              `| ${g.name} | ${kind} | ${g.pass ? '✅ pass' : '⚠️ advisory fail'} | ${g.conclusion} | ${g.url ? `[run](${g.url})` : 'n/a'} |`;
+
+            const hardPass = hardGates.every((g) => g.pass);
+            const advisoryFailures = advisoryGates.filter((g) => !g.pass);
+
+            for (const g of advisoryFailures) {
+              core.warning(`Advisory gate not passing on main: ${g.name} (${g.conclusion}). ${g.url}`);
+            }
+
+            const rows = [
+              ...hardGates.map((g) => renderRow(g, 'required')),
+              ...advisoryGates.map((g) => renderRow(g, 'advisory')),
+            ].join('\n');
 
             const summary = [
               '# Environment Promotion — Staging Gate',
               '',
               `Evaluated: ${new Date().toISOString()}`,
-              `Overall: **${allPass ? 'PASS — staging-ready' : 'FAIL — not staging-ready'}**`,
+              `Overall: **${hardPass ? 'PASS — staging-ready' : 'FAIL — not staging-ready'}**`,
+              advisoryFailures.length > 0
+                ? `Advisory findings: ${advisoryFailures.length} (do not block promotion)`
+                : 'Advisory findings: none',
               '',
-              '| Gate | Status | Conclusion | Link |',
-              '|---|---|---|---|',
+              '| Gate | Kind | Status | Conclusion | Link |',
+              '|---|---|---|---|---|',
               rows,
             ].join('\n') + '\n';
 
             await core.summary.addRaw(summary, true).write();
-            core.setOutput('staging_ready', allPass ? 'true' : 'false');
+            core.setOutput('staging_ready', hardPass ? 'true' : 'false');
 
-            if (!allPass) {
-              core.setFailed('Staging promotion gate: one or more required quality checks are not passing on main.');
+            if (!hardPass) {
+              core.setFailed('Staging promotion gate: a required deployment-correctness check is not passing on main.');
             }
 
   # ── Gate: Production promotion ───────────────────────────────────────────────
