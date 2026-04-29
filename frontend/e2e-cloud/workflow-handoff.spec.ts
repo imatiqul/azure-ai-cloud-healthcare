@@ -225,6 +225,27 @@ test.describe('Workflow Handoff — Cloud @regression', () => {
       });
     });
 
+    // BookingForm now uses GraphQL via the BFF/gateway (gqlFetch -> /graphql),
+    // not the legacy REST endpoint above. Capture the bookAppointment mutation
+    // input so the test can assert the same payload contract.
+    await page.route('**/graphql', async (route) => {
+      if (route.request().method() !== 'POST') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: null }) });
+        return;
+      }
+      const body = route.request().postDataJSON() as { query?: string; variables?: { input?: Record<string, unknown> } };
+      if (body?.query?.includes('bookAppointment') && body.variables?.input) {
+        bookingPayload = body.variables.input;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ data: { bookAppointment: { id: 'booking-active-1' } } }),
+        });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: null }) });
+    });
+
     await page.goto('/triage');
     await expect(page.getByText(activeWorkflow.patientName, { exact: true })).toBeVisible({ timeout: 20_000 });
 
