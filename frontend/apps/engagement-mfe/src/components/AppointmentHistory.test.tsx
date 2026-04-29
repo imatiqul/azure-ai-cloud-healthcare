@@ -47,7 +47,7 @@ describe('AppointmentHistory', () => {
     });
   });
 
-  it('shows error when fetch fails', async () => {
+  it('shows demo appointments on fetch failure instead of error banner', async () => {
     global.fetch = vi.fn(() =>
       Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) })
     ) as unknown as typeof fetch;
@@ -55,8 +55,10 @@ describe('AppointmentHistory', () => {
     render(<AppointmentHistory patientId="pat-3" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/HTTP 500/)).toBeInTheDocument();
+      // Demo data contains 'Diabetes Follow-up' — confirms fallback renders
+      expect(screen.getByText('Diabetes Follow-up')).toBeInTheDocument();
     });
+    expect(screen.queryByText(/HTTP 500/)).toBeNull();
   });
 
   it('includes correct patientId in the request URL', async () => {
