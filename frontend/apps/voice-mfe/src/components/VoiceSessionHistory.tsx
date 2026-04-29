@@ -115,7 +115,7 @@ export function VoiceSessionHistory() {
         patientId:          s.patientId,
         status:             (s.status as VoiceSessionSummary['status']) ?? 'Ended',
         startedAt:          s.createdAt,
-        endedAt:            s.endedAt,
+        endedAt:            s.endedAt ?? undefined,
         transcriptSnippet:  s.transcriptText?.slice(0, 200) ?? undefined,
       }));
       setSessions(mapped.length > 0 ? mapped : DEMO_SESSIONS);

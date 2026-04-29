@@ -177,6 +177,7 @@ function useMicCapture(
   },
 ) {
   const { onTranscriptAppend, onTranscriptReplace } = callbacks;
+  const authFetch = useAuthFetch();
   const isDemoSession = sessionId?.startsWith('demo-voice-') ?? false;
   const audioContextRef  = useRef<AudioContext | null>(null);
   const workletNodeRef   = useRef<AudioWorkletNode | null>(null);
