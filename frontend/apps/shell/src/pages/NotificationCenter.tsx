@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -48,18 +48,40 @@ function saveHistory(records: NotificationRecord[]): void {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
-async function fetchLiveAlerts(): Promise<Omit<NotificationRecord, 'read' | 'receivedAt'>[]> {
-  const alerts: Omit<NotificationRecord, 'read' | 'receivedAt'>[] = [];
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
+
+async function fetchJsonIfOk(url: string, signal?: AbortSignal): Promise<{ data: any | null; failed: boolean }> {
   try {
-    const [denialsRes, triageRes, deliveryRes] = await Promise.allSettled([
-      fetch(`${API_BASE}/api/v1/revenue/denials/analytics`, { signal: AbortSignal.timeout(10_000) }).then(r => r.ok ? r.json() : null),
-      fetch(`${API_BASE}/api/v1/agents/triage?top=50`, { signal: AbortSignal.timeout(10_000) }).then(r => r.ok ? r.json() : null),
-      fetch(`${API_BASE}/api/v1/notifications/analytics/delivery`, { signal: AbortSignal.timeout(10_000) }).then(r => r.ok ? r.json() : null),
+    const response = await fetch(url, { signal });
+    if (!response.ok) {
+      return { data: null, failed: true };
+    }
+    return { data: await response.json(), failed: false };
+  } catch (error) {
+    if (isAbortLikeError(error) || signal?.aborted) {
+      throw error;
+    }
+    return { data: null, failed: true };
+  }
+}
+
+async function fetchLiveAlerts(signal?: AbortSignal): Promise<{ alerts: Omit<NotificationRecord, 'read' | 'receivedAt'>[]; hadSourceErrors: boolean }> {
+  const alerts: Omit<NotificationRecord, 'read' | 'receivedAt'>[] = [];
+  let hadSourceErrors = false;
+  try {
+    const [denialsResult, triageResult, deliveryResult] = await Promise.all([
+      fetchJsonIfOk(`${API_BASE}/api/v1/revenue/denials/analytics`, signal),
+      fetchJsonIfOk(`${API_BASE}/api/v1/agents/triage?top=50`, signal),
+      fetchJsonIfOk(`${API_BASE}/api/v1/notifications/analytics/delivery`, signal),
     ]);
 
-    const denials  = denialsRes.status  === 'fulfilled' ? denialsRes.value  : null;
-    const triage   = triageRes.status   === 'fulfilled' ? triageRes.value   : null;
-    const delivery = deliveryRes.status === 'fulfilled' ? deliveryRes.value : null;
+    const denials = denialsResult.data;
+    const triage = triageResult.data;
+    const delivery = deliveryResult.data;
+    hadSourceErrors = denialsResult.failed || triageResult.failed || deliveryResult.failed;
 
     if (denials?.nearDeadlineCount > 0) {
       alerts.push({
@@ -103,10 +125,14 @@ async function fetchLiveAlerts(): Promise<Omit<NotificationRecord, 'read' | 'rec
         href:     '/patient-portal',
       });
     }
-  } catch {
-    // Degrade gracefully — history still shows
+  } catch (error) {
+    if (isAbortLikeError(error) || signal?.aborted) {
+      throw error;
+    }
+    hadSourceErrors = true;
   }
-  return alerts;
+
+  return { alerts, hadSourceErrors };
 }
 
 // ── Severity icon ─────────────────────────────────────────────────────────────
@@ -129,30 +155,66 @@ export default function NotificationCenter() {
   const navigate = useNavigate();
   const [records, setRecords] = useState<NotificationRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [liveSourceWarning, setLiveSourceWarning] = useState('');
   const [filterSeverity, setFilterSeverity] = useState<'all' | 'error' | 'warning' | 'info'>('all');
   const [unreadOnly, setUnreadOnly] = useState(false);
   const backendOnline = useGlobalStore(s => s.backendOnline);
+  const activeRefresh = useRef<AbortController | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (signal: AbortSignal) => {
     setLoading(true);
-    // Skip live API calls when backend is known offline — just show stored history
-    const liveAlerts = backendOnline === false ? [] : await fetchLiveAlerts();
-    const history    = loadHistory();
-    const now        = new Date().toISOString();
+    setLiveSourceWarning('');
 
-    // Merge: prepend new live alerts not already in history (cap at 100)
-    const existingIds = new Set(history.map(h => h.id));
-    const newRecords  = liveAlerts
-      .filter(a => !existingIds.has(a.id))
-      .map(a => ({ ...a, read: false, receivedAt: now }));
+    const history = loadHistory();
+    if (backendOnline === false) {
+      if (!signal.aborted) {
+        setRecords(history);
+        setLoading(false);
+      }
+      return;
+    }
 
-    const merged = [...newRecords, ...history].slice(0, 100);
-    saveHistory(merged);
-    setRecords(merged);
-    setLoading(false);
+    try {
+      const { alerts: liveAlerts, hadSourceErrors } = await fetchLiveAlerts(signal);
+      if (signal.aborted) return;
+
+      const now = new Date().toISOString();
+      const existingIds = new Set(history.map(h => h.id));
+      const newRecords = liveAlerts
+        .filter(a => !existingIds.has(a.id))
+        .map(a => ({ ...a, read: false, receivedAt: now }));
+
+      const merged = [...newRecords, ...history].slice(0, 100);
+      saveHistory(merged);
+      setRecords(merged);
+
+      if (hadSourceErrors) {
+        setLiveSourceWarning('Some live alert sources are unavailable. Showing saved notification history where needed.');
+      }
+    } catch (error) {
+      if (isAbortLikeError(error) || signal.aborted) return;
+      setRecords(history);
+      setLiveSourceWarning('Live alert sources are temporarily unavailable. Showing saved notification history.');
+    } finally {
+      if (!signal.aborted) {
+        setLoading(false);
+      }
+    }
   }, [backendOnline]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  const runRefresh = useCallback(() => {
+    activeRefresh.current?.abort();
+    const controller = new AbortController();
+    activeRefresh.current = controller;
+    void refresh(controller.signal);
+  }, [refresh]);
+
+  useEffect(() => {
+    runRefresh();
+    return () => {
+      activeRefresh.current?.abort();
+    };
+  }, [runRefresh]);
 
   const markAllRead = () => {
     const updated = records.map(r => ({ ...r, read: true }));
@@ -233,12 +295,20 @@ export default function NotificationCenter() {
             </span>
           </Tooltip>
           <Tooltip title="Refresh">
-            <IconButton size="small" onClick={refresh} aria-label="Refresh notifications">
+            <IconButton size="small" onClick={runRefresh} aria-label="Refresh notifications">
               <RefreshIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         </Stack>
       </Stack>
+
+      {liveSourceWarning && (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="caption" color="warning.main">
+            {liveSourceWarning}
+          </Typography>
+        </Box>
+      )}
 
       {/* ── Filter bar ── */}
       <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 0.5 }}>

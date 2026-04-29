@@ -44,11 +44,16 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 // 'demo' (offline / scaled-to-zero), or 'checking' on initial load.
 type AiBackendStatus = 'checking' | 'live' | 'demo';
 
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
+
 function useAiStatus(): AiBackendStatus {
   const [status, setStatus] = useState<AiBackendStatus>('checking');
   const setBackendOnline = useGlobalStore(s => s.setBackendOnline);
 
-  const probe = useCallback(async () => {
+  const probe = useCallback(async (signal: AbortSignal) => {
     if (!API_BASE) {
       setStatus('demo');
       setBackendOnline(false);
@@ -56,14 +61,16 @@ function useAiStatus(): AiBackendStatus {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/api/v1/agents/stats`, { signal: AbortSignal.timeout(5_000) });
+      const res = await fetch(`${API_BASE}/api/v1/agents/stats`, { signal });
+      if (signal.aborted) return;
       // 404 means APIM is reachable but the route isn't configured (backend not deployed) → demo
       // 401/403 means APIM is live and protecting the route → live
       const live = res.ok || res.status === 401 || res.status === 403;
       setStatus(live ? 'live' : 'demo');
       setBackendOnline(live);
       emitBackendStatusChanged({ online: live });
-    } catch {
+    } catch (error) {
+      if (isAbortLikeError(error) || signal.aborted) return;
       setStatus('demo');
       setBackendOnline(false);
       emitBackendStatusChanged({ online: false });
@@ -71,9 +78,26 @@ function useAiStatus(): AiBackendStatus {
   }, [setBackendOnline]);
 
   useEffect(() => {
-    void probe();
-    const id = setInterval(probe, 60_000);
-    return () => clearInterval(id);
+    const startProbe = () => {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 5_000);
+      void probe(controller.signal).finally(() => window.clearTimeout(timeoutId));
+      return () => {
+        window.clearTimeout(timeoutId);
+        controller.abort();
+      };
+    };
+
+    let cancelInFlight = startProbe();
+    const id = window.setInterval(() => {
+      cancelInFlight();
+      cancelInFlight = startProbe();
+    }, 60_000);
+
+    return () => {
+      window.clearInterval(id);
+      cancelInFlight();
+    };
   }, [probe]);
 
   return status;
@@ -88,13 +112,13 @@ interface LiveAlert {
   icon:     React.ReactNode;
 }
 
-async function fetchAlerts(): Promise<LiveAlert[]> {
+async function fetchAlerts(signal?: AbortSignal): Promise<LiveAlert[]> {
   const alerts: LiveAlert[] = [];
   try {
     const [denialsRes, triageRes, deliveryRes] = await Promise.allSettled([
-      fetch(`${API_BASE}/api/v1/revenue/denials/analytics`, { signal: AbortSignal.timeout(10_000) }).then(r => r.ok ? r.json() : null),
-      fetch(`${API_BASE}/api/v1/agents/triage?top=50`, { signal: AbortSignal.timeout(10_000) }).then(r => r.ok ? r.json() : null),
-      fetch(`${API_BASE}/api/v1/notifications/analytics/delivery`, { signal: AbortSignal.timeout(10_000) }).then(r => r.ok ? r.json() : null),
+      fetch(`${API_BASE}/api/v1/revenue/denials/analytics`, { signal }).then(r => r.ok ? r.json() : null),
+      fetch(`${API_BASE}/api/v1/agents/triage?top=50`, { signal }).then(r => r.ok ? r.json() : null),
+      fetch(`${API_BASE}/api/v1/notifications/analytics/delivery`, { signal }).then(r => r.ok ? r.json() : null),
     ]);
 
     const denials  = denialsRes.status  === 'fulfilled' ? denialsRes.value  : null;
@@ -145,7 +169,8 @@ async function fetchAlerts(): Promise<LiveAlert[]> {
         icon:     <NotificationsOutlinedIcon fontSize="small" />,
       });
     }
-  } catch {
+  } catch (error) {
+    if (isAbortLikeError(error) || signal?.aborted) return [];
     // silent — alerts degrade gracefully
   }
   return alerts;
@@ -176,14 +201,35 @@ export function TopNav({ onOpenSearch }: TopNavProps) {
 
   const handleSignOut = () => { closeUserMenu(); signOut(); };
 
-  const loadAlerts = useCallback(() => {
-    if (isAuthenticated && backendOnline !== false) fetchAlerts().then(setAlerts);
+  const loadAlerts = useCallback(async (signal: AbortSignal) => {
+    if (!isAuthenticated || backendOnline === false) {
+      setAlerts([]);
+      return;
+    }
+
+    const nextAlerts = await fetchAlerts(signal);
+    if (!signal.aborted) {
+      setAlerts(nextAlerts);
+    }
   }, [isAuthenticated, backendOnline]);
 
   useEffect(() => {
-    loadAlerts();
-    const id = setInterval(loadAlerts, 60_000);
-    return () => clearInterval(id);
+    const startLoad = () => {
+      const controller = new AbortController();
+      void loadAlerts(controller.signal);
+      return controller;
+    };
+
+    let activeController = startLoad();
+    const id = window.setInterval(() => {
+      activeController.abort();
+      activeController = startLoad();
+    }, 60_000);
+
+    return () => {
+      window.clearInterval(id);
+      activeController.abort();
+    };
   }, [loadAlerts]);
 
   const goToAlert = (alert: LiveAlert) => {

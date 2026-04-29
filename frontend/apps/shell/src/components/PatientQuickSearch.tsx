@@ -61,6 +61,11 @@ interface PatientRisk {
   assessedAt: string;
 }
 
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
+
 // ── localStorage helpers ──────────────────────────────────────────────────────
 
 export function loadRecentPatients(): string[] {
@@ -101,24 +106,47 @@ export function PatientQuickSearch() {
   const anchorRef = useRef<HTMLButtonElement | null>(null);
   const inputRef  = useRef<HTMLInputElement | null>(null);
   const debounce  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const fetchRisks = useCallback(async (search?: string) => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
     setLoading(true);
     setSearchError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/population-health/risks?top=20`, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) { setRisks([]); return; }
+      const res = await fetch(`${API_BASE}/api/v1/population-health/risks?top=20`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (!res.ok) {
+        const hasStatusCode = typeof res.status === 'number' && Number.isFinite(res.status);
+        const statusText = typeof res.statusText === 'string' ? res.statusText.trim() : '';
+        const statusLabel = hasStatusCode
+          ? `${res.status}${statusText ? ` ${statusText}` : ''}`
+          : 'request failed';
+        setSearchError(`Patient risk search unavailable (${statusLabel}).`);
+        setRisks([]);
+        return;
+      }
       const data: PatientRisk[] = await res.json();
+      if (controller.signal.aborted) return;
       if (search) {
         const q = search.toLowerCase();
         setRisks(data.filter(r => r.patientId.toLowerCase().includes(q)));
       } else {
         setRisks(data.slice(0, 8));
       }
-    } catch {
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) return;
+      setSearchError('Patient risk search unavailable. Showing demo data.');
       setRisks(DEMO_RISKS.filter(r => !search || r.patientId.toLowerCase().includes(search.toLowerCase())));
     } finally {
-      setLoading(false);
+      window.clearTimeout(timeoutId);
+      if (inFlightRequest.current === controller) {
+        inFlightRequest.current = null;
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -133,8 +161,11 @@ export function PatientQuickSearch() {
   }, [fetchRisks]);
 
   const closeSearch = useCallback(() => {
+    inFlightRequest.current?.abort();
+    inFlightRequest.current = null;
     setOpen(false);
     setQuery('');
+    setLoading(false);
   }, []);
 
   const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,6 +193,15 @@ export function PatientQuickSearch() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [open, openSearch, closeSearch]);
+
+  useEffect(() => {
+    return () => {
+      if (debounce.current) {
+        clearTimeout(debounce.current);
+      }
+      inFlightRequest.current?.abort();
+    };
+  }, []);
 
   // Derive display list
   const displayRisks = query
