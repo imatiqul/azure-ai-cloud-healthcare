@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
@@ -10,6 +10,10 @@ import Divider from '@mui/material/Divider';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError');
+}
 
 const DEMO_GROUPED: Map<string, FhirEntry[]> = new Map([
   ['Encounter', [
@@ -87,6 +91,7 @@ export function FhirEverythingViewer({ patientId: propId }: { patientId?: string
   const [error, setError] = useState<string | null>(null);
   const [grouped, setGrouped] = useState<Map<string, FhirEntry[]> | null>(null);
   const [totalCount, setTotalCount] = useState(0);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const canSearch = patientId.trim() !== '';
 
@@ -96,6 +101,10 @@ export function FhirEverythingViewer({ patientId: propId }: { patientId?: string
 
   const handleSearch = useCallback(async () => {
     if (!canSearch) return;
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError(null);
     setGrouped(null);
@@ -105,27 +114,28 @@ export function FhirEverythingViewer({ patientId: propId }: { patientId?: string
       if (typeFilter) params.set('_type', typeFilter);
       const qs = params.toString() ? `?${params.toString()}` : '';
       const url = `${API_BASE}/api/v1/fhir/patients/${encodeURIComponent(patientId.trim())}/$everything${qs}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+      const res = await fetch(url, { signal: controller.signal });
       if (!res.ok) {
-        setError('FHIR $everything failed');
+        if (!controller.signal.aborted) setError('FHIR $everything failed');
         return;
       }
       const data: unknown = await res.json();
       const map = parseBundle(data);
       const count = [...map.values()].reduce((sum, arr) => sum + arr.length, 0);
-      setGrouped(map);
-      setTotalCount(count);
-    } catch {
-      setGrouped(DEMO_GROUPED);
-      setTotalCount(DEMO_TOTAL);
+      if (!controller.signal.aborted) { setGrouped(map); setTotalCount(count); }
+    } catch (err) {
+      if (isAbortLikeError(err)) return;
+      if (!controller.signal.aborted) { setGrouped(DEMO_GROUPED); setTotalCount(DEMO_TOTAL); }
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
     }
   }, [patientId, typeFilter, canSearch]);
 
   // Auto-load when parent switches patient
   useEffect(() => {
     if (propId && patientId) void handleSearch();
+    return () => { inFlightRequest.current?.abort(); };
   }, [patientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

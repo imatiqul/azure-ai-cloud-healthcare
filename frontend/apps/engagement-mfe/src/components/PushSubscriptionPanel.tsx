@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -19,6 +19,10 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError');
+}
 
 // ── Types matching NotificationEndpoints push-subscriptions ───────────────
 interface PushSubscription {
@@ -50,28 +54,36 @@ export function PushSubscriptionPanel() {
   const [registerError, setRegisterError] = useState<string | null>(null);
 
   const [deleting, setDeleting] = useState<string | null>(null);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const fetchSubscriptions = useCallback(async (pid: string) => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(
         `${API_BASE}/api/v1/notifications/push-subscriptions?patientId=${encodeURIComponent(pid)}`,
-        { signal: AbortSignal.timeout(10_000) },
+        { signal: controller.signal },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: PushSubscription[] = await res.json();
-      setSubscriptions(data);
-    } catch {
+      if (!controller.signal.aborted) setSubscriptions(data);
+    } catch (err) {
+      if (isAbortLikeError(err)) return;
       // Backend offline — show empty subscription list (not an error)
-      setSubscriptions([]);
+      if (!controller.signal.aborted) setSubscriptions([]);
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
     }
   }, []);
 
   useEffect(() => {
     if (patientId) fetchSubscriptions(patientId);
+    return () => { inFlightRequest.current?.abort(); };
   }, [patientId, fetchSubscriptions]);
 
   function handleSearch() {

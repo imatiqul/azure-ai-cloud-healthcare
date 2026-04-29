@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -7,6 +7,10 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError');
+}
 
 const DEMO_IMMUNIZATIONS: Immunization[] = [
   { resourceType: 'Immunization', id: 'imm-demo-001', status: 'completed', vaccineCode: { text: 'Influenza Vaccine (Seasonal)',          coding: [{ display: 'Influenza, Seasonal, Injectable' }] },           occurrenceDateTime: new Date(Date.now() - 180 * 86_400_000).toISOString(), primarySource: true },
@@ -44,6 +48,7 @@ export function ImmunizationPanel({ patientId: propId }: { patientId?: string } 
   const [immunizations, setImmunizations] = useState<Immunization[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (propId !== undefined) setPatientId(propId);
@@ -51,21 +56,27 @@ export function ImmunizationPanel({ patientId: propId }: { patientId?: string } 
 
   useEffect(() => {
     if (patientId) void fetchImmunizations(patientId);
+    return () => { inFlightRequest.current?.abort(); };
   }, [patientId]);
 
   async function fetchImmunizations(id: string) {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/fhir/immunizations/${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
+      const res = await fetch(`${API_BASE}/api/v1/fhir/immunizations/${encodeURIComponent(id)}`, { signal: controller.signal });
+      if (!res.ok) { if (!controller.signal.aborted) setError(`HTTP ${res.status}`); return; }
       const bundle: Bundle<Immunization> = await res.json();
-      setImmunizations(bundle.entry?.map(e => e.resource) ?? []);
-    } catch {
-      setImmunizations(DEMO_IMMUNIZATIONS);
-      setError(null);
+      if (!controller.signal.aborted) setImmunizations(bundle.entry?.map(e => e.resource) ?? []);
+    } catch (err) {
+      if (isAbortLikeError(err)) return;
+      if (!controller.signal.aborted) { setImmunizations(DEMO_IMMUNIZATIONS); setError(null); }
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
     }
   }
 

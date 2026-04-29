@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -107,11 +107,15 @@ function formatRelativeDate(iso: string): string {
 export function PatientSummaryCard({ patientId }: { patientId: string }) {
   const [summary, setSummary] = useState<PatientSummary | null>(null);
   const [loading, setLoading] = useState(false);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!patientId) { setSummary(null); return; }
 
-    let cancelled = false;
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 8_000);
     setLoading(true);
     setSummary(null);
 
@@ -119,20 +123,21 @@ export function PatientSummaryCard({ patientId }: { patientId: string }) {
       try {
         const res = await fetch(
           `${API_BASE}/api/v1/fhir/patients/${encodeURIComponent(patientId)}/summary`,
-          { signal: AbortSignal.timeout(8_000) },
+          { signal: controller.signal },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: PatientSummary = await res.json();
-        if (!cancelled) setSummary(data);
+        if (!controller.signal.aborted) setSummary(data);
       } catch {
         // Backend offline — use demo patient data
-        if (!cancelled) setSummary(DEMO_SUMMARIES[patientId] ?? null);
+        if (!controller.signal.aborted) setSummary(DEMO_SUMMARIES[patientId] ?? null);
       } finally {
-        if (!cancelled) setLoading(false);
+        clearTimeout(timer);
+        if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => { inFlightRequest.current?.abort(); };
   }, [patientId]);
 
   if (!patientId) return null;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -15,6 +15,10 @@ import Grid from '@mui/material/Grid';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_REVENUE_API_URL || '';
+
+function isAbortLikeError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError');
+}
 
 const DEMO_DENIALS: ClaimDenial[] = [
   { id: 'd-1', claimNumber: 'CLM-20240301', patientId: 'PAT-00142', payerName: 'BlueCross BlueShield', denialReasonCode: 'CO-4',  denialReasonDescription: 'Service inconsistent with procedure billed', category: 'Coding',          status: 'Open',         deniedAmount: 3200, deniedAt: new Date(Date.now() - 5 * 86400_000).toISOString(), appealDeadline: new Date(Date.now() + 10 * 86400_000).toISOString(), daysUntilDeadline: 10, resubmissionCount: 0 },
@@ -77,13 +81,18 @@ export function DenialManager() {
   const [appealNotes, setAppealNotes] = useState('');
   const [submittingAppeal, setSubmittingAppeal] = useState(false);
   const [appealError, setAppealError] = useState<string | null>(null);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const fetchData = useCallback(async () => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     try {
       const [denialsRes, analyticsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/v1/revenue/denials?status=Open`),
-        fetch(`${API_BASE}/api/v1/revenue/denials/analytics`),
+        fetch(`${API_BASE}/api/v1/revenue/denials?status=Open`, { signal: controller.signal }),
+        fetch(`${API_BASE}/api/v1/revenue/denials/analytics`, { signal: controller.signal }),
       ]);
       if (!denialsRes.ok || !analyticsRes.ok)
         throw new Error(`Revenue APIs unavailable (${denialsRes.status}/${analyticsRes.status})`);
@@ -91,17 +100,23 @@ export function DenialManager() {
       const denialsData = await denialsRes.json();
       const analyticsData = await analyticsRes.json();
 
-      setDenials(Array.isArray(denialsData) ? denialsData : DEMO_DENIALS);
-      setAnalytics(analyticsData ?? DEMO_ANALYTICS);
-    } catch {
-      setDenials(DEMO_DENIALS);
-      setAnalytics(DEMO_ANALYTICS);
+      if (!controller.signal.aborted) {
+        setDenials(Array.isArray(denialsData) ? denialsData : DEMO_DENIALS);
+        setAnalytics(analyticsData ?? DEMO_ANALYTICS);
+      }
+    } catch (err) {
+      if (isAbortLikeError(err)) return;
+      if (!controller.signal.aborted) { setDenials(DEMO_DENIALS); setAnalytics(DEMO_ANALYTICS); }
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    return () => { inFlightRequest.current?.abort(); };
+  }, [fetchData]);
 
   const handleAppeal = async () => {
     if (!appealTarget) return;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -12,6 +12,10 @@ import IconButton from '@mui/material/IconButton';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError');
+}
 
 const DEMO_ALLERGIES: AllergyIntolerance[] = [
   { resourceType: 'AllergyIntolerance', id: 'allergy-demo-001', clinicalStatus: { coding: [{ code: 'active' }] }, criticality: 'high', code: { text: 'Penicillin', coding: [{ display: 'Penicillin' }] }, recordedDate: new Date(Date.now() - 365 * 86_400_000).toISOString(), reaction: [{ description: 'Anaphylaxis — severe systemic reaction' }] },
@@ -51,6 +55,7 @@ export function AllergyPanel({ patientId: propId }: { patientId?: string } = {})
   const [showAdd, setShowAdd] = useState(false);
   const [newAllergyJson, setNewAllergyJson] = useState('');
   const [saving, setSaving] = useState(false);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (propId !== undefined) setPatientId(propId);
@@ -58,21 +63,27 @@ export function AllergyPanel({ patientId: propId }: { patientId?: string } = {})
 
   useEffect(() => {
     if (patientId) void fetchAllergies(patientId);
+    return () => { inFlightRequest.current?.abort(); };
   }, [patientId]);
 
   async function fetchAllergies(id: string) {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/fhir/allergies/${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
+      const res = await fetch(`${API_BASE}/api/v1/fhir/allergies/${encodeURIComponent(id)}`, { signal: controller.signal });
+      if (!res.ok) { if (!controller.signal.aborted) setError(`HTTP ${res.status}`); return; }
       const bundle: Bundle<AllergyIntolerance> = await res.json();
-      setAllergies(bundle.entry?.map(e => e.resource) ?? []);
-    } catch {
-      setAllergies(DEMO_ALLERGIES);
-      setError(null);
+      if (!controller.signal.aborted) setAllergies(bundle.entry?.map(e => e.resource) ?? []);
+    } catch (err) {
+      if (isAbortLikeError(err)) return;
+      if (!controller.signal.aborted) { setAllergies(DEMO_ALLERGIES); setError(null); }
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
     }
   }
 

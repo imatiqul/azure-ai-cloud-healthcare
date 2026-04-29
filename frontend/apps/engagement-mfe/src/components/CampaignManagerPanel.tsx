@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
@@ -18,6 +18,10 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError');
+}
 
 const DEMO_CAMPAIGNS: CampaignSummary[] = [
   { id: 'camp-hba1c-recall-2026',  name: 'HbA1c Recall Q2 2026',    type: 'SMS',   status: 'Active',    createdAt: new Date(Date.now() - 3 * 86400_000).toISOString() },
@@ -58,26 +62,34 @@ export function CampaignManagerPanel() {
   const [targetIds, setTargetIds] = useState('');
   const [creating, setCreating] = useState(false);
   const [activatingId, setActivatingId] = useState<string | null>(null);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const canCreate = name.trim() !== '' && targetIds.trim() !== '';
 
   async function fetchCampaigns() {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/notifications/campaigns`);
+      const res = await fetch(`${API_BASE}/api/v1/notifications/campaigns`, { signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as CampaignSummary[];
-      setCampaigns(data);
-    } catch {
-      setCampaigns(DEMO_CAMPAIGNS);
+      if (!controller.signal.aborted) setCampaigns(data);
+    } catch (err) {
+      if (isAbortLikeError(err)) return;
+      if (!controller.signal.aborted) setCampaigns(DEMO_CAMPAIGNS);
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
     }
   }
 
   useEffect(() => {
     fetchCampaigns();
+    return () => { inFlightRequest.current?.abort(); };
   }, []);
 
   async function handleCreate() {

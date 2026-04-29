@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@healthcare/design-system';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
@@ -16,6 +16,10 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError');
+}
 
 const DEMO_OBSERVATIONS: FhirObservation[] = [
   { id: 'obs-demo-001', status: 'final',       code: 'HbA1c',                     value: '7.8 %',       effectiveDate: new Date(Date.now() - 30 * 86_400_000).toISOString() },
@@ -107,33 +111,39 @@ export function FhirObservationViewer({ patientId: propId }: { patientId?: strin
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (propId !== undefined) setPatientId(propId);
   }, [propId]);
 
   async function fetchObservations(id: string) {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError('');
     setSearched(false);
     try {
       const categoryParam = category ? `?category=${encodeURIComponent(category)}` : '';
       const url = `${API_BASE}/api/v1/fhir/observations/${encodeURIComponent(id)}${categoryParam}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) { setError(`HTTP ${res.status}`); setSearched(true); return; }
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) { if (!controller.signal.aborted) { setError(`HTTP ${res.status}`); setSearched(true); } return; }
       const raw = await res.json();
-      setObservations(parseBundle(raw));
-      setSearched(true);
-    } catch {
-      setObservations(DEMO_OBSERVATIONS);
-      setSearched(true);
+      if (!controller.signal.aborted) { setObservations(parseBundle(raw)); setSearched(true); }
+    } catch (err) {
+      if (isAbortLikeError(err)) return;
+      if (!controller.signal.aborted) { setObservations(DEMO_OBSERVATIONS); setSearched(true); }
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
     }
   }
 
   useEffect(() => {
     if (propId) void fetchObservations(propId);
+    return () => { inFlightRequest.current?.abort(); };
   }, [propId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearch = () => {

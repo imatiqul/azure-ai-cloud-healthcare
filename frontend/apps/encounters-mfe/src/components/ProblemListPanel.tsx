@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -13,6 +13,10 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError');
+}
 
 const DEMO_CONDITIONS: Condition[] = [
   { resourceType: 'Condition', id: 'cond-demo-001', clinicalStatus: { coding: [{ code: 'active' }] }, verificationStatus: { coding: [{ code: 'confirmed' }] }, code: { text: 'Type 2 Diabetes Mellitus',  coding: [{ display: 'Type 2 diabetes mellitus', code: 'E11.9' }] }, onsetDateTime: new Date(Date.now() - 5 * 365 * 86_400_000).toISOString() },
@@ -55,6 +59,7 @@ export function ProblemListPanel({ patientId: propId }: { patientId?: string } =
   const [showAdd, setShowAdd] = useState(false);
   const [newConditionJson, setNewConditionJson] = useState('');
   const [saving, setSaving] = useState(false);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (propId !== undefined) setPatientId(propId);
@@ -62,25 +67,30 @@ export function ProblemListPanel({ patientId: propId }: { patientId?: string } =
 
   useEffect(() => {
     if (patientId) void fetchConditions(patientId, statusFilter);
+    return () => { inFlightRequest.current?.abort(); };
   }, [patientId, statusFilter]);
 
   async function fetchConditions(id: string, status: string) {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError(null);
     try {
       const url = `${API_BASE}/api/v1/fhir/conditions/${encodeURIComponent(id)}?clinicalStatus=${encodeURIComponent(status)}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) { if (!controller.signal.aborted) setError(`HTTP ${res.status}`); return; }
       const bundle: Bundle<Condition> = await res.json();
-      setConditions(bundle.entry?.map(e => e.resource) ?? []);
-    } catch {
-      setConditions(DEMO_CONDITIONS.filter(c => c.clinicalStatus?.coding?.[0]?.code === status));
-      setError(null);
+      if (!controller.signal.aborted) setConditions(bundle.entry?.map(e => e.resource) ?? []);
+    } catch (err) {
+      if (isAbortLikeError(err)) return;
+      if (!controller.signal.aborted) { setConditions(DEMO_CONDITIONS.filter(c => c.clinicalStatus?.coding?.[0]?.code === status)); setError(null); }
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
     }
   }
-
   async function handleSaveCondition() {
     let parsed: Condition;
     try {

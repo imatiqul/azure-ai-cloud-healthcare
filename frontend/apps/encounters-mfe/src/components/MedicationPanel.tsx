@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -11,6 +11,10 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError');
+}
 
 const DEMO_MEDICATIONS: MedicationRequest[] = [
   { resourceType: 'MedicationRequest', id: 'med-demo-001', status: 'active', intent: 'order', medicationCodeableConcept: { text: 'Metformin 1000mg', coding: [{ display: 'Metformin hydrochloride 1000 MG Oral Tablet' }] }, authoredOn: new Date(Date.now() - 180 * 86_400_000).toISOString(), dosageInstruction: [{ text: '1 tablet twice daily with meals' }] },
@@ -52,6 +56,7 @@ export function MedicationPanel({ patientId: propId }: { patientId?: string } = 
   const [showAdd, setShowAdd] = useState(false);
   const [newMedJson, setNewMedJson] = useState('');
   const [saving, setSaving] = useState(false);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (propId !== undefined) setPatientId(propId);
@@ -59,21 +64,27 @@ export function MedicationPanel({ patientId: propId }: { patientId?: string } = 
 
   useEffect(() => {
     if (patientId) void fetchMedications(patientId);
+    return () => { inFlightRequest.current?.abort(); };
   }, [patientId]);
 
   async function fetchMedications(id: string) {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/fhir/medications/${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
+      const res = await fetch(`${API_BASE}/api/v1/fhir/medications/${encodeURIComponent(id)}`, { signal: controller.signal });
+      if (!res.ok) { if (!controller.signal.aborted) setError(`HTTP ${res.status}`); return; }
       const bundle: Bundle<MedicationRequest> = await res.json();
-      setMedications(bundle.entry?.map(e => e.resource) ?? []);
-    } catch {
-      setMedications(DEMO_MEDICATIONS);
-      setError(null);
+      if (!controller.signal.aborted) setMedications(bundle.entry?.map(e => e.resource) ?? []);
+    } catch (err) {
+      if (isAbortLikeError(err)) return;
+      if (!controller.signal.aborted) { setMedications(DEMO_MEDICATIONS); setError(null); }
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
     }
   }
 

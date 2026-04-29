@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -9,6 +9,10 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError');
+}
 
 interface PatientProfile {
   id: string;
@@ -32,33 +36,45 @@ export function PatientProfilePanel() {
   const [profile, setProfile] = useState<PatientProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const fetchProfile = useCallback(async () => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`${API_BASE}/api/v1/identity/patients/me`, {
-        signal: AbortSignal.timeout(10_000),
+        signal: controller.signal,
         headers: { Accept: 'application/json' },
       });
       if (!res.ok) {
-        if (res.status === 404) {
-          setError('Please complete registration to access your profile.');
-        } else {
-          setError(`HTTP ${res.status}`);
+        if (!controller.signal.aborted) {
+          if (res.status === 404) {
+            setError('Please complete registration to access your profile.');
+          } else {
+            setError(`HTTP ${res.status}`);
+          }
         }
         return;
       }
       const data: PatientProfile = await res.json();
-      setProfile(data);
+      if (!controller.signal.aborted) setProfile(data);
     } catch (err) {
-      setError((err as Error).message);
+      if (isAbortLikeError(err)) return;
+      if (!controller.signal.aborted) setError((err as Error).message);
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
     }
   }, []);
 
-  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+  useEffect(() => {
+    fetchProfile();
+    return () => { inFlightRequest.current?.abort(); };
+  }, [fetchProfile]);
 
   return (
     <Card>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -17,6 +17,10 @@ import FormControl from '@mui/material/FormControl';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError');
+}
 
 // ── Types matching ConsentEndpoints responses ──────────────────────────────
 type ConsentStatus = 'Active' | 'Revoked' | 'Expired';
@@ -163,27 +167,35 @@ export function ConsentManagementPanel() {
   const [error, setError] = useState<string | null>(null);
   const [grantDialogOpen, setGrantDialogOpen] = useState(false);
   const [revoking, setRevoking] = useState<string | null>(null);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const fetchConsents = useCallback(async (pid: string) => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(
         `${API_BASE}/api/v1/identity/consent?patientId=${encodeURIComponent(pid)}`,
-        { signal: AbortSignal.timeout(10_000) },
+        { signal: controller.signal },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ConsentRecord[] = await res.json();
-      setConsents(data);
+      if (!controller.signal.aborted) setConsents(data);
     } catch (err) {
-      setError((err as Error).message);
+      if (isAbortLikeError(err)) return;
+      if (!controller.signal.aborted) setError((err as Error).message);
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
     }
   }, []);
 
   useEffect(() => {
     if (patientId) fetchConsents(patientId);
+    return () => { inFlightRequest.current?.abort(); };
   }, [patientId, fetchConsents]);
 
   async function handleRevoke(id: string) {
