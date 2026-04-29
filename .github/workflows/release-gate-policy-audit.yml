@@ -1,6 +1,13 @@
 name: Release Gate Policy Audit
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/release-gate-policy.json
+      - .github/workflows/release-gate-policy-audit.yml
+      - .github/workflows/environment-promotion.yml
+      - .github/workflows/release-readiness-orchestrator.yml
   schedule:
     - cron: '0 10 * * 1'
   workflow_dispatch:
@@ -17,6 +24,7 @@ on:
 permissions:
   actions: read
   contents: read
+  pull-requests: read
 
 jobs:
   audit-release-gates:
@@ -33,7 +41,10 @@ jobs:
           script: |
             const fs = require('fs');
 
-            const strictMode = "${{ github.event.inputs.strict_mode || 'false' }}" === 'true';
+            const manualStrictInput = "${{ github.event.inputs.strict_mode || '' }}";
+            const strictMode = context.eventName === 'pull_request'
+              ? true
+              : manualStrictInput === 'true';
             const policyPath = '.github/release-gate-policy.json';
             const { owner, repo } = context.repo;
 

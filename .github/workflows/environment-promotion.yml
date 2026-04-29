@@ -155,12 +155,13 @@ jobs:
               };
             }
 
-            const [convergence, compliance, regression, rollbackReadiness, costGov] = await Promise.all([
+            const [convergence, compliance, regression, rollbackReadiness, costGov, chaosReadiness] = await Promise.all([
               latestPassOnMain('runtime-convergence-audit.yml'),
               latestPassOnMain('compliance-check.yml'),
               latestPassOnMain('cloud-e2e-regression.yml'),
               latestPassOnMain('rollback-drill-readiness.yml'),
               latestPassOnMain('cost-governance.yml'),
+              latestPassOnMain('chaos-readiness.yml'),
             ]);
 
             const gates = [
@@ -169,6 +170,7 @@ jobs:
               { name: 'Cloud E2E Regression', ...regression },
               { name: 'Rollback Drill Readiness', ...rollbackReadiness },
               { name: 'Cost Governance', ...costGov },
+              { name: 'Chaos Readiness Audit', ...chaosReadiness },
             ];
 
             const allPass = gates.every((g) => g.pass);

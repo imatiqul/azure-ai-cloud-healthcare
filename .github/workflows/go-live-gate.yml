@@ -77,19 +77,20 @@ permissions:
 
 env:
   ACA_RG: healthq-copilot-rg
-  # Resolution order: workflow_dispatch input -> repository variable -> baked-in default
-  APIM_BASE: ${{ github.event.inputs.api_base_url || vars.HEALTHQ_API_BASE_URL || 'https://healthq-copilot-apim.azure-api.net' }}
-  SHELL_URL: ${{ github.event.inputs.shell_url || vars.HEALTHQ_SHELL_URL || 'https://gentle-tree-03115af0f.7.azurestaticapps.net' }}
-  GATEWAY_URL: ${{ github.event.inputs.gateway_url || vars.HEALTHQ_GATEWAY_ACA_URL || 'https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io' }}
+  # Resolution order: workflow_dispatch input -> repository variable.
+  # No hardcoded production-like endpoint fallbacks are used.
+  APIM_BASE: ${{ github.event.inputs.api_base_url || vars.HEALTHQ_API_BASE_URL || '' }}
+  SHELL_URL: ${{ github.event.inputs.shell_url || vars.HEALTHQ_SHELL_URL || '' }}
+  GATEWAY_URL: ${{ github.event.inputs.gateway_url || vars.HEALTHQ_GATEWAY_ACA_URL || '' }}
 
   # MFE static web app base URLs (sprint 12 targets: performance ≥ 0.90)
-  VOICE_URL: ${{ github.event.inputs.voice_url || vars.HEALTHQ_VOICE_URL || 'https://happy-smoke-09cca540f.7.azurestaticapps.net' }}
-  TRIAGE_URL: ${{ github.event.inputs.triage_url || vars.HEALTHQ_TRIAGE_URL || 'https://brave-hill-0a1b2c3d4.7.azurestaticapps.net' }}
-  SCHEDULING_URL: ${{ github.event.inputs.scheduling_url || vars.HEALTHQ_SCHEDULING_URL || 'https://yellow-smoke-0a1b2c3d4.7.azurestaticapps.net' }}
-  POPHEALTH_URL: ${{ github.event.inputs.pophealth_url || vars.HEALTHQ_POPHEALTH_URL || 'https://orange-bay-0a1b2c3d4.7.azurestaticapps.net' }}
-  REVENUE_URL: ${{ github.event.inputs.revenue_url || vars.HEALTHQ_REVENUE_URL || 'https://lemon-pond-0a1b2c3d4.7.azurestaticapps.net' }}
-  ENCOUNTERS_URL: ${{ github.event.inputs.encounters_url || vars.HEALTHQ_ENCOUNTERS_URL || 'https://calm-river-0a1b2c3d4.7.azurestaticapps.net' }}
-  ENGAGEMENT_URL: ${{ github.event.inputs.engagement_url || vars.HEALTHQ_ENGAGEMENT_URL || 'https://agreeable-hill-0d3115b0f.7.azurestaticapps.net' }}
+  VOICE_URL: ${{ github.event.inputs.voice_url || vars.HEALTHQ_VOICE_URL || '' }}
+  TRIAGE_URL: ${{ github.event.inputs.triage_url || vars.HEALTHQ_TRIAGE_URL || '' }}
+  SCHEDULING_URL: ${{ github.event.inputs.scheduling_url || vars.HEALTHQ_SCHEDULING_URL || '' }}
+  POPHEALTH_URL: ${{ github.event.inputs.pophealth_url || vars.HEALTHQ_POPHEALTH_URL || '' }}
+  REVENUE_URL: ${{ github.event.inputs.revenue_url || vars.HEALTHQ_REVENUE_URL || '' }}
+  ENCOUNTERS_URL: ${{ github.event.inputs.encounters_url || vars.HEALTHQ_ENCOUNTERS_URL || '' }}
+  ENGAGEMENT_URL: ${{ github.event.inputs.engagement_url || vars.HEALTHQ_ENGAGEMENT_URL || '' }}
 
   # Thresholds
   COVERAGE_MIN: '80'
@@ -98,6 +99,33 @@ env:
   PG_RTO_MIN: '30'
 
 jobs:
+  validate-target-endpoints:
+    name: Validate Target Endpoint Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate required URL inputs/variables
+        run: |
+          MISSING=0
+          for key in APIM_BASE SHELL_URL GATEWAY_URL VOICE_URL TRIAGE_URL SCHEDULING_URL POPHEALTH_URL REVENUE_URL ENCOUNTERS_URL ENGAGEMENT_URL; do
+            value="${!key}"
+            if [ -z "$value" ]; then
+              echo "::error::$key is required. Provide workflow input or repository variable."
+              MISSING=1
+              continue
+            fi
+            case "$value" in
+              http://*|https://*) ;;
+              *)
+                echo "::error::$key must be an absolute http(s) URL (received: $value)"
+                MISSING=1
+                ;;
+            esac
+          done
+
+          if [ "$MISSING" -ne 0 ]; then
+            exit 1
+          fi
+
   # ── Gate 1: Unit test coverage ≥ 80% ────────────────────────────────────────
   gate-coverage:
     name: 'Gate 1: Unit Test Coverage ≥ 80%'
@@ -206,6 +234,7 @@ jobs:
   gate-zap:
     name: 'Gate 3: OWASP ZAP 0 HIGH Findings'
     runs-on: ubuntu-latest
+    needs: validate-target-endpoints
     outputs:
       passed: ${{ steps.check.outputs.passed }}
       high: ${{ steps.check.outputs.high }}
@@ -237,6 +266,7 @@ jobs:
   gate-lighthouse:
     name: 'Gate 4: Lighthouse Performance ≥ 90'
     runs-on: ubuntu-latest
+    needs: validate-target-endpoints
     outputs:
       passed: ${{ steps.check.outputs.passed }}
     steps:
@@ -304,6 +334,7 @@ jobs:
   gate-k6:
     name: 'Gate 5: k6 P95 < 2s @ 100 VUs'
     runs-on: ubuntu-latest
+    needs: validate-target-endpoints
     outputs:
       passed: ${{ steps.check.outputs.passed }}
     steps:
@@ -491,6 +522,7 @@ jobs:
     needs:
       - gate-coverage
       - gate-trivy
+      - validate-target-endpoints
       - gate-zap
       - gate-lighthouse
       - gate-k6
@@ -522,12 +554,19 @@ jobs:
           echo "g6=$G6" >> "$GITHUB_OUTPUT"
 
           ALL_GREEN=true
-          for G in "$G1" "$G2" "$G3" "$G4" "$G5" "$G6"; do
-            if [ "$G" = "false" ]; then
+          for G in "$G1" "$G2" "$G3" "$G4" "$G5"; do
+            if [ "$G" != "true" ]; then
               ALL_GREEN=false
               break
             fi
           done
+
+          if [ "$ALL_GREEN" = "true" ]; then
+            if [ "$G6" != "true" ] && [ "$G6" != "attested" ]; then
+              ALL_GREEN=false
+            fi
+          fi
+
           echo "all_green=$ALL_GREEN" >> "$GITHUB_OUTPUT"
 
       - name: Write go-live summary

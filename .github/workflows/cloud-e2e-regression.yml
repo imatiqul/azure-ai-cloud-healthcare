@@ -63,17 +63,18 @@ defaults:
     working-directory: frontend
 
 env:
-  # Resolution order: workflow_dispatch input -> repository variable -> baked-in default
-  SHELL_URL: ${{ github.event.inputs.shell_url || vars.HEALTHQ_SHELL_URL || 'https://gentle-tree-03115af0f.7.azurestaticapps.net' }}
-  VOICE_URL: ${{ github.event.inputs.voice_url || vars.HEALTHQ_VOICE_URL || 'https://happy-smoke-0ba02780f.7.azurestaticapps.net' }}
-  TRIAGE_URL: ${{ github.event.inputs.triage_url || vars.HEALTHQ_TRIAGE_URL || 'https://brave-hill-0d76ab10f.7.azurestaticapps.net' }}
-  SCHEDULING_URL: ${{ github.event.inputs.scheduling_url || vars.HEALTHQ_SCHEDULING_URL || 'https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net' }}
-  POPHEALTH_URL: ${{ github.event.inputs.pophealth_url || vars.HEALTHQ_POPHEALTH_URL || 'https://orange-bay-00f28280f.7.azurestaticapps.net' }}
-  REVENUE_URL: ${{ github.event.inputs.revenue_url || vars.HEALTHQ_REVENUE_URL || 'https://lemon-pond-067d2f40f.7.azurestaticapps.net' }}
-  ENCOUNTERS_URL: ${{ github.event.inputs.encounters_url || vars.HEALTHQ_ENCOUNTERS_URL || 'https://calm-river-02bddc70f.7.azurestaticapps.net' }}
-  ENGAGEMENT_URL: ${{ github.event.inputs.engagement_url || vars.HEALTHQ_ENGAGEMENT_URL || 'https://agreeable-hill-0d3115b0f.7.azurestaticapps.net' }}
-  GATEWAY_ACA_URL: ${{ github.event.inputs.gateway_aca_url || vars.HEALTHQ_GATEWAY_ACA_URL || 'https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io' }}
-  API_BASE_URL: ${{ github.event.inputs.api_base_url || vars.HEALTHQ_API_BASE_URL || 'https://healthq-copilot-apim.azure-api.net' }}
+  # Resolution order: workflow_dispatch input -> repository variable.
+  # No hardcoded production-like fallback endpoints are used.
+  SHELL_URL: ${{ github.event.inputs.shell_url || vars.HEALTHQ_SHELL_URL || '' }}
+  VOICE_URL: ${{ github.event.inputs.voice_url || vars.HEALTHQ_VOICE_URL || '' }}
+  TRIAGE_URL: ${{ github.event.inputs.triage_url || vars.HEALTHQ_TRIAGE_URL || '' }}
+  SCHEDULING_URL: ${{ github.event.inputs.scheduling_url || vars.HEALTHQ_SCHEDULING_URL || '' }}
+  POPHEALTH_URL: ${{ github.event.inputs.pophealth_url || vars.HEALTHQ_POPHEALTH_URL || '' }}
+  REVENUE_URL: ${{ github.event.inputs.revenue_url || vars.HEALTHQ_REVENUE_URL || '' }}
+  ENCOUNTERS_URL: ${{ github.event.inputs.encounters_url || vars.HEALTHQ_ENCOUNTERS_URL || '' }}
+  ENGAGEMENT_URL: ${{ github.event.inputs.engagement_url || vars.HEALTHQ_ENGAGEMENT_URL || '' }}
+  GATEWAY_ACA_URL: ${{ github.event.inputs.gateway_aca_url || vars.HEALTHQ_GATEWAY_ACA_URL || '' }}
+  API_BASE_URL: ${{ github.event.inputs.api_base_url || vars.HEALTHQ_API_BASE_URL || '' }}
   CLOUD_REGRESSION_SPECS: >-
     e2e-cloud/mfe-integration.spec.ts
     e2e-cloud/phase41-features.spec.ts
@@ -165,6 +166,29 @@ jobs:
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
+
+      - name: Validate endpoint configuration
+        run: |
+          MISSING=0
+          for key in SHELL_URL VOICE_URL TRIAGE_URL SCHEDULING_URL POPHEALTH_URL REVENUE_URL ENCOUNTERS_URL ENGAGEMENT_URL GATEWAY_ACA_URL API_BASE_URL; do
+            value="${!key}"
+            if [ -z "$value" ]; then
+              echo "::error::$key is required. Set the workflow input or repository variable."
+              MISSING=1
+              continue
+            fi
+            case "$value" in
+              http://*|https://*) ;;
+              *)
+                echo "::error::$key must be an absolute http(s) URL (received: $value)"
+                MISSING=1
+                ;;
+            esac
+          done
+
+          if [ "$MISSING" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Wait for shell SWA warmup
         run: |
