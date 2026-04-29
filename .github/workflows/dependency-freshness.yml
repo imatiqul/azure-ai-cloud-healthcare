@@ -13,6 +13,11 @@ name: Dependency Freshness Audit
 on:
   schedule:
     - cron: '0 7 * * 4'    # Thursday 07:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - '.github/workflows/dependency-freshness.yml'
   pull_request:
     branches: [main]
     paths:
