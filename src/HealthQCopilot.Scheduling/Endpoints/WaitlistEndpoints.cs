@@ -43,6 +43,34 @@ public static class WaitlistEndpoints
             "Enqueues a patient for the next available slot with the specified practitioner " +
             "in the preferred date window. Priority 1 = urgent, 5 = routine.");
 
+        // ── GET /waitlist — all current waiting entries (dashboard alerts) ───
+        group.MapGet("/", async (
+            SchedulingDbContext db,
+            CancellationToken ct,
+            int top = 100) =>
+        {
+            var entries = await db.WaitlistEntries
+                .Where(w => w.Status == WaitlistStatus.Waiting)
+                .OrderBy(w => w.Priority)
+                .ThenBy(w => w.CreatedAt)
+                .Take(Math.Clamp(top, 1, 500))
+                .ToListAsync(ct);
+
+            return Results.Ok(entries.Select(e => new
+            {
+                e.Id,
+                e.PatientId,
+                e.PractitionerId,
+                PreferredDateFrom = e.PreferredDateFrom.ToString("yyyy-MM-dd"),
+                PreferredDateTo = e.PreferredDateTo.ToString("yyyy-MM-dd"),
+                e.Priority,
+                e.Reason,
+                Status = e.Status.ToString(),
+                EnqueuedAt = e.CreatedAt,
+            }));
+        })
+        .WithSummary("List active waitlist entries");
+
         // ── GET /waitlist/{patientId} — patient's waiting entries ─────────────
         group.MapGet("/{patientId}", async (
             string patientId,
