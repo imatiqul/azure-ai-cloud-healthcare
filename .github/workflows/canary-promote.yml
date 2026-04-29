@@ -123,9 +123,21 @@ jobs:
 
             if [ -z "$STABLE_REV" ]; then
               echo "Only one revision found for $SVC — promoting directly to 100%"
-              az containerapp ingress traffic set \
+              # Single-revision mode (the default for ACA apps that haven't
+              # been opted into canary) does not support `ingress traffic set`.
+              # Detect the mode and skip the traffic-shift call instead of
+              # failing the whole promotion.
+              REV_MODE="$(az containerapp show \
                 --name "$SVC" --resource-group "$ACA_RG" \
-                --revision-weight "${CANARY_REV}=100"
+                --query "properties.configuration.activeRevisionsMode" \
+                -o tsv 2>/dev/null || echo "single")"
+              if [ "${REV_MODE,,}" = "multiple" ]; then
+                az containerapp ingress traffic set \
+                  --name "$SVC" --resource-group "$ACA_RG" \
+                  --revision-weight "${CANARY_REV}=100"
+              else
+                echo "  ── $SVC is in single-revision mode; latest revision already serves 100% traffic"
+              fi
               echo "✅ $SVC promoted to 100% (single revision)"
               continue
             fi
