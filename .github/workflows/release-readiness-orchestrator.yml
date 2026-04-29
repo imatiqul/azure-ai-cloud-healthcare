@@ -44,11 +44,11 @@ jobs:
       failed_count: ${{ steps.evaluate.outputs.failed_count }}
       failed_workflows: ${{ steps.evaluate.outputs.failed_workflows }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Evaluate required workflow gates
         id: evaluate
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -173,7 +173,7 @@ jobs:
     if: always() && needs.evaluate-readiness.outputs.ready != 'true' && github.event.inputs.create_failure_issue == 'true'
     steps:
       - name: Create issue for failed readiness
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;

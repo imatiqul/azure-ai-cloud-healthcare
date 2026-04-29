@@ -34,8 +34,8 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/login@v2
+      - uses: actions/checkout@v6
+      - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -45,7 +45,7 @@ jobs:
         run: az bicep install --version ${{ env.BICEP_CLI_VERSION }}
 
       - name: Setup Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
         with:
           version: v3.17.3
 
@@ -84,7 +84,7 @@ jobs:
           test -s /tmp/healthq-copilot.rendered.yaml
 
       - name: Upload rendered Helm manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: helm-rendered-${{ inputs.environment || 'dev' }}
           path: /tmp/healthq-copilot.rendered.yaml
@@ -149,7 +149,7 @@ jobs:
           echo "Release evidence checklist generated at /tmp/release-evidence/release-checklist.md"
 
       - name: Upload release evidence checklist
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-evidence-${{ inputs.environment || 'dev' }}-${{ github.sha }}
           path: /tmp/release-evidence/release-checklist.md
@@ -165,8 +165,8 @@ jobs:
       aks_cluster_name: ${{ steps.deploy.outputs.aksClusterName }}
       acr_login_server: ${{ steps.deploy.outputs.acrLoginServer }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/login@v2
+      - uses: actions/checkout@v6
+      - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -194,8 +194,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || 'dev' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/login@v2
+      - uses: actions/checkout@v6
+      - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -291,9 +291,9 @@ jobs:
     env:
       APIM_NAME: healthqcopilot-${{ inputs.environment || 'dev' }}-apim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}

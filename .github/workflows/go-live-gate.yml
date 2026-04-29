@@ -134,13 +134,13 @@ jobs:
       passed: ${{ steps.check.outputs.passed }}
       coverage: ${{ steps.check.outputs.coverage }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -194,10 +194,10 @@ jobs:
       passed: ${{ steps.check.outputs.passed }}
       critical: ${{ steps.check.outputs.critical }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@v0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -239,10 +239,10 @@ jobs:
       passed: ${{ steps.check.outputs.passed }}
       high: ${{ steps.check.outputs.high }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run ZAP Full Scan
-        uses: zaproxy/action-full-scan@v0.12.0
+        uses: zaproxy/action-full-scan@v0.13.0
         with:
           target: ${{ env.APIM_BASE }}
           rules_file_name: '.github/zap-rules.tsv'
@@ -270,7 +270,7 @@ jobs:
     outputs:
       passed: ${{ steps.check.outputs.passed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install LHCI
         run: npm install -g @lhci/cli@0.14.x
@@ -338,7 +338,7 @@ jobs:
     outputs:
       passed: ${{ steps.check.outputs.passed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install k6
         run: |
@@ -426,12 +426,12 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Azure login (OIDC)
         id: azure-login
         continue-on-error: true
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -440,7 +440,7 @@ jobs:
       - name: Azure login (fallback)
         if: steps.azure-login.outcome != 'success'
         continue-on-error: true
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -530,7 +530,7 @@ jobs:
       - gate-dr-skipped
     if: always()
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Collect gate results
         id: gates
@@ -604,7 +604,7 @@ jobs:
 
       - name: Create GitHub Release (go-live tag)
         if: steps.gates.outputs.all_green == 'true' && github.event.inputs.dry_run != 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const tag = '${{ github.event.inputs.release_tag }}' ||

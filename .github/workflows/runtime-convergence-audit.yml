@@ -22,11 +22,11 @@ jobs:
   audit-runtime-convergence:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Evaluate runtime convergence criteria
         id: convergence
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -110,7 +110,7 @@ jobs:
 
       - name: Upload runtime convergence artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.convergence.outputs.report_name }}
           path: ${{ steps.convergence.outputs.report_path }}

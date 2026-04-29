@@ -94,7 +94,7 @@ jobs:
     steps:
       - name: Verify triggering Cloud E2E run executed live smoke
         id: check
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           result-encoding: string
           script: |
@@ -147,15 +147,15 @@ jobs:
     timeout-minutes: 25
     if: needs.cloud-e2e-gate.outputs.ready == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
@@ -251,7 +251,7 @@ jobs:
           echo "Trigger: ${{ github.event_name }} | Branch: ${{ github.event.workflow_run.head_branch || github.ref_name }} | SHA: ${{ github.event.workflow_run.head_sha || github.sha }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload regression diagnostics bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ always() && !cancelled() }}
         with:
           name: cloud-e2e-regression-diagnostics-${{ github.run_number }}
@@ -263,7 +263,7 @@ jobs:
           retention-days: 14
 
       - name: Upload regression HTML report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: cloud-e2e-regression-report-${{ github.run_number }}
@@ -271,7 +271,7 @@ jobs:
           retention-days: 14
 
       - name: Upload regression JSON results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: cloud-e2e-regression-results-json-${{ github.run_number }}
