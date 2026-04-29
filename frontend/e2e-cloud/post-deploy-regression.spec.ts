@@ -89,6 +89,10 @@ function collectAsset404s(page: import('@playwright/test').Page) {
     // Ignore expected API 404s — only care about static assets
     if (/\/api\/v1\//.test(url)) return;
     if (/healthq-copilot-apim\.azure-api\.net/.test(url)) return;
+    // GraphQL endpoint on the YARP gateway is a backend route, not a static asset.
+    // It currently returns 404 (no BFF wired) but components handle that via
+    // demo-data fallback, so it must not fail the "missing chunk" check.
+    if (/\/graphql(\?|$)/.test(url)) return;
     asset404s.push(url);
   });
   return asset404s;
