@@ -33,9 +33,9 @@ var app = builder.Build();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseCors();
 app.UseRateLimiter();
+app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseRouting();
 
 // SignalR hub — handled locally, not proxied through YARP
 // Require auth on the hub; clients must pass a valid bearer token.
