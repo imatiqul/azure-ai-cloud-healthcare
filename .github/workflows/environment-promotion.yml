@@ -3,7 +3,8 @@ name: Environment Promotion
 # Enforces a structured dev → staging → production promotion pipeline.
 # Each stage requires all prior quality gates to be green before
 # the promotion token is granted.  Production promotion also requires
-# a manual approval from a CODEOWNERS member.
+# a manual approval from a CODEOWNERS member and a passing
+# release-readiness-orchestrator run.
 #
 # Triggers
 #   push / main  — re-evaluates dev gate; staging / prod are manual.
@@ -237,7 +238,8 @@ jobs:
               };
             }
 
-            const [releaseAudit, dora, scorecard, securityPosture] = await Promise.all([
+            const [releaseReadiness, releaseAudit, dora, scorecard, securityPosture] = await Promise.all([
+              latestPassOnMain('release-readiness-orchestrator.yml'),
               latestPassOnMain('release-gate-policy-audit.yml'),
               latestPassOnMain('dora-metrics.yml'),
               latestPassOnMain('weekly-platform-scorecard.yml'),
@@ -245,6 +247,7 @@ jobs:
             ]);
 
             const gates = [
+              { name: 'Release Readiness Orchestrator', ...releaseReadiness },
               { name: 'Release Gate Policy Audit', ...releaseAudit },
               { name: 'DORA Metrics', ...dora },
               { name: 'Weekly Platform Scorecard', ...scorecard },

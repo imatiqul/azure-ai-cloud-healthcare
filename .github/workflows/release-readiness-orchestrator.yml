@@ -4,6 +4,8 @@ name: Release Readiness Orchestrator
 # completed runs for required workflow gates on main.
 
 on:
+  schedule:
+    - cron: '0 5 * * *'
   workflow_dispatch:
     inputs:
       target_environment:

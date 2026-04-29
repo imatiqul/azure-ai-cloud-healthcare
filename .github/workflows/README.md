@@ -44,8 +44,8 @@ This catalog describes all CI/CD and quality workflows in this repository.
 | `rollback-drill-readiness.yml` | `schedule`, `workflow_dispatch` | Evaluates rollback drill cadence and MTTR readiness thresholds and publishes readiness artifact. |
 | `dora-metrics.yml` | `schedule`, `workflow_dispatch` | Calculates the four DORA metrics (deployment frequency, lead time, change failure rate, MTTR) and publishes artifact. |
 | `slo-error-budget.yml` | `schedule`, `workflow_dispatch` | Computes availability SLI from Cloud E2E and route probe run history; alerts when 28-day error budget < 20% remaining. |
-| `release-readiness-orchestrator.yml` | `workflow_dispatch` | Aggregates required gate workflows by environment tier (dev/staging/production) and emits a single release go/no-go decision. Optionally opens a triage issue on failure. |
-| `environment-promotion.yml` | `push` to `main`, `workflow_dispatch` | Dev → Staging → Production promotion pipeline with automated quality gate checks and environment-protected production approval. |
+| `release-readiness-orchestrator.yml` | `schedule`, `workflow_dispatch` | Aggregates required gate workflows by environment tier (dev/staging/production) and emits a single release go/no-go decision. Optionally opens a triage issue on failure. |
+| `environment-promotion.yml` | `push` to `main`, `workflow_dispatch` | Dev → Staging → Production promotion pipeline with automated quality gate checks, environment-protected production approval, and release-readiness orchestrator enforcement. |
 | `security-scorecard.yml` | `push` to `main`, `schedule`, `workflow_dispatch` | OpenSSF Scorecard supply-chain hygiene check and CodeQL SAST for C# and JavaScript/TypeScript. |
 | `chaos-readiness.yml` | `schedule`, `pull_request`, `workflow_dispatch` | Audits Helm values for readiness/liveness probes, resource requests/limits, and replica redundancy across all 10 services. |
 | `cost-governance.yml` | `schedule`, `pull_request`, `workflow_dispatch` | Audits service resource requests/limits against approved budget thresholds; flags over-budget or misconfigured values. |
