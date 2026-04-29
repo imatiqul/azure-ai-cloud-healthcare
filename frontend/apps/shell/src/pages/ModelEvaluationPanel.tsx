@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@healthcare/design-system';
 import TextField from '@mui/material/TextField';
 import Alert from '@mui/material/Alert';
@@ -12,6 +12,11 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
 
 const DEMO_EVAL_HISTORY: EvalRun[] = [
   { id: 'eval-001', modelRegistryEntryId: 'reg-001', score: 0.91, totalCases: 8, passedCases: 7, passedThreshold: true,  evaluatedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
@@ -50,25 +55,34 @@ export default function ModelEvaluationPanel() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [runError, setRunError] = useState('');
   const [historyError, setHistoryError] = useState('');
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const fetchHistory = useCallback(async () => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoadingHistory(true);
     setHistoryError('');
     try {
-      const res = await fetch(`${API_BASE}/api/v1/agents/governance/evaluate/history?top=10`, { signal: AbortSignal.timeout(10_000) });
+      const res = await fetch(`${API_BASE}/api/v1/agents/governance/evaluate/history?top=10`, { signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as EvalRun[];
-      setHistory(Array.isArray(data) && data.length > 0 ? data : DEMO_EVAL_HISTORY);
-    } catch {
-      setHistory(DEMO_EVAL_HISTORY);
-      setHistoryError('');
+      if (!controller.signal.aborted) setHistory(Array.isArray(data) && data.length > 0 ? data : DEMO_EVAL_HISTORY);
+    } catch (err) {
+      if (!isAbortLikeError(err) && !controller.signal.aborted) setHistory(DEMO_EVAL_HISTORY);
     } finally {
-      setLoadingHistory(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) {
+        inFlightRequest.current = null;
+        setLoadingHistory(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetchHistory();
+    return () => { inFlightRequest.current?.abort(); };
   }, [fetchHistory]);
 
   const runEvaluation = useCallback(async () => {

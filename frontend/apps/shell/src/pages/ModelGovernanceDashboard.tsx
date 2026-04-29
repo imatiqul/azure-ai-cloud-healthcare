@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -11,6 +11,11 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { Card, CardHeader, CardTitle, CardContent } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
 
 const DEMO_REGISTRY: ModelRegistryEntry[] = [
   { id: 'reg-001', modelName: 'ClinicalTriage',   modelVersion: 'v3.2.1', deploymentName: 'healthq-triage-gpt4o',  skVersion: '1.28.0', promptHash: 'sha256:a1b2c3d4', lastEvalScore: 0.91, deployedAt: new Date(Date.now() - 7 * 86400_000).toISOString(),  isActive: true  },
@@ -82,29 +87,37 @@ export default function ModelGovernanceDashboard() {
   const [entries, setEntries] = useState<ModelRegistryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
-  async function fetchEntries() {
+  const fetchEntries = useCallback(async () => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/agents/governance/history`, { signal: AbortSignal.timeout(10_000) });
+      const res = await fetch(`${API_BASE}/api/v1/agents/governance/history`, { signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ModelRegistryEntry[] = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        setEntries(data);
-      } else {
-        setEntries(DEMO_REGISTRY);
+      if (!controller.signal.aborted) {
+        setEntries(Array.isArray(data) && data.length > 0 ? data : DEMO_REGISTRY);
       }
-    } catch {
-      setEntries(DEMO_REGISTRY);
+    } catch (err) {
+      if (!isAbortLikeError(err) && !controller.signal.aborted) setEntries(DEMO_REGISTRY);
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) {
+        inFlightRequest.current = null;
+        setLoading(false);
+      }
     }
-  }
+  }, []);
 
   useEffect(() => {
-    fetchEntries();
-  }, []);
+    void fetchEntries();
+    return () => { inFlightRequest.current?.abort(); };
+  }, [fetchEntries]);
 
   const activeEntries = entries.filter((e) => e.isActive);
   const inactiveEntries = entries.filter((e) => !e.isActive);

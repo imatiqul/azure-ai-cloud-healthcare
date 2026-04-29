@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
@@ -17,6 +17,11 @@ import TableCell from '@mui/material/TableCell';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
 
 const DEMO_AUDIT_SUMMARY: AuditSummaryEntry[] = [
   { userId: 'usr-dr-patel',    httpMethod: 'GET',    count: 147, lastAccessed: new Date(Date.now() - 1 * 3600_000).toISOString() },
@@ -50,26 +55,38 @@ export default function AuditLogPanel() {
   const [exportFrom, setExportFrom] = useState('');
   const [exportTo, setExportTo] = useState('');
   const [exporting, setExporting] = useState(false);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const fetchSummary = useCallback(async () => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/admin/audit/summary?days=${days}`, { signal: AbortSignal.timeout(10_000) });
+      const res = await fetch(`${API_BASE}/api/v1/admin/audit/summary?days=${days}`, { signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: AuditSummaryResponse = await res.json();
-      setSummary(data.summary);
-      setPeriod(data.period);
-    } catch {
-      setSummary(DEMO_AUDIT_SUMMARY);
-      setPeriod('Last 30 days (demo)');
-      setError(null);
+      if (!controller.signal.aborted) { setSummary(data.summary); setPeriod(data.period); }
+    } catch (err) {
+      if (!isAbortLikeError(err) && !controller.signal.aborted) {
+        setSummary(DEMO_AUDIT_SUMMARY);
+        setPeriod('Last 30 days (demo)');
+      }
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) {
+        inFlightRequest.current = null;
+        setLoading(false);
+      }
     }
   }, [days]);
 
-  useEffect(() => { fetchSummary(); }, [fetchSummary]);
+  useEffect(() => {
+    void fetchSummary();
+    return () => { inFlightRequest.current?.abort(); };
+  }, [fetchSummary]);
 
   async function exportCsv() {
     setExporting(true);

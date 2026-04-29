@@ -396,6 +396,7 @@ export default function WorkflowOperationsWorkbench() {
   const [auditLogWorkflowId, setAuditLogWorkflowId] = useState<string | null>(null);
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   const [auditLogLoading, setAuditLogLoading] = useState(false);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   // ── Real-time workflow updates via Web PubSub ────────────────────────────
   const { lastUpdate, connectionState, clearLiveCache } = useWorkflowOpsStream('supervisor', !usingDemo);
@@ -427,14 +428,18 @@ export default function WorkflowOperationsWorkbench() {
   }, [lastUpdate]);
 
   const loadWorkbench = useCallback(async () => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setError('');
     clearLiveCache();
 
     try {
       const [summaryResponse, workflowResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/v1/agents/workflows/summary`, { signal: AbortSignal.timeout(8_000) }),
-        fetch(`${API_BASE}/api/v1/agents/workflows?top=80`, { signal: AbortSignal.timeout(8_000) }),
+        fetch(`${API_BASE}/api/v1/agents/workflows/summary`, { signal: controller.signal }),
+        fetch(`${API_BASE}/api/v1/agents/workflows?top=80`, { signal: controller.signal }),
       ]);
 
       if (!summaryResponse.ok || !workflowResponse.ok) {
@@ -452,21 +457,31 @@ export default function WorkflowOperationsWorkbench() {
         throw new Error('Workflow operations data is incomplete.');
       }
 
-      setSummary(nextSummary);
-      setWorkflows(nextWorkflows);
-      setUsingDemo(false);
-    } catch {
-      setSummary(DEMO_SUMMARY);
-      setWorkflows(DEMO_WORKFLOWS);
-      setUsingDemo(true);
-      setError('Showing fallback workflow operations data because the live endpoints are unavailable.');
+      if (!controller.signal.aborted) {
+        setSummary(nextSummary);
+        setWorkflows(nextWorkflows);
+        setUsingDemo(false);
+      }
+    } catch (err) {
+      if (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'TimeoutError')) return;
+      if (!controller.signal.aborted) {
+        setSummary(DEMO_SUMMARY);
+        setWorkflows(DEMO_WORKFLOWS);
+        setUsingDemo(true);
+        setError('Showing fallback workflow operations data because the live endpoints are unavailable.');
+      }
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) {
+        inFlightRequest.current = null;
+        setLoading(false);
+      }
     }
   }, [clearLiveCache]);
 
   useEffect(() => {
     void loadWorkbench();
+    return () => { inFlightRequest.current?.abort(); };
   }, [loadWorkbench]);
 
   const filteredWorkflows = useMemo(

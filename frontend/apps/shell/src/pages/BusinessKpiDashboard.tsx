@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, useRef, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
@@ -180,9 +180,9 @@ function SectionHeader({ title, accent }: { title: string; accent: string }) {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-async function safeFetch<T>(path: string): Promise<T | null> {
+async function safeFetch<T>(path: string, signal?: AbortSignal): Promise<T | null> {
   try {
-    const res = await fetch(`${API_BASE}${path}`, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(`${API_BASE}${path}`, { signal });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -268,25 +268,33 @@ export default function BusinessKpiDashboard() {
   const [loading, setLoading] = useState(true);
   const [kpi, setKpi] = useState<KpiData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const fetchAll = useCallback(async () => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 15_000);
     setLoading(true);
     setError(null);
 
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const sig = controller.signal;
 
     const [tenants, users, feedback, denials, delivery, demo, models, campaigns, workflowSummary] =
       await Promise.allSettled([
-        safeFetch<TenantsResponse>('/api/v1/tenants?page=1&pageSize=1'),
-        safeFetch<UsersResponse>('/api/v1/identity/users?pageSize=1'),
-        safeFetch<FeedbackSummary>(`/api/v1/agents/feedback/summary?since=${since30d}`),
-        safeFetch<DenialAnalytics>('/api/v1/revenue/denials/analytics'),
-        safeFetch<DeliveryAnalytics>('/api/v1/notifications/analytics/delivery'),
-        safeFetch<DemoSession[]>('/api/v1/agents/demo/sessions'),
-        safeFetch<ModelRegistryEntry[]>('/api/v1/agents/governance/history'),
-        safeFetch<Campaign[]>('/api/v1/notifications/campaigns'),
-        safeFetch<WorkflowSummaryMetrics>('/api/v1/agents/workflows/summary'),
+        safeFetch<TenantsResponse>('/api/v1/tenants?page=1&pageSize=1', sig),
+        safeFetch<UsersResponse>('/api/v1/identity/users?pageSize=1', sig),
+        safeFetch<FeedbackSummary>(`/api/v1/agents/feedback/summary?since=${since30d}`, sig),
+        safeFetch<DenialAnalytics>('/api/v1/revenue/denials/analytics', sig),
+        safeFetch<DeliveryAnalytics>('/api/v1/notifications/analytics/delivery', sig),
+        safeFetch<DemoSession[]>('/api/v1/agents/demo/sessions', sig),
+        safeFetch<ModelRegistryEntry[]>('/api/v1/agents/governance/history', sig),
+        safeFetch<Campaign[]>('/api/v1/notifications/campaigns', sig),
+        safeFetch<WorkflowSummaryMetrics>('/api/v1/agents/workflows/summary', sig),
       ]);
+
+    if (controller.signal.aborted) return;
 
     const loaded: KpiData = {
       tenantCount: tenants.status === 'fulfilled' ? (tenants.value?.total ?? null) : null,
@@ -310,10 +318,17 @@ export default function BusinessKpiDashboard() {
       loaded.workflowSummary === null;
 
     setKpi(allNull ? { ...DEMO_KPI, loadedAt: new Date() } : loaded);
-    setLoading(false);
+    clearTimeout(timer);
+    if (inFlightRequest.current === controller) {
+      inFlightRequest.current = null;
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { void fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    void fetchAll();
+    return () => { inFlightRequest.current?.abort(); };
+  }, [fetchAll]);
 
   // ── Derived values ────────────────────────────────────────────────────────
 

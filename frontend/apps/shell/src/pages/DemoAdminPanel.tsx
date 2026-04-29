@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box, Typography, Button, CircularProgress, Alert,
   Card, CardContent, Chip, Table, TableBody, TableCell,
@@ -9,6 +9,11 @@ import InsightsIcon from '@mui/icons-material/Insights';
 import { Badge } from '@healthcare/design-system';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
 
 const DEMO_SESSIONS: DemoSessionSummary[] = [
   { sessionId: 'demo-001', clientName: 'Rachel Kim',     company: 'Apex Health',         status: 'Completed',  lastStep: 'PopulationHealth', npsScore: 9,    avgRating: 4.5, startedAt: new Date(Date.now() - 2 * 86400_000).toISOString(),  completedAt: new Date(Date.now() - 2 * 86400_000 + 35 * 60_000).toISOString() },
@@ -48,23 +53,35 @@ export default function DemoAdminPanel() {
   const [insight, setInsight] = useState<DemoInsight | null>(null);
   const [generatingInsight, setGeneratingInsight] = useState(false);
   const [insightError, setInsightError] = useState<string | null>(null);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const fetchSessions = useCallback(async () => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoadingSessions(true);
     setSessionsError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/agents/demo/sessions`, { signal: AbortSignal.timeout(10_000) });
+      const res = await fetch(`${API_BASE}/api/v1/agents/demo/sessions`, { signal: controller.signal });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const data = await res.json();
-      setSessions(data);
-    } catch {
-      setSessions(DEMO_SESSIONS);
+      if (!controller.signal.aborted) setSessions(data);
+    } catch (err) {
+      if (!isAbortLikeError(err) && !controller.signal.aborted) setSessions(DEMO_SESSIONS);
     } finally {
-      setLoadingSessions(false);
+      clearTimeout(timer);
+      if (inFlightRequest.current === controller) {
+        inFlightRequest.current = null;
+        setLoadingSessions(false);
+      }
     }
   }, []);
 
-  useEffect(() => { fetchSessions(); }, [fetchSessions]);
+  useEffect(() => {
+    void fetchSessions();
+    return () => { inFlightRequest.current?.abort(); };
+  }, [fetchSessions]);
 
   const generateInsights = useCallback(async () => {
     setGeneratingInsight(true);
