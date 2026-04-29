@@ -4,7 +4,7 @@ services:
       tag: 392b765c6e11c56bc1e102993adeb054988fb6d4
   ocr:
     image:
-      tag: 0ef0b49912ba8330a2df5cfea60ba2ca6ba05af1
+      tag: cab052d118a035f0586cfa23a1f1d26617a92a25
   fhir:
     image:
       tag: c802f67864914d857b5a896c0929d052e0d9c65c
