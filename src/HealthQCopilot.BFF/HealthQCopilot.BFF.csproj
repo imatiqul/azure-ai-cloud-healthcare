@@ -6,10 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- GraphQL server — Hot Chocolate -->
-    <PackageReference Include="HotChocolate.AspNetCore"                 Version="15.0.0" />
-    <PackageReference Include="HotChocolate.Data"                       Version="15.0.0" />
-    <PackageReference Include="HotChocolate.Subscriptions.InMemory"     Version="15.0.0" />
+    <!-- GraphQL server — Hot Chocolate (15.1.14 fixes CVE-2026-40324 CRITICAL stack overflow in Utf8GraphQLParser) -->
+    <PackageReference Include="HotChocolate.AspNetCore"                 Version="15.1.14" />
+    <PackageReference Include="HotChocolate.Data"                       Version="15.1.14" />
+    <PackageReference Include="HotChocolate.Subscriptions.InMemory"     Version="15.1.14" />
     <!-- HTTP downstream clients -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi"            Version="10.0.0" />
   </ItemGroup>
