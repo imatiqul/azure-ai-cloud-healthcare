@@ -116,11 +116,12 @@ export default function AdminSettings() {
         </Typography>
         <Stack gap={0.5}>
           <FormControlLabel
+            data-testid="alert-denials"
             control={
               <Switch
                 checked={alertDenials}
                 onChange={e => handleToggle(setAlertDenials)(e.target.checked)}
-                inputProps={{ 'aria-label': 'alert-denials' }}
+                slotProps={{ input: { 'aria-label': 'alert-denials', 'data-testid': 'alert-denials-input' } as any }}
               />
             }
             label={
@@ -132,11 +133,12 @@ export default function AdminSettings() {
           />
           <Divider sx={{ my: 0.5 }} />
           <FormControlLabel
+            data-testid="alert-triage"
             control={
               <Switch
                 checked={alertTriage}
                 onChange={e => handleToggle(setAlertTriage)(e.target.checked)}
-                inputProps={{ 'aria-label': 'alert-triage' }}
+                slotProps={{ input: { 'aria-label': 'alert-triage', 'data-testid': 'alert-triage-input' } as any }}
               />
             }
             label={
@@ -148,11 +150,12 @@ export default function AdminSettings() {
           />
           <Divider sx={{ my: 0.5 }} />
           <FormControlLabel
+            data-testid="alert-delivery"
             control={
               <Switch
                 checked={alertDelivery}
                 onChange={e => handleToggle(setAlertDelivery)(e.target.checked)}
-                inputProps={{ 'aria-label': 'alert-delivery' }}
+                slotProps={{ input: { 'aria-label': 'alert-delivery', 'data-testid': 'alert-delivery-input' } as any }}
               />
             }
             label={

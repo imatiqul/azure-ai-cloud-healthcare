@@ -114,7 +114,9 @@ test.describe('Platform Action Coverage — Cloud', () => {
         }
 
         await openRoute(page, action.route);
-        const toggle = page.locator(`[aria-label="${action.ariaLabel}"]`).first();
+        const toggle = page
+          .locator(`[data-testid="${action.ariaLabel}-input"], input[aria-label="${action.ariaLabel}"], [aria-label="${action.ariaLabel}"]`)
+          .first();
         await expect(toggle).toBeVisible({ timeout: 20_000 });
         const checkedBefore = await toggle.isChecked();
         await toggle.click();
