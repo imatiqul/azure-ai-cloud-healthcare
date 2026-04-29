@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
@@ -24,14 +24,31 @@ interface AlertCounts {
   nearDeadlineDenials: number;
 }
 
-async function fetchCount(url: string): Promise<{ count: number; ok: boolean }> {
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
+
+async function fetchCount(url: string, signal: AbortSignal): Promise<{ count: number; ok: boolean }> {
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(url, { signal });
     if (!res.ok) return { count: 0, ok: false };
     const data = await res.json();
     return { count: Array.isArray(data) ? data.length : 0, ok: true };
-  } catch {
+  } catch (error) {
+    if (isAbortLikeError(error) || signal.aborted) {
+      throw error;
+    }
     return { count: 0, ok: false };
+  }
+}
+
+function persistAlertCount(total: number): void {
+  try {
+    localStorage.setItem('hq:alerts-count', String(total));
+    window.dispatchEvent(new CustomEvent('hq:alerts-updated'));
+  } catch {
+    // ignore storage failures
   }
 }
 
@@ -45,49 +62,71 @@ export function ClinicalAlertsSummaryWidget() {
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const backendOnline = useGlobalStore(s => s.backendOnline);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
+  const load = useCallback(async () => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
+    setLoading(true);
+    try {
       // Skip all API calls when backend is known offline — use demo counts immediately
       if (backendOnline === false) {
-        setCounts({ criticalRisk: 5, activeBreakGlass: 2, urgentWaitlist: 3, nearDeadlineDenials: 2 });
-        try {
-          localStorage.setItem('hq:alerts-count', '12');
-          window.dispatchEvent(new CustomEvent('hq:alerts-updated'));
-        } catch { /* ignore */ }
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setCounts({ criticalRisk: 5, activeBreakGlass: 2, urgentWaitlist: 3, nearDeadlineDenials: 2 });
+          setHasError(false);
+          persistAlertCount(12);
+        }
         return;
       }
+
       const [risks, breakGlass, waitlist, denials] = await Promise.all([
-        fetchCount(`${API_BASE}/api/v1/population-health/risks?top=20`),
-        fetchCount(`${API_BASE}/api/v1/identity/break-glass`),
-        fetchCount(`${API_BASE}/api/v1/scheduling/waitlist`),
-        fetchCount(`${API_BASE}/api/v1/revenue/denials`),
+        fetchCount(`${API_BASE}/api/v1/population-health/risks?top=20`, controller.signal),
+        fetchCount(`${API_BASE}/api/v1/identity/break-glass`, controller.signal),
+        fetchCount(`${API_BASE}/api/v1/scheduling/waitlist`, controller.signal),
+        fetchCount(`${API_BASE}/api/v1/revenue/denials`, controller.signal),
       ]);
+
+      if (controller.signal.aborted) return;
+
       const allFailed = [risks, breakGlass, waitlist, denials].every(r => !r.ok);
       if (allFailed) {
         // Backend offline — show demo counts so the widget is meaningful
         setCounts({ criticalRisk: 5, activeBreakGlass: 2, urgentWaitlist: 3, nearDeadlineDenials: 2 });
-        try {
-          localStorage.setItem('hq:alerts-count', '12');
-          window.dispatchEvent(new CustomEvent('hq:alerts-updated'));
-        } catch { /* ignore */ }
+        setHasError(false);
+        persistAlertCount(12);
       } else {
         const anyFailed = [risks, breakGlass, waitlist, denials].some(r => !r.ok);
         setHasError(anyFailed);
         setCounts({ criticalRisk: risks.count, activeBreakGlass: breakGlass.count, urgentWaitlist: waitlist.count, nearDeadlineDenials: denials.count });
         // Persist total for the sidebar alert badge (Phase 53)
-        try {
-          const total = risks.count + breakGlass.count + waitlist.count + denials.count;
-          localStorage.setItem('hq:alerts-count', String(total));
-          window.dispatchEvent(new CustomEvent('hq:alerts-updated'));
-        } catch { /* ignore */ }
+        const total = risks.count + breakGlass.count + waitlist.count + denials.count;
+        persistAlertCount(total);
       }
-      setLoading(false);
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        return;
+      }
+      setHasError(true);
+    } finally {
+      window.clearTimeout(timeoutId);
+      if (inFlightRequest.current === controller) {
+        inFlightRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
-    void load();
   }, [backendOnline]);
+
+  useEffect(() => {
+    void load();
+    return () => {
+      inFlightRequest.current?.abort();
+    };
+  }, [load]);
 
   const total = counts.criticalRisk + counts.activeBreakGlass + counts.urgentWaitlist + counts.nearDeadlineDenials;
 

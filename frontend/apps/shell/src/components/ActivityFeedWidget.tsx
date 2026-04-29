@@ -7,7 +7,7 @@
  * colour-coded chronological feed with deep-links to the relevant pages.
  * Refreshes on demand via the Refresh icon button.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -79,28 +79,36 @@ function formatTimeAgo(dateStr: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-async function fetchSafe<T>(url: string, fallback: T, failedSources?: string[], sourceName?: string): Promise<T> {
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
+
+async function fetchSafe<T>(url: string, fallback: T, signal: AbortSignal, failedSources?: string[], sourceName?: string): Promise<T> {
   try {
-    const res = await fetch(`${API_BASE}${url}`, { signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(`${API_BASE}${url}`, { signal });
     if (!res.ok) { if (failedSources && sourceName) failedSources.push(sourceName); return fallback; }
     return res.json() as Promise<T>;
-  } catch {
+  } catch (error) {
+    if (isAbortLikeError(error) || signal.aborted) {
+      throw error;
+    }
     if (failedSources && sourceName) failedSources.push(sourceName);
     return fallback;
   }
 }
 
-async function buildFeed(): Promise<{ events: ActivityEvent[]; failedSources: string[] }> {
+async function buildFeed(signal: AbortSignal): Promise<{ events: ActivityEvent[]; failedSources: string[] }> {
   const failedSources: string[] = [];
   const [risks, triage, appointments, denials] = await Promise.all([
     fetchSafe<Array<{ patientId: string; riskLevel: string; assessedAt?: string }>>(
-      '/api/v1/population-health/risks?top=5', [], failedSources, 'Population Health'),
+      '/api/v1/population-health/risks?top=5', [], signal, failedSources, 'Population Health'),
     fetchSafe<{ pendingTriage?: number; awaitingReview?: number; completed?: number }>(
-      '/api/v1/agents/stats', {}, failedSources, 'Triage'),
+      '/api/v1/agents/stats', {}, signal, failedSources, 'Triage'),
     fetchSafe<Array<{ id: string; patientId?: string; bookedAt?: string }>>(
-      '/api/v1/scheduling/bookings?top=5', [], failedSources, 'Scheduling'),
+      '/api/v1/scheduling/bookings?top=5', [], signal, failedSources, 'Scheduling'),
     fetchSafe<Array<{ id: string; claimNumber: string; payerName: string; appealDeadline?: string; denialStatus?: string }>>(
-      '/api/v1/revenue/denials?top=5', [], failedSources, 'Revenue'),
+      '/api/v1/revenue/denials?top=5', [], signal, failedSources, 'Revenue'),
   ]);
 
   const events: ActivityEvent[] = [];
@@ -176,29 +184,59 @@ export function ActivityFeedWidget() {
   const [loading, setLoading] = useState(true);
   const [failedSources, setFailedSources] = useState<string[]>([]);
   const backendOnline = useGlobalStore(s => s.backendOnline);
+  const inFlightRequest = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
+    inFlightRequest.current?.abort();
+    const controller = new AbortController();
+    inFlightRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
     setLoading(true);
-    // Skip all API calls when backend is known offline — show demo feed immediately
-    if (backendOnline === false) {
+    try {
+      // Skip all API calls when backend is known offline — show demo feed immediately
+      if (backendOnline === false) {
+        if (!controller.signal.aborted) {
+          setEvents(DEMO_FEED_EVENTS);
+          setFailedSources([]);
+        }
+        return;
+      }
+
+      const result = await buildFeed(controller.signal);
+      if (controller.signal.aborted) return;
+
+      // All 4 sources failed — use demo data so dashboard is never empty
+      if (result.failedSources.length === 4) {
+        setEvents(DEMO_FEED_EVENTS);
+        setFailedSources([]);
+      } else {
+        setEvents(result.events);
+        setFailedSources(result.failedSources);
+      }
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        return;
+      }
       setEvents(DEMO_FEED_EVENTS);
       setFailedSources([]);
-      setLoading(false);
-      return;
+    } finally {
+      window.clearTimeout(timeoutId);
+      if (inFlightRequest.current === controller) {
+        inFlightRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
-    const result = await buildFeed();
-    // All 4 sources failed — use demo data so dashboard is never empty
-    if (result.failedSources.length === 4) {
-      setEvents(DEMO_FEED_EVENTS);
-      setFailedSources([]);
-    } else {
-      setEvents(result.events);
-      setFailedSources(result.failedSources);
-    }
-    setLoading(false);
   }, [backendOnline]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+    return () => {
+      inFlightRequest.current?.abort();
+    };
+  }, [load]);
 
   return (
     <Card sx={{ mb: 2 }}>
