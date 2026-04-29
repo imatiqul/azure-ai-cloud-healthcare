@@ -20,6 +20,7 @@ export default defineConfig({
         '@mui/material': { singleton: true },
         '@emotion/react': { singleton: true },
         '@emotion/styled': { singleton: true },
+        '@healthcare/auth-client': { singleton: true },
       },
     }),
   ],

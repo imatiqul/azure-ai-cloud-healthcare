@@ -54,6 +54,7 @@ export default defineConfig({
         'react-dom': { singleton: true },
         zustand: { singleton: true },
         '@microsoft/signalr': { singleton: true },
+        '@healthcare/auth-client': { singleton: true },
       },
     }),
     VitePWA({

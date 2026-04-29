@@ -19,6 +19,7 @@ export default defineConfig({
         'react-dom': { singleton: true },
         zustand: { singleton: true },
         '@azure/web-pubsub-client': { singleton: true },
+        '@healthcare/auth-client': { singleton: true },
       },
     }),
   ],
