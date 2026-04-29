@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@healthcare/design-system';
 import TextField from '@mui/material/TextField';
 import Alert from '@mui/material/Alert';
@@ -60,6 +60,11 @@ const DEMO_TENANTS: TenantSummary[] = [
   { tenantId: 'tenant-003', organisationName: 'Pacific Health Partners',  slug: 'pacific-health',   locale: 'en-US', appConfigLabel: 'pacific-health-config',    dataRegion: 'westus', adminUserId: null },
 ];
 
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
+
 export default function TenantAdminPanel() {
   const [tenants, setTenants] = useState<TenantSummary[]>([]);
   const [total, setTotal] = useState(0);
@@ -71,38 +76,63 @@ export default function TenantAdminPanel() {
   const [submitError, setSubmitError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const listRequest = useRef<AbortController | null>(null);
+  const provisionRequest = useRef<AbortController | null>(null);
+  const deleteRequest = useRef<AbortController | null>(null);
 
   const backendOnline = useGlobalStore(s => s.backendOnline);
 
   const fetchTenants = useCallback(async () => {
-    if (backendOnline === false) {
-      setTenants(DEMO_TENANTS);
-      setTotal(DEMO_TENANTS.length);
-      setLoading(false);
-      return;
-    }
+    listRequest.current?.abort();
+    const controller = new AbortController();
+    listRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/v1/tenants?page=1&pageSize=50`, { signal: AbortSignal.timeout(10_000) });
+      if (backendOnline === false) {
+        if (!controller.signal.aborted) {
+          setTenants(DEMO_TENANTS);
+          setTotal(DEMO_TENANTS.length);
+        }
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/api/v1/tenants?page=1&pageSize=50`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (!res.ok) {
         setError(`Failed to load tenants — HTTP ${res.status}`);
-        setLoading(false);
         return;
       }
       const data = (await res.json()) as TenantsResponse;
+      if (controller.signal.aborted) return;
       setTenants(data.items);
       setTotal(data.total);
-    } catch {
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        return;
+      }
       setTenants(DEMO_TENANTS);
       setTotal(DEMO_TENANTS.length);
     } finally {
-      setLoading(false);
+      window.clearTimeout(timeoutId);
+      if (listRequest.current === controller) {
+        listRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [backendOnline]);
 
   useEffect(() => {
-    fetchTenants();
+    void fetchTenants();
+    return () => {
+      listRequest.current?.abort();
+      provisionRequest.current?.abort();
+      deleteRequest.current?.abort();
+    };
   }, [fetchTenants]);
 
   const openDialog = () => {
@@ -119,11 +149,17 @@ export default function TenantAdminPanel() {
 
   const handleProvision = async () => {
     if (!canSubmit) return;
+
+    provisionRequest.current?.abort();
+    const controller = new AbortController();
+    provisionRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
     setSubmitting(true);
     setSubmitError('');
     try {
       const res = await fetch(`${API_BASE}/api/v1/tenants`, {
-        signal: AbortSignal.timeout(10_000),
+        signal: controller.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -135,14 +171,19 @@ export default function TenantAdminPanel() {
           dataRegion: form.dataRegion,
         }),
       });
+      if (controller.signal.aborted) return;
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
+        if (controller.signal.aborted) return;
         setSubmitError((d as { error?: string }).error ?? `Error ${res.status}`);
         return;
       }
       setDialogOpen(false);
       await fetchTenants();
-    } catch {
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        return;
+      }
       // Backend offline — add tenant locally so provisioning never blocks the demo
       const newTenant: TenantSummary = {
         tenantId: `tenant-demo-${Date.now()}`,
@@ -157,27 +198,48 @@ export default function TenantAdminPanel() {
       setTotal(prev => prev + 1);
       setDialogOpen(false);
     } finally {
-      setSubmitting(false);
+      window.clearTimeout(timeoutId);
+      if (provisionRequest.current === controller) {
+        provisionRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setSubmitting(false);
+      }
     }
   };
 
   const handleDelete = async (id: string) => {
+    deleteRequest.current?.abort();
+    const controller = new AbortController();
+    deleteRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
     setDeleteId(id);
     setDeleting(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/tenants/${id}`, { signal: AbortSignal.timeout(10_000), method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/v1/tenants/${id}`, { signal: controller.signal, method: 'DELETE' });
+      if (controller.signal.aborted) return;
       if (!res.ok && res.status !== 204) {
         setError(`Delete failed — HTTP ${res.status}`);
         return;
       }
       await fetchTenants();
-    } catch {
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        return;
+      }
       // Backend offline — remove from local state
       setTenants(prev => prev.filter(t => t.tenantId !== id));
       setTotal(prev => Math.max(0, prev - 1));
     } finally {
-      setDeleting(false);
-      setDeleteId(null);
+      window.clearTimeout(timeoutId);
+      if (deleteRequest.current === controller) {
+        deleteRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setDeleting(false);
+        setDeleteId(null);
+      }
     }
   };
 

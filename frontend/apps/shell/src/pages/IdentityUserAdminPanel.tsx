@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
@@ -65,6 +65,11 @@ const DEMO_USERS: UserAccount[] = [
   { id: 'usr-006', externalId: 'b2c-usr-clin-admin', email: 'clinadmin@healthq.demo',      displayName: 'Clinical Admin',         role: 'ClinicalAdmin', isActive: false, lastLoginAt: new Date(Date.now() - 14 * 86400_000).toISOString() },
 ];
 
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
+
 export default function IdentityUserAdminPanel() {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [total, setTotal] = useState(0);
@@ -80,42 +85,79 @@ export default function IdentityUserAdminPanel() {
   const [saving, setSaving] = useState(false);
 
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
+  const usersRequest = useRef<AbortController | null>(null);
+  const createRequest = useRef<AbortController | null>(null);
+  const editRequest = useRef<AbortController | null>(null);
+  const deactivateRequest = useRef<AbortController | null>(null);
 
   const fetchUsers = useCallback(async () => {
+    usersRequest.current?.abort();
+    const controller = new AbortController();
+    usersRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/identity/users?page=1&pageSize=50`, { signal: AbortSignal.timeout(10_000) });
+      const res = await fetch(`${API_BASE}/api/v1/identity/users?page=1&pageSize=50`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: UsersResponse = await res.json();
+      if (controller.signal.aborted) return;
       setUsers(data.users);
       setTotal(data.total);
-    } catch {
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        return;
+      }
       setUsers(DEMO_USERS);
       setTotal(DEMO_USERS.length);
       setError(null);
     } finally {
-      setLoading(false);
+      window.clearTimeout(timeoutId);
+      if (usersRequest.current === controller) {
+        usersRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, []);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => {
+    void fetchUsers();
+    return () => {
+      usersRequest.current?.abort();
+      createRequest.current?.abort();
+      editRequest.current?.abort();
+      deactivateRequest.current?.abort();
+    };
+  }, [fetchUsers]);
 
   async function createUser() {
+    createRequest.current?.abort();
+    const controller = new AbortController();
+    createRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
     setCreating(true);
     setError(null);
     try {
       const res = await fetch(`${API_BASE}/api/v1/identity/users`, {
-        signal: AbortSignal.timeout(10_000),
+        signal: controller.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(createForm),
       });
+      if (controller.signal.aborted) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setCreateOpen(false);
       setCreateForm({ externalId: '', email: '', fullName: '', role: 'Clinician' });
       await fetchUsers();
-    } catch {
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        return;
+      }
       // Backend offline — add user locally so administration can continue
       const newUser: UserAccount = {
         id: `usr-demo-${Date.now()}`,
@@ -132,50 +174,88 @@ export default function IdentityUserAdminPanel() {
       setCreateForm({ externalId: '', email: '', fullName: '', role: 'Clinician' });
       setError(null);
     } finally {
-      setCreating(false);
+      window.clearTimeout(timeoutId);
+      if (createRequest.current === controller) {
+        createRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setCreating(false);
+      }
     }
   }
 
   async function saveEdit() {
     if (!editUser) return;
+    const targetUser = editUser;
+
+    editRequest.current?.abort();
+    const controller = new AbortController();
+    editRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/identity/users/${editUser.id}`, {
-        signal: AbortSignal.timeout(10_000),
+      const res = await fetch(`${API_BASE}/api/v1/identity/users/${targetUser.id}`, {
+        signal: controller.signal,
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm),
       });
+      if (controller.signal.aborted) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setEditUser(null);
       await fetchUsers();
-    } catch {
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        return;
+      }
       // Backend offline — update in local state
-      setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, email: editForm.email, displayName: editForm.fullName } : u));
+      setUsers(prev => prev.map(u => u.id === targetUser.id ? { ...u, email: editForm.email, displayName: editForm.fullName } : u));
       setEditUser(null);
       setError(null);
     } finally {
-      setSaving(false);
+      window.clearTimeout(timeoutId);
+      if (editRequest.current === controller) {
+        editRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setSaving(false);
+      }
     }
   }
 
   async function deactivateUser(id: string) {
+    deactivateRequest.current?.abort();
+    const controller = new AbortController();
+    deactivateRequest.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
     setDeactivatingId(id);
     setError(null);
     try {
       const res = await fetch(`${API_BASE}/api/v1/identity/users/${id}/deactivate`, {
-        signal: AbortSignal.timeout(10_000),
+        signal: controller.signal,
         method: 'POST',
       });
+      if (controller.signal.aborted) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await fetchUsers();
-    } catch {
+    } catch (error) {
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        return;
+      }
       // Backend offline — deactivate in local state
       setUsers(prev => prev.map(u => u.id === id ? { ...u, isActive: false } : u));
       setError(null);
     } finally {
-      setDeactivatingId(null);
+      window.clearTimeout(timeoutId);
+      if (deactivateRequest.current === controller) {
+        deactivateRequest.current = null;
+      }
+      if (!controller.signal.aborted) {
+        setDeactivatingId(null);
+      }
     }
   }
 
