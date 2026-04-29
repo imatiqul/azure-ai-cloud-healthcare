@@ -129,10 +129,10 @@ public sealed class QueryType
         RevenueApiClient revenue,
         CancellationToken ct)
     {
-        var agentTask       = agents.GetStatsAsync(ct);
-        var schedulingTask  = scheduling.GetStatsAsync(ct);
-        var popHealthTask   = popHealth.GetStatsAsync(ct);
-        var revenueTask     = revenue.GetStatsAsync(ct);
+        var agentTask = agents.GetStatsAsync(ct);
+        var schedulingTask = scheduling.GetStatsAsync(ct);
+        var popHealthTask = popHealth.GetStatsAsync(ct);
+        var revenueTask = revenue.GetStatsAsync(ct);
 
         await Task.WhenAll(agentTask, schedulingTask, popHealthTask, revenueTask);
 
