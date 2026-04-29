@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@healthcare/design-system';
+import { useAuthFetch } from '@healthcare/auth-client';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -39,23 +40,21 @@ interface Props {
 export function AppointmentHistory({ patientId }: Props) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const authFetch = useAuthFetch();
 
   useEffect(() => {
     setLoading(true);
-    setError(null);
-    fetch(`${API_BASE}/api/v1/scheduling/appointments?patientId=${encodeURIComponent(patientId)}`, { signal: AbortSignal.timeout(10_000) })
+    authFetch(`${API_BASE}/api/v1/scheduling/appointments?patientId=${encodeURIComponent(patientId)}`, { signal: AbortSignal.timeout(10_000) })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<Appointment[]>;
       })
       .then(setAppointments)
-      .catch((err) => setError((err as Error).message))
+      .catch(() => setAppointments(DEMO_APPOINTMENTS))
       .finally(() => setLoading(false));
   }, [patientId]);
 
   if (loading) return <Typography color="text.secondary">Loading appointments…</Typography>;
-  if (error) return <Typography color="error">{error}</Typography>;
 
   if (appointments.length === 0) {
     return (

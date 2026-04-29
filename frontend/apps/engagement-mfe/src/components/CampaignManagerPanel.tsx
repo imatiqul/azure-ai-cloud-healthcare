@@ -16,6 +16,7 @@ import TableRow from '@mui/material/TableRow';
 import IconButton from '@mui/material/IconButton';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@healthcare/design-system';
+import { useAuthFetch } from '@healthcare/auth-client';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -63,6 +64,7 @@ export function CampaignManagerPanel() {
   const [creating, setCreating] = useState(false);
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const inFlightRequest = useRef<AbortController | null>(null);
+  const authFetch = useAuthFetch();
 
   const canCreate = name.trim() !== '' && targetIds.trim() !== '';
 
@@ -74,7 +76,7 @@ export function CampaignManagerPanel() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/notifications/campaigns`, { signal: controller.signal });
+      const res = await authFetch(`${API_BASE}/api/v1/notifications/campaigns`, { signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as CampaignSummary[];
       if (!controller.signal.aborted) setCampaigns(data);
@@ -105,7 +107,7 @@ export function CampaignManagerPanel() {
         .split(',')
         .map(s => s.trim())
         .filter(Boolean);
-      const res = await fetch(`${API_BASE}/api/v1/notifications/campaigns`, {
+      const res = await authFetch(`${API_BASE}/api/v1/notifications/campaigns`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), type, targetPatientIds }),
@@ -140,7 +142,7 @@ export function CampaignManagerPanel() {
     setError(null);
     setSuccess(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/notifications/campaigns/${id}/activate`, {
+      const res = await authFetch(`${API_BASE}/api/v1/notifications/campaigns/${id}/activate`, {
         method: 'POST',
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

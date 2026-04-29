@@ -42,6 +42,7 @@ jobs:
       pop-health: ${{ steps.filter.outputs.pop-health }}
       revenue: ${{ steps.filter.outputs.revenue }}
       gateway: ${{ steps.filter.outputs.gateway }}
+      bff: ${{ steps.filter.outputs.bff }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -58,6 +59,7 @@ jobs:
             pop-health:   ['src/HealthQCopilot.PopulationHealth/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
             revenue:      ['src/HealthQCopilot.RevenueCycle/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
             gateway:      ['src/HealthQCopilot.Gateway/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
+            bff:          ['src/HealthQCopilot.BFF/**', 'src/HealthQCopilot.Domain/**', 'src/HealthQCopilot.Infrastructure/**', 'src/HealthQCopilot.ServiceDefaults/**', 'Directory.Build.props', 'global.json', 'HealthQCopilot.sln', '.editorconfig']
 
   validate-dispatch-inputs:
     runs-on: ubuntu-latest
@@ -85,10 +87,10 @@ jobs:
           IFS=',' read -r -a REQUESTED_SERVICES <<< "$NORMALIZED"
           for SERVICE in "${REQUESTED_SERVICES[@]}"; do
             case "$SERVICE" in
-              all|voice|ai-agent|fhir|identity|ocr|scheduling|notification|pop-health|revenue|gateway)
+              all|voice|ai-agent|fhir|identity|ocr|scheduling|notification|pop-health|revenue|gateway|bff)
                 ;;
               *)
-                echo "::error::Invalid services input '$SERVICE'. Allowed values: all, voice, ai-agent, fhir, identity, ocr, scheduling, notification, pop-health, revenue, gateway"
+                echo "::error::Invalid services input '$SERVICE'. Allowed values: all, voice, ai-agent, fhir, identity, ocr, scheduling, notification, pop-health, revenue, gateway, bff"
                 exit 1
                 ;;
             esac
@@ -175,6 +177,9 @@ jobs:
           - service: gateway
             project: HealthQCopilot.Gateway
             changed: ${{ needs.detect-changes.outputs.gateway }}
+          - service: bff
+            project: HealthQCopilot.BFF
+            changed: ${{ needs.detect-changes.outputs.bff }}
     if: always() && needs.detect-changes.result == 'success' && needs.validate-dispatch-inputs.result == 'success' && (needs.azure-login-preflight.result == 'success' || needs.azure-login-preflight.result == 'skipped')
     steps:
       - name: Resolve manual service selection
@@ -576,7 +581,8 @@ jobs:
         needs.detect-changes.outputs.notification == 'true' ||
         needs.detect-changes.outputs.pop-health == 'true' ||
         needs.detect-changes.outputs.revenue == 'true' ||
-        needs.detect-changes.outputs.gateway == 'true'
+        needs.detect-changes.outputs.gateway == 'true' ||
+        needs.detect-changes.outputs.bff == 'true'
       )
     runs-on: ubuntu-latest
     timeout-minutes: 10

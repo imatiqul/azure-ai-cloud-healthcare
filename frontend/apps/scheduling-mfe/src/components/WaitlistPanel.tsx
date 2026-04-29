@@ -117,7 +117,7 @@ export function WaitlistPanel() {
             patientName: activeWorkflow.patientName,
             practitionerId: practitionerId.trim(),
             priority,
-          });
+          }, authFetch);
         }
         setPatientId('');
         setPractitionerId('');
@@ -148,7 +148,7 @@ export function WaitlistPanel() {
           patientName: activeWorkflow.patientName,
           practitionerId: practitionerId.trim(),
           priority,
-        });
+        }, authFetch);
       }
       setPatientId('');
       setPractitionerId('');

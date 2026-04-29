@@ -26,6 +26,7 @@ export default defineConfig({
         react: { singleton: true },
         'react-dom': { singleton: true },
         zustand: { singleton: true },
+        '@healthcare/auth-client': { singleton: true },
       },
     }),
   ],

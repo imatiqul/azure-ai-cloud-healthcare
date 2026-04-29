@@ -115,7 +115,7 @@ export function SlotCalendar() {
         patientId: updated.patientId,
         patientName: updated.patientName,
         practitionerId,
-      });
+      }, authFetch);
     }
 
     // Demo slots resolve locally — no backend needed

@@ -11,6 +11,7 @@ import {
 } from '@healthcare/mfe-events';
 import { gqlFetch } from '@healthcare/graphql-client';
 import { syncWorkflowBooked } from '../lib/workflowSync';
+import { useAuthFetch } from '@healthcare/auth-client';
 
 const BOOK_APPOINTMENT = /* GraphQL */ `
   mutation BookAppointment($input: BookAppointmentInput!) {
@@ -33,6 +34,7 @@ export function BookingForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const authFetch = useAuthFetch();
 
   useEffect(() => {
     const syncFromWorkflow = () => {
@@ -63,7 +65,7 @@ export function BookingForm() {
         patientId,
         patientName: existing.patientName,
         practitionerId,
-      });
+      }, authFetch);
 
       upsertWorkflowHandoff({
         ...existing,
