@@ -4,7 +4,7 @@ metadata:
   name: ai-agent-service
   namespace: {{ .Values.global.namespace }}
 spec:
-  replicas: {{ .Values.services.ai-agent.replicas }}
+  replicas: {{ index .Values.services "ai-agent" "replicas" }}
   selector:
     matchLabels:
       app: ai-agent-service

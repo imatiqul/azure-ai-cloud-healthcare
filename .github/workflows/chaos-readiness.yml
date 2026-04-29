@@ -53,7 +53,7 @@ jobs:
           script: |
             const fs = require('fs');
             const path = require('path');
-            const yaml = require('js-yaml');  // available in Node via Actions runner
+            // js-yaml is not pre-installed on Actions runners — using regex extraction instead
 
             // ── Read Helm values directly (fast, reliable) ────────────────────
             const valuesRaw = fs.readFileSync('infra/helm/values.yaml', 'utf8');
@@ -66,7 +66,7 @@ jobs:
 
             const services = [
               'voice', 'ai-agent', 'fhir', 'identity', 'ocr',
-              'scheduling', 'notification', 'pop-health', 'revenue', 'gateway'
+              'scheduling', 'notification', 'pophealth', 'revenue', 'gateway'
             ];
 
             const findings = [];

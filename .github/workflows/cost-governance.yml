@@ -50,7 +50,7 @@ jobs:
 
             const services = [
               'voice', 'ai-agent', 'fhir', 'identity', 'ocr',
-              'scheduling', 'notification', 'pop-health', 'revenue', 'gateway'
+              'scheduling', 'notification', 'pophealth', 'revenue', 'gateway'
             ];
 
             // ── Parse a CPU expression to cores (float) ───────────────────────
@@ -92,7 +92,7 @@ jobs:
 
               // Extract the service's resource block using regex
               const resourceMatch = mergedText.match(
-                new RegExp(`${svc.replace('-', '[-_]')}:[\\s\\S]{0,3000}?resources:([\\s\\S]{0,600}?)(?=\\n  \\w|\\n\\w|$)`, 'm')
+                new RegExp(`${svc.replace(/-/g, '[-_]')}:[\\s\\S]{0,3000}?resources:([\\s\\S]{0,600}?)(?=\\n  \\w|\\n\\w|$)`)
               );
 
               let cpuReq = null, memReq = null, cpuLim = null, memLim = null;
