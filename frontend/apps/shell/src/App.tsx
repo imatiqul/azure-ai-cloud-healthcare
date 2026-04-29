@@ -75,6 +75,8 @@ const ClinicalCoderPanelPage = lazy(() => import('triage/ClinicalCoderPanel').th
 const MlConfidencePanelPage = lazy(() => import('./pages/MlConfidencePanel')); // Phase 27
 const CampaignManagerPanelPage = lazy(() => import('engagement/CampaignManagerPanel').then(m => ({ default: m.CampaignManagerPanel })).catch((): { default: ComponentType } => ({ default: () => null }))); // Phase 27
 const DemoLive = lazy(() => import('./pages/DemoLive'));
+const SignInPage = lazy(() => import('./pages/SignIn'));
+const SignOutPage = lazy(() => import('./pages/SignOut'));
 const ClinicalAlertsCenterPage = lazy(() => import('./pages/ClinicalAlertsCenter')); // Phase 41
 const ReportsExportPanelPage   = lazy(() => import('./pages/ReportsExportPanel'));   // Phase 41
 const MedicationPanelPage = lazy(() => import('encounters/MedicationPanel').then(m => ({ default: m.MedicationPanel }))); // Phase 30
@@ -155,6 +157,7 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const isDemoRoute    = location.pathname.startsWith('/demo');
+  const isAuthRoute    = location.pathname.startsWith('/auth/');
   const { isDemoActive } = useGlobalStore(); // Phase 58
   const { open: paletteOpen, openPalette, closePalette }         = useCommandPalette();
   const { open: shortcutsOpen, closeModal: closeShortcuts } = useKeyboardShortcutsModal();
@@ -217,6 +220,18 @@ export default function App() {
         <Routes>
           <Route path="/demo" element={<DemoLanding />} />
           <Route path="/demo/live" element={<DemoLive />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
+  // Auth-flow routes render without shell chrome
+  if (isAuthRoute) {
+    return (
+      <Suspense fallback={<Loading />}>
+        <Routes>
+          <Route path="/auth/signin" element={<SignInPage />} />
+          <Route path="/auth/signout" element={<SignOutPage />} />
         </Routes>
       </Suspense>
     );

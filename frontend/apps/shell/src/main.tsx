@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from '@healthcare/design-system';
+import { AuthProvider } from '@healthcare/auth-client';
 import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n/i18n';
 import App from './App';
@@ -23,9 +24,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <I18nextProvider i18n={i18n}>
       <ThemeProvider>
         <BrowserRouter>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>
     </I18nextProvider>

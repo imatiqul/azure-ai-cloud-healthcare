@@ -146,6 +146,13 @@ jobs:
           VITE_SIGNALR_HUB_URL: ""
           VITE_BFF_URL: ${{ vars.HEALTHQ_GATEWAY_ACA_URL || 'https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io' }}
           VITE_BFF_WS_URL: ${{ vars.HEALTHQ_GATEWAY_ACA_WSS_URL || 'wss://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io' }}
+          # Entra/MSAL — opt-in real auth. Leave repo vars unset to keep
+          # the front-end in demo mode (no token, gateway DemoAnonymous).
+          VITE_AZURE_AD_CLIENT_ID: ${{ vars.HEALTHQ_AZURE_AD_CLIENT_ID }}
+          VITE_AZURE_AD_ISSUER:    ${{ vars.HEALTHQ_AZURE_AD_ISSUER }}
+          VITE_AZURE_AD_AUDIENCE:  ${{ vars.HEALTHQ_AZURE_AD_AUDIENCE }}
+          VITE_REDIRECT_URI:       ${{ vars.HEALTHQ_AZURE_AD_REDIRECT_URI }}
+          VITE_POST_LOGOUT_REDIRECT_URI: ${{ vars.HEALTHQ_AZURE_AD_POST_LOGOUT_REDIRECT_URI }}
           VOICE_MFE_URL: https://happy-smoke-0ba02780f.7.azurestaticapps.net/remoteEntry.js
           TRIAGE_MFE_URL: https://brave-hill-0d76ab10f.7.azurestaticapps.net/remoteEntry.js
           SCHEDULING_MFE_URL: https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net/remoteEntry.js

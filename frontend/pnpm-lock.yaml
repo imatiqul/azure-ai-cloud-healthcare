@@ -574,6 +574,9 @@ importers:
 
   packages/auth-client:
     dependencies:
+      '@azure/msal-browser':
+        specifier: ^3.27.0
+        version: 3.30.0
       react:
         specifier: ^19.0.0
         version: 19.2.4

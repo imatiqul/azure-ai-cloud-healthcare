@@ -13,14 +13,8 @@
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.azurestaticapps.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.azurecontainerapps.io https://*.azurestaticapps.net https://healthq-copilot-apim.azure-api.net wss://*.azurecontainerapps.io wss://*.webpubsub.azure.com; media-src 'self' blob:; img-src 'self' data: https:; frame-src 'self' https://*.azurestaticapps.net",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.azurestaticapps.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.azurecontainerapps.io https://*.azurestaticapps.net https://healthq-copilot-apim.azure-api.net https://login.microsoftonline.com https://login.live.com https://graph.microsoft.com wss://*.azurecontainerapps.io wss://*.webpubsub.azure.com; media-src 'self' blob:; img-src 'self' data: https:; frame-src 'self' https://*.azurestaticapps.net https://login.microsoftonline.com",
     "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
     "X-DNS-Prefetch-Control": "on"
-  },
-  "responseOverrides": {
-    "401": {
-      "statusCode": 302,
-      "redirect": "/.auth/login/aad"
-    }
   }
 }
