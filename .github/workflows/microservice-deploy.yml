@@ -439,6 +439,39 @@ jobs:
             --type "$INGRESS_TYPE" \
             --target-port 8080
 
+      - name: Apply Azure AD configuration to service
+        if: (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') && steps.service-selection.outputs.selected == 'true' && github.ref == 'refs/heads/main'
+        env:
+          SERVICE: ${{ matrix.service }}
+          RG: ${{ env.ACA_RESOURCE_GROUP }}
+          AZURE_AD_CLIENT_ID:  ${{ vars.HEALTHQ_AZURE_AD_CLIENT_ID }}
+          AZURE_AD_TENANT_ID:  ${{ vars.HEALTHQ_AZURE_AD_TENANT_ID }}
+          AZURE_AD_AUDIENCE:   ${{ vars.HEALTHQ_AZURE_AD_AUDIENCE }}
+        run: |
+          set -euo pipefail
+          # Only apply when all three AD vars are configured. When unset the backend
+          # will use DemoAnonymousAuthHandler (AzureAd:ClientId not present).
+          if [ -z "${AZURE_AD_CLIENT_ID:-}" ] || [ -z "${AZURE_AD_TENANT_ID:-}" ]; then
+            echo "HEALTHQ_AZURE_AD_CLIENT_ID / TENANT_ID not set — keeping demo auth mode."
+            exit 0
+          fi
+          # Ensure the container app exists before trying to update env vars.
+          if ! az containerapp show --name "$SERVICE" --resource-group "$RG" \
+               --query name -o tsv 2>/dev/null; then
+            echo "::warning::Container App '$SERVICE' not found — skipping AzureAd config."
+            exit 0
+          fi
+          AUDIENCE="${AZURE_AD_AUDIENCE:-api://${AZURE_AD_CLIENT_ID}}"
+          az containerapp update \
+            --name "$SERVICE" \
+            --resource-group "$RG" \
+            --set-env-vars \
+              "AzureAd__ClientId=${AZURE_AD_CLIENT_ID}" \
+              "AzureAd__TenantId=${AZURE_AD_TENANT_ID}" \
+              "AzureAd__Instance=https://login.microsoftonline.com/" \
+              "AzureAd__Audience=${AUDIENCE}" \
+            --query "properties.provisioningState" -o tsv
+
       - name: Apply gateway CORS allowed origins
         if: (matrix.changed == 'true' || github.event_name == 'workflow_dispatch') && steps.service-selection.outputs.selected == 'true' && matrix.service == 'gateway'
         env:
