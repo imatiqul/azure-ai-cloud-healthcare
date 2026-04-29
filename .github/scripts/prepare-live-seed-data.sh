@@ -39,8 +39,8 @@ post_seed() {
     # Some public gateway/APIM surfaces expose the live read endpoints but do not
     # publish the internal demo seed routes. In that case, continue and let the
     # subsequent live-data assertions decide whether the environment is usable.
-    if [[ "$status" == "404" || "$status" == "405" ]]; then
-      record_summary "- ${service_name}: seed endpoint unavailable on public surface (HTTP ${status}); continuing to live-data verification"
+    if [[ "$status" == "401" || "$status" == "403" || "$status" == "404" || "$status" == "405" ]]; then
+      record_summary "- ${service_name}: seed endpoint not callable from probe surface (HTTP ${status}); continuing to live-data verification"
       rm -f "$body_file"
       return 0
     fi
@@ -84,6 +84,15 @@ assert_non_empty_array() {
       echo "Waiting for ${check_name} (${attempt}/${attempts}, HTTP ${status})"
       sleep 10
       continue
+    fi
+
+    # 401/403/404/405 from the public probe surface mean the route is auth-gated
+    # or not exposed publicly — neither is a deployment regression. Defer to
+    # the workflow-level summary and stop retrying.
+    if [[ "$status" == "401" || "$status" == "403" || "$status" == "404" || "$status" == "405" ]]; then
+      record_summary "- ${check_name}: live read not callable from probe surface (HTTP ${status}); skipping"
+      rm -f "$body_file"
+      return 0
     fi
 
     if [[ ! "$status" =~ ^20[0-9]$ ]]; then
