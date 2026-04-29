@@ -34,7 +34,7 @@ This catalog describes all CI/CD and quality workflows in this repository.
 | Workflow File | Trigger | Primary Responsibility |
 |---|---|---|
 | `cloud-e2e-tests.yml` | `workflow_run` after deploy workflows, `schedule`, `workflow_dispatch` | Live cloud smoke and full E2E validation gates with endpoint override inputs and diagnostics artifact bundles for smoke/full runs. |
-| `cloud-e2e-regression.yml` | `workflow_run` after `cloud-e2e-tests.yml`, `workflow_dispatch` | Extended cloud regression validation and coverage checks. |
+| `cloud-e2e-regression.yml` | `workflow_run` after `cloud-e2e-tests.yml`, `workflow_dispatch` | Extended cloud regression validation and coverage checks with endpoint override inputs and diagnostics artifact bundles. |
 | `runtime-convergence-audit.yml` | `schedule`, `workflow_dispatch` | Audits Phase 1 runtime convergence criteria (consecutive cloud E2E success + route probe health). |
 | `gateway-route-probes.yml` | `workflow_run` after deploy workflows, `schedule`, `workflow_dispatch` | Gateway route ownership probes and non-404/non-405 route integrity checks. |
 | `deployment-health.yml` | `workflow_run` after `cloud-e2e-tests.yml`, `schedule`, `workflow_dispatch` | Deployment-health aggregation and post-deploy checks. |
@@ -61,6 +61,7 @@ This catalog describes all CI/CD and quality workflows in this repository.
   - `artifacts/helm/healthq-copilot-prod.yaml`
 - `infra-deploy.yml` validate job uploads `helm-rendered-<env>` from `/tmp/healthq-copilot.rendered.yaml`.
 - `cloud-e2e-tests.yml` uploads `cloud-e2e-report-<run>`, `cloud-e2e-results-json-<run>`, `cloud-e2e-smoke-diagnostics-<run>`, and `cloud-e2e-diagnostics-<run>` (endpoint matrix + raw Playwright diagnostics).
+- `cloud-e2e-regression.yml` uploads `cloud-e2e-regression-report-<run>`, `cloud-e2e-regression-results-json-<run>`, and `cloud-e2e-regression-diagnostics-<run>` (endpoint matrix + raw Playwright diagnostics).
 - `runtime-convergence-audit.yml` uploads `runtime-convergence-<date>` with Phase 1 exit-criteria audit outcomes.
 - `gateway-route-probes.yml` writes route probe outcomes to the job summary and fails when critical routes regress.
 - `release-gate-policy-audit.yml` uploads `release-gate-audit-<date>` with branch protection and post-merge gate compliance results.
