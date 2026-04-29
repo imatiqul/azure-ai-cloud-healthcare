@@ -20,6 +20,46 @@ on:
         default: 'false'
         type: choice
         options: ['false', 'true']
+      shell_url:
+        description: 'Shell frontend base URL override (optional)'
+        required: false
+        default: ''
+      voice_url:
+        description: 'Voice MFE base URL override (optional)'
+        required: false
+        default: ''
+      triage_url:
+        description: 'Triage MFE base URL override (optional)'
+        required: false
+        default: ''
+      scheduling_url:
+        description: 'Scheduling MFE base URL override (optional)'
+        required: false
+        default: ''
+      pophealth_url:
+        description: 'Population Health MFE base URL override (optional)'
+        required: false
+        default: ''
+      revenue_url:
+        description: 'Revenue MFE base URL override (optional)'
+        required: false
+        default: ''
+      encounters_url:
+        description: 'Encounters MFE base URL override (optional)'
+        required: false
+        default: ''
+      engagement_url:
+        description: 'Engagement MFE base URL override (optional)'
+        required: false
+        default: ''
+      gateway_aca_url:
+        description: 'Gateway ACA base URL override (optional)'
+        required: false
+        default: ''
+      api_base_url:
+        description: 'Public API base URL override (optional)'
+        required: false
+        default: ''
 
 permissions:
   actions: read
@@ -35,16 +75,17 @@ defaults:
 
 # ── Shared URL env vars used by all jobs ──────────────────────────────────────
 env:
-  SHELL_URL: https://gentle-tree-03115af0f.7.azurestaticapps.net
-  VOICE_URL: https://happy-smoke-0ba02780f.7.azurestaticapps.net
-  TRIAGE_URL: https://brave-hill-0d76ab10f.7.azurestaticapps.net
-  SCHEDULING_URL: https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net
-  POPHEALTH_URL: https://orange-bay-00f28280f.7.azurestaticapps.net
-  REVENUE_URL: https://lemon-pond-067d2f40f.7.azurestaticapps.net
-  ENCOUNTERS_URL: https://calm-river-02bddc70f.7.azurestaticapps.net
-  ENGAGEMENT_URL: https://agreeable-hill-0d3115b0f.7.azurestaticapps.net
-  GATEWAY_ACA_URL: https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io
-  API_BASE_URL: https://healthq-copilot-apim.azure-api.net
+  # Resolution order: workflow_dispatch input -> repository variable -> baked-in default
+  SHELL_URL: ${{ github.event.inputs.shell_url || vars.HEALTHQ_SHELL_URL || 'https://gentle-tree-03115af0f.7.azurestaticapps.net' }}
+  VOICE_URL: ${{ github.event.inputs.voice_url || vars.HEALTHQ_VOICE_URL || 'https://happy-smoke-0ba02780f.7.azurestaticapps.net' }}
+  TRIAGE_URL: ${{ github.event.inputs.triage_url || vars.HEALTHQ_TRIAGE_URL || 'https://brave-hill-0d76ab10f.7.azurestaticapps.net' }}
+  SCHEDULING_URL: ${{ github.event.inputs.scheduling_url || vars.HEALTHQ_SCHEDULING_URL || 'https://yellow-smoke-0e7b6b70f.7.azurestaticapps.net' }}
+  POPHEALTH_URL: ${{ github.event.inputs.pophealth_url || vars.HEALTHQ_POPHEALTH_URL || 'https://orange-bay-00f28280f.7.azurestaticapps.net' }}
+  REVENUE_URL: ${{ github.event.inputs.revenue_url || vars.HEALTHQ_REVENUE_URL || 'https://lemon-pond-067d2f40f.7.azurestaticapps.net' }}
+  ENCOUNTERS_URL: ${{ github.event.inputs.encounters_url || vars.HEALTHQ_ENCOUNTERS_URL || 'https://calm-river-02bddc70f.7.azurestaticapps.net' }}
+  ENGAGEMENT_URL: ${{ github.event.inputs.engagement_url || vars.HEALTHQ_ENGAGEMENT_URL || 'https://agreeable-hill-0d3115b0f.7.azurestaticapps.net' }}
+  GATEWAY_ACA_URL: ${{ github.event.inputs.gateway_aca_url || vars.HEALTHQ_GATEWAY_ACA_URL || 'https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io' }}
+  API_BASE_URL: ${{ github.event.inputs.api_base_url || vars.HEALTHQ_API_BASE_URL || 'https://healthq-copilot-apim.azure-api.net' }}
   LIVE_CLOUD_E2E_SPECS: e2e-cloud/health-checks.spec.ts e2e-cloud/cloud-smoke.spec.ts
 
 jobs:
@@ -316,6 +357,39 @@ jobs:
         id: smoke
         run: npx playwright test --config=playwright.cloud.config.ts $LIVE_CLOUD_E2E_SPECS --grep "@smoke" --reporter=list,github
 
+      - name: Capture smoke endpoint diagnostics
+        if: always()
+        run: |
+          mkdir -p artifacts/cloud-e2e
+          DIAG_FILE="artifacts/cloud-e2e/smoke-endpoint-matrix.md"
+
+          {
+            echo "# Smoke Endpoint Diagnostics"
+            echo ""
+            echo "Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo ""
+            echo "| Surface | URL | HTTP |"
+            echo "|---|---|---|"
+            for surface in SHELL VOICE TRIAGE SCHEDULING POPHEALTH REVENUE ENCOUNTERS ENGAGEMENT GATEWAY_ACA API_BASE; do
+              URL_VAR="${surface}_URL"
+              URL_VALUE="${!URL_VAR}"
+              STATUS=$(curl -sS -m 15 -L -o /dev/null -w '%{http_code}' "$URL_VALUE" || echo ERR)
+              echo "| ${surface,,} | $URL_VALUE | $STATUS |"
+            done
+          } > "$DIAG_FILE"
+
+      - name: Upload smoke diagnostics bundle
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: cloud-e2e-smoke-diagnostics-${{ github.run_number }}
+          path: |
+            frontend/artifacts/cloud-e2e/smoke-endpoint-matrix.md
+            frontend/test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Write smoke summary
         if: always()
         run: |
@@ -368,9 +442,31 @@ jobs:
 
       - name: Run full cloud E2E suite
         id: e2e
-        run: npx playwright test --config=playwright.cloud.config.ts $LIVE_CLOUD_E2E_SPECS --reporter=list,github,html,json
+        run: npx playwright test --config=playwright.cloud.config.ts $LIVE_CLOUD_E2E_SPECS --reporter=list,github,html,json,blob
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/results.json
+
+      - name: Capture full E2E endpoint diagnostics
+        if: always()
+        run: |
+          mkdir -p artifacts/cloud-e2e
+          DIAG_FILE="artifacts/cloud-e2e/full-endpoint-matrix.md"
+
+          {
+            echo "# Full E2E Endpoint Diagnostics"
+            echo ""
+            echo "Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo ""
+            echo "| Surface | URL | HTTP |"
+            echo "|---|---|---|"
+            for surface in SHELL VOICE TRIAGE SCHEDULING POPHEALTH REVENUE ENCOUNTERS ENGAGEMENT GATEWAY_ACA API_BASE; do
+              URL_VAR="${surface}_URL"
+              URL_VALUE="${!URL_VAR}"
+              STATUS=$(curl -sS -m 15 -L -o /dev/null -w '%{http_code}' "$URL_VALUE" || echo ERR)
+              echo "| ${surface,,} | $URL_VALUE | $STATUS |"
+            done
+          } > "$DIAG_FILE"
 
       - name: Write E2E summary
         if: always()
@@ -389,7 +485,21 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Live-seeded validation is limited to health checks and cloud smoke specs; the broader cloud regression coverage runs in the separate Cloud E2E Regression workflow." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Diagnostics artifacts uploaded: endpoint matrix + Playwright raw output bundle (blob report + test-results)." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "Trigger: \`${{ github.event_name }}\` | Branch: \`${{ github.event.workflow_run.head_branch || github.ref_name }}\` | SHA: \`${{ github.event.workflow_run.head_sha || github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload E2E diagnostics bundle
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: cloud-e2e-diagnostics-${{ github.run_number }}
+          path: |
+            frontend/artifacts/cloud-e2e/full-endpoint-matrix.md
+            frontend/test-results/
+            frontend/blob-report/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload E2E HTML report
         uses: actions/upload-artifact@v4
