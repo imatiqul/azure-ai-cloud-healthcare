@@ -137,7 +137,12 @@ jobs:
         working-directory: frontend
         run: pnpm --filter ${{ matrix.app }} build
         env:
-          VITE_API_BASE_URL: https://healthq-copilot-apim.azure-api.net
+          # Point MFE/Shell builds at the public ACA gateway. APIM is
+          # provisioned but has no operations configured, so every
+          # /health, /api/v1/* call returns 404. Until APIM operations
+          # are imported, route directly to the YARP gateway which has
+          # the actual route map.
+          VITE_API_BASE_URL: ${{ vars.HEALTHQ_GATEWAY_ACA_URL || 'https://gateway.gentletree-fe920881.eastus2.azurecontainerapps.io' }}
           VITE_SIGNALR_HUB_URL: ""
           VOICE_MFE_URL: https://happy-smoke-0ba02780f.7.azurestaticapps.net/remoteEntry.js
           TRIAGE_MFE_URL: https://brave-hill-0d76ab10f.7.azurestaticapps.net/remoteEntry.js
