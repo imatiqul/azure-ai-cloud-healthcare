@@ -26,3 +26,6 @@ services:
   notification:
     image:
       tag: afb6ed8b89329e6fabe5fa9522de3e7813333917
+  bff:
+    image:
+      tag: c604c7958fb0672aa85e190d511ead93ca89891b
