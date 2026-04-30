@@ -24,17 +24,6 @@ const GET_PATIENT_RISKS = /* GraphQL */ `
   }
 `;
 
-const DEMO_RISKS: PatientRisk[] = [
-  { id: 'r-1',  patientId: 'PAT-00142', patientName: 'Alice Morgan',     level: 'Critical', riskScore: 94, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
-  { id: 'r-2',  patientId: 'PAT-00278', patientName: 'James Chen',       level: 'Critical', riskScore: 91, assessedAt: new Date(Date.now() - 2 * 86400_000).toISOString() },
-  { id: 'r-3',  patientId: 'PAT-00391', patientName: 'Robert Wilson',    level: 'High',     riskScore: 82, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
-  { id: 'r-4',  patientId: 'PAT-00554', patientName: 'Maria Gonzalez',   level: 'High',     riskScore: 79, assessedAt: new Date(Date.now() - 3 * 86400_000).toISOString() },
-  { id: 'r-5',  patientId: 'PAT-00619', patientName: 'Sarah O\'Brien',   level: 'High',     riskScore: 76, assessedAt: new Date(Date.now() - 1 * 86400_000).toISOString() },
-  { id: 'r-6',  patientId: 'PAT-00731', patientName: 'David Kim',        level: 'Moderate', riskScore: 58, assessedAt: new Date(Date.now() - 5 * 86400_000).toISOString() },
-  { id: 'r-7',  patientId: 'PAT-00842', patientName: 'Linda Patel',      level: 'Moderate', riskScore: 54, assessedAt: new Date(Date.now() - 4 * 86400_000).toISOString() },
-  { id: 'r-8',  patientId: 'PAT-00953', patientName: 'Thomas Nguyen',    level: 'Low',      riskScore: 32, assessedAt: new Date(Date.now() - 7 * 86400_000).toISOString() },
-];
-
 interface PatientRisk {
   id: string;
   patientId: string;
@@ -57,8 +46,7 @@ export function RiskPanel() {
     gqlFetch<{ patientRisks: PatientRisk[] }>({ query: GET_PATIENT_RISKS })
       .then(data => setAllRisks(data.patientRisks ?? []))
       .catch(() => {
-        setError('Failed to load risk assessments — showing demo data');
-        setAllRisks(DEMO_RISKS);
+        setError('Failed to load risk assessments');
       })
       .finally(() => setLoading(false));
   }, []);

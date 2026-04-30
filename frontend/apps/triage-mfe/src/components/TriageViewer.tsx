@@ -17,6 +17,7 @@ import {
   onEscalationRequired,
   onTranscriptCompleted,
   onTriageApproved,
+  onTriageContextSet,
   setActiveWorkflow,
   selectShellTab,
   type WorkflowHandoffRecord,
@@ -496,6 +497,18 @@ export function TriageViewer() {
       integrateWorkflow(record);
       setShowEscalation(false);
     });
+    const offTriageContext = onTriageContextSet(({ detail }) => {
+      const record = persistWorkflow(detail.sessionId, {
+        workflowId: detail.sessionId,
+        sessionId: detail.sessionId,
+        triageLevel: detail.triageLevel,
+        reasoning: detail.agentReasoning,
+        patientId: detail.patientId,
+        patientName: detail.patientName,
+        status: workflowStatusFromLevel(detail.triageLevel),
+      });
+      integrateWorkflow(record);
+    });
     // When shell announces the backend went offline, immediately switch to demo
     // data without waiting for the next poll cycle.
     const offStatus = onBackendStatusChanged(({ detail }) => {
@@ -514,6 +527,7 @@ export function TriageViewer() {
       offEscalation();
       offDecision();
       offApproved();
+      offTriageContext();
       offStatus();
       if (intervalRef.current) clearInterval(intervalRef.current);
     };

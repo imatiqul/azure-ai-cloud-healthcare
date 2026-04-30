@@ -78,6 +78,16 @@ export interface TabSelectionRequestedDetail {
   tabIndex: number;
 }
 
+export interface TriageContextSetDetail {
+  sessionId: string;
+  triageLevel: string;
+  agentReasoning?: string;
+  recommendedSpecialty?: string;
+  confidenceScore?: number;
+  patientId?: string;
+  patientName?: string;
+}
+
 export interface BackendStatusChangedDetail {
   /** true = APIM/backend is reachable, false = down/not deployed, null = checking */
   online: boolean;
@@ -115,6 +125,7 @@ export const MFE_EVENTS = {
   SLOT_RESERVED:           'mfe:slot:reserved',
   BOOKING_CREATED:         'mfe:booking:created',
   TRIAGE_APPROVED:         'mfe:triage:approved',
+  TRIAGE_CONTEXT_SET:      'mfe:triage:context',
   NAVIGATION_REQUESTED:    'mfe:navigation:requested',
   TAB_SELECTION_REQUESTED: 'mfe:tab:selection',
   BACKEND_STATUS_CHANGED:  'mfe:backend:status',
@@ -184,6 +195,12 @@ export const emitTriageApproved = (detail: TriageApprovedDetail) =>
 
 export const onTriageApproved = (handler: MfeEventHandler<TriageApprovedDetail>) =>
   onMfeEvent<TriageApprovedDetail>(MFE_EVENTS.TRIAGE_APPROVED, handler);
+
+export const emitTriageContextSet = (detail: TriageContextSetDetail) =>
+  emitMfeEvent<TriageContextSetDetail>(MFE_EVENTS.TRIAGE_CONTEXT_SET, detail);
+
+export const onTriageContextSet = (handler: MfeEventHandler<TriageContextSetDetail>) =>
+  onMfeEvent<TriageContextSetDetail>(MFE_EVENTS.TRIAGE_CONTEXT_SET, handler);
 
 export const emitNavigationRequested = (detail: NavigationRequestedDetail) =>
   emitMfeEvent<NavigationRequestedDetail>(MFE_EVENTS.NAVIGATION_REQUESTED, detail);

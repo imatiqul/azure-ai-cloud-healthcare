@@ -77,6 +77,7 @@ export function DenialManager() {
   const [denials, setDenials] = useState<ClaimDenial[]>([]);
   const [analytics, setAnalytics] = useState<DenialAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [appealTarget, setAppealTarget] = useState<ClaimDenial | null>(null);
   const [appealNotes, setAppealNotes] = useState('');
   const [submittingAppeal, setSubmittingAppeal] = useState(false);
@@ -89,6 +90,7 @@ export function DenialManager() {
     inFlightRequest.current = controller;
     const timer = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
+    setFetchError(null);
     try {
       const [denialsRes, analyticsRes] = await Promise.all([
         fetch(`${API_BASE}/api/v1/revenue/denials?status=Open`, { signal: controller.signal }),
@@ -101,12 +103,12 @@ export function DenialManager() {
       const analyticsData = await analyticsRes.json();
 
       if (!controller.signal.aborted) {
-        setDenials(Array.isArray(denialsData) ? denialsData : DEMO_DENIALS);
-        setAnalytics(analyticsData ?? DEMO_ANALYTICS);
+        setDenials(Array.isArray(denialsData) ? denialsData : []);
+        setAnalytics(analyticsData ?? null);
       }
     } catch (err) {
       if (isAbortLikeError(err)) return;
-      if (!controller.signal.aborted) { setDenials(DEMO_DENIALS); setAnalytics(DEMO_ANALYTICS); }
+      if (!controller.signal.aborted) { setFetchError('Unable to load denial data — check API connectivity.'); }
     } finally {
       clearTimeout(timer);
       if (inFlightRequest.current === controller) { inFlightRequest.current = null; setLoading(false); }
@@ -149,6 +151,7 @@ export function DenialManager() {
 
   return (
     <Stack spacing={3}>
+      {fetchError && <Alert severity="error" onClose={() => setFetchError(null)}>{fetchError}</Alert>}
       {/* Analytics summary */}
       {analytics && (
         <Card>

@@ -69,28 +69,6 @@ interface AlertSummary {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const DEMO_RISKS: RiskEntry[] = [
-  { patientId: 'PAT-00142', riskLevel: 'Critical', riskScore: 94, assessedAt: new Date(Date.now() - 1 * 86_400_000).toISOString() },
-  { patientId: 'PAT-00278', riskLevel: 'Critical', riskScore: 91, assessedAt: new Date(Date.now() - 2 * 86_400_000).toISOString() },
-  { patientId: 'PAT-00315', riskLevel: 'High',     riskScore: 82, assessedAt: new Date(Date.now() - 3 * 86_400_000).toISOString() },
-  { patientId: 'PAT-00089', riskLevel: 'High',     riskScore: 78, assessedAt: new Date(Date.now() - 1 * 86_400_000).toISOString() },
-  { patientId: 'PAT-00456', riskLevel: 'High',     riskScore: 75, assessedAt: new Date(Date.now() - 4 * 86_400_000).toISOString() },
-];
-
-const DEMO_BREAK_GLASS: BreakGlassEntry[] = [
-  { id: 'bg-1', requestedByUserId: 'DR-Smith', targetPatientId: 'PAT-00142', clinicalJustification: 'Emergency consultation — patient transferred to ICU', grantedAt: new Date(Date.now() - 2 * 3_600_000).toISOString(), expiresAt: new Date(Date.now() + 4 * 3_600_000).toISOString() },
-];
-
-const DEMO_WAITLIST: WaitlistEntry[] = [
-  { id: 'wl-1', patientId: 'PAT-00501', practitionerId: 'DR-Johnson', priority: 1, status: 'Waiting' },
-  { id: 'wl-2', patientId: 'PAT-00612', practitionerId: 'DR-Patel',   priority: 2, status: 'Waiting' },
-];
-
-const DEMO_DENIALS: DenialEntry[] = [
-  { id: 'dn-1', claimNumber: 'CLM-2026-00142', payerName: 'BlueCross BlueShield', deniedAmountUsd: 4_200, appealDeadline: new Date(Date.now() + 3 * 86_400_000).toISOString(), denialStatus: 'Open' },
-  { id: 'dn-2', claimNumber: 'CLM-2026-00278', payerName: 'Aetna',                deniedAmountUsd: 1_850, appealDeadline: new Date(Date.now() + 5 * 86_400_000).toISOString(), denialStatus: 'Open' },
-];
-
 function riskLevelVariant(level: string): 'destructive' | 'warning' | 'secondary' {
   if (level === 'Critical') return 'destructive';
   if (level === 'High') return 'warning';
@@ -131,10 +109,10 @@ export default function ClinicalAlertsCenter() {
 
     if (backendOnline === false) {
       if (!controller.signal.aborted) {
-        setRisks(DEMO_RISKS);
-        setBreakGlass(DEMO_BREAK_GLASS);
-        setWaitlist(DEMO_WAITLIST);
-        setDenials(DEMO_DENIALS);
+        setRisks([]);
+        setBreakGlass([]);
+        setWaitlist([]);
+        setDenials([]);
         setLastRefreshed(new Date());
       }
       window.clearTimeout(timeoutId);
@@ -159,19 +137,19 @@ export default function ClinicalAlertsCenter() {
 
       if (riskRes.status === 'fulfilled' && riskRes.value.ok)
         setRisks(await riskRes.value.json() as RiskEntry[]);
-      else setRisks(DEMO_RISKS);
+      else setRisks([]);
 
       if (bgRes.status === 'fulfilled' && bgRes.value.ok)
         setBreakGlass(await bgRes.value.json() as BreakGlassEntry[]);
-      else setBreakGlass(DEMO_BREAK_GLASS);
+      else setBreakGlass([]);
 
       if (wlRes.status === 'fulfilled' && wlRes.value.ok)
         setWaitlist(await wlRes.value.json() as WaitlistEntry[]);
-      else setWaitlist(DEMO_WAITLIST);
+      else setWaitlist([]);
 
       if (denRes.status === 'fulfilled' && denRes.value.ok)
         setDenials(await denRes.value.json() as DenialEntry[]);
-      else setDenials(DEMO_DENIALS);
+      else setDenials([]);
 
       const allFailed = [riskRes, bgRes, wlRes, denRes].every(r => r.status === 'rejected');
       const allAbortLike = [riskRes, bgRes, wlRes, denRes].every(
@@ -184,11 +162,11 @@ export default function ClinicalAlertsCenter() {
       if (isAbortLikeError(error) || controller.signal.aborted) {
         return;
       }
-      // Complete network failure — seed all sections with demo data
-      setRisks(DEMO_RISKS);
-      setBreakGlass(DEMO_BREAK_GLASS);
-      setWaitlist(DEMO_WAITLIST);
-      setDenials(DEMO_DENIALS);
+      // Complete network failure
+      setRisks([]);
+      setBreakGlass([]);
+      setWaitlist([]);
+      setDenials([]);
       setLastRefreshed(new Date());
     } finally {
       window.clearTimeout(timeoutId);

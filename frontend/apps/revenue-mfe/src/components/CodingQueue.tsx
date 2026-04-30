@@ -44,25 +44,20 @@ interface CodingItem {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_REVENUE_API_URL || '';
 
-const DEMO_CODING_ITEMS: CodingItem[] = [
-  { id: 'cj-001', encounterId: 'enc-demo-001', patientId: 'PAT-00142', patientName: 'Alice Morgan',   suggestedCodes: ['E11.9', 'I10', 'Z79.4'],   codeConfidences: { 'E11.9': 97, 'I10': 94, 'Z79.4': 88 }, approvedCodes: [],              status: 'Pending',   createdAt: new Date(Date.now() - 2 * 3600_000).toISOString() },
-  { id: 'cj-002', encounterId: 'enc-demo-002', patientId: 'PAT-00278', patientName: 'Robert Chen',    suggestedCodes: ['I50.9', 'Z87.891'],         codeConfidences: { 'I50.9': 96, 'Z87.891': 91 }, approvedCodes: ['I50.9', 'Z87.891'], status: 'Approved',  createdAt: new Date(Date.now() - 5 * 3600_000).toISOString(), reviewedAt: new Date(Date.now() - 1 * 3600_000).toISOString(), reviewedBy: 'Dr. Patel' },
-  { id: 'cj-003', encounterId: 'enc-demo-003', patientId: 'PAT-00315', patientName: 'Maria Gonzalez', suggestedCodes: ['C34.12', 'Z79.899'],        codeConfidences: { 'C34.12': 93, 'Z79.899': 86 }, approvedCodes: [],              status: 'InReview',  createdAt: new Date(Date.now() - 8 * 3600_000).toISOString() },
-  { id: 'cj-004', encounterId: 'enc-demo-004', patientId: 'PAT-00391', patientName: 'James Wilson',   suggestedCodes: ['M54.5', 'M47.816', 'G89.29'], codeConfidences: { 'M54.5': 99, 'M47.816': 95, 'G89.29': 84 }, approvedCodes: ['M54.5', 'M47.816', 'G89.29'], status: 'Submitted', createdAt: new Date(Date.now() - 1 * 86400_000).toISOString(), reviewedAt: new Date(Date.now() - 4 * 3600_000).toISOString(), reviewedBy: 'Dr. Smith' },
-];
-
 export function CodingQueue() {
   const [items, setItems] = useState<CodingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const authFetch = useAuthFetch();
 
   const fetchJobs = useCallback(async () => {
+    setFetchError(null);
     try {
       const data = await gqlFetch<{ codingJobs: CodingItem[] }>({ query: GET_CODING_JOBS });
-      setItems(data.codingJobs?.length ? data.codingJobs : DEMO_CODING_ITEMS);
+      setItems(data.codingJobs ?? []);
     } catch {
-      setItems(DEMO_CODING_ITEMS);
+      setFetchError('Unable to load coding queue — check API connectivity.');
     } finally {
       setLoading(false);
     }
@@ -150,6 +145,7 @@ export function CodingQueue() {
           </Box>
         ) : (
           <>
+            {fetchError && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setFetchError(null)}>{fetchError}</Alert>}
             {actionError && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setActionError(null)}>{actionError}</Alert>}
             {items.length === 0 ? (
               <Typography color="text.disabled" textAlign="center" sx={{ py: 4 }}>

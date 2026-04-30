@@ -23,6 +23,7 @@ import {
   emitEscalationRequired,
   emitNavigationRequested,
   emitTranscriptCompleted,
+  emitTriageContextSet,
   getWorkflowHandoff,
   onPatientSelected,
   setActiveWorkflow,
@@ -1004,6 +1005,13 @@ export function VoiceSessionController() {
           {aiDone && triageResult && (
             <Button
               onClick={() => {
+                emitTriageContextSet({
+                  sessionId: sessionId ?? '',
+                  triageLevel: triageResult.assignedLevel,
+                  agentReasoning: triageResult.reasoning,
+                  recommendedSpecialty: triageResult.recommendedSpecialty,
+                  confidenceScore: triageResult.confidenceScore,
+                });
                 selectShellTab('hq:tab-triage', 0);
                 emitNavigationRequested({
                   path: '/triage',

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@healthcare/design-system';
 import { gqlFetch } from '@healthcare/graphql-client';
 
@@ -19,14 +21,6 @@ const GET_CARE_GAPS = /* GraphQL */ `
   }
 `;
 
-const DEMO_GAPS: CareGap[] = [
-  { id: 'cg-1', patientId: 'PAT-00142', measureName: 'HbA1c Control (Diabetes)', status: 'Open', identifiedAt: new Date(Date.now() - 45 * 86_400_000).toISOString() },
-  { id: 'cg-2', patientId: 'PAT-00278', measureName: 'Colorectal Cancer Screening', status: 'Open', identifiedAt: new Date(Date.now() - 30 * 86_400_000).toISOString() },
-  { id: 'cg-3', patientId: 'PAT-00315', measureName: 'Annual Wellness Visit', status: 'Open', identifiedAt: new Date(Date.now() - 15 * 86_400_000).toISOString() },
-  { id: 'cg-4', patientId: 'PAT-00089', measureName: 'Blood Pressure Control (HTN)', status: 'Open', identifiedAt: new Date(Date.now() - 7 * 86_400_000).toISOString() },
-  { id: 'cg-5', patientId: 'PAT-00456', measureName: 'Breast Cancer Screening', status: 'Open', identifiedAt: new Date(Date.now() - 60 * 86_400_000).toISOString() },
-];
-
 interface CareGap {
   id: string;
   patientId: string;
@@ -37,15 +31,21 @@ interface CareGap {
 
 export function CareGapList() {
   const [gaps, setGaps] = useState<CareGap[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => { fetchGaps(); }, []);
 
   async function fetchGaps() {
+    setFetchError(null);
     try {
       const data = await gqlFetch<{ careGaps: CareGap[] }>({ query: GET_CARE_GAPS });
-      const open = (data.careGaps ?? []).filter(g => g.status === 'Open');
-      setGaps(open.length > 0 ? open : DEMO_GAPS);
-    } catch { setGaps(DEMO_GAPS); }
+      setGaps((data.careGaps ?? []).filter(g => g.status === 'Open'));
+    } catch {
+      setFetchError('Unable to load care gaps — check API connectivity.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function addressGap(id: string) {
@@ -59,7 +59,15 @@ export function CareGapList() {
         <CardTitle>Open Care Gaps</CardTitle>
       </CardHeader>
       <CardContent>
-        {gaps.length === 0 ? (
+        {loading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={24} />
+          </Box>
+        )}
+        {!loading && (
+          <>
+            {fetchError && <Alert severity="error" sx={{ mb: 1.5 }}>{fetchError}</Alert>}
+            {gaps.length === 0 && !fetchError ? (
           <Typography color="text.disabled" textAlign="center" sx={{ py: 4 }}>
             No open care gaps
           </Typography>
@@ -93,6 +101,8 @@ export function CareGapList() {
               </Box>
             ))}
           </Stack>
+        )}
+          </>
         )}
       </CardContent>
     </Card>
