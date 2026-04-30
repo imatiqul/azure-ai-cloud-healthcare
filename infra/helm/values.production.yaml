@@ -29,3 +29,6 @@ services:
   bff:
     image:
       tag: 341c656ef6cf2e1ad2cc61aededdddebe940671e
+  voice:
+    image:
+      tag: 840d9e2ab60b1a276e3ea5b117178f850544ec8e
