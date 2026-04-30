@@ -598,13 +598,7 @@ export function VoiceSessionController() {
               reasoning: m.text,
             });
             emitAgentDecision({ sessionId: sid, triageLevel: level, reasoning: m.text });
-            selectShellTab('hq:tab-triage', 0);
-            emitNavigationRequested({
-              path: '/triage',
-              reason: workflowStatus === 'AwaitingHumanReview'
-                ? 'AI triage flagged this case for human review.'
-                : 'AI triage is complete and ready for scheduling.',
-            });
+            // Navigation is now user-initiated via "Continue to Triage" button
             break;
           }
           case 'EscalationRequired':
@@ -767,13 +761,7 @@ export function VoiceSessionController() {
         status: workflowStatus,
       });
       emitAgentDecision({ sessionId, triageLevel: level, reasoning });
-      selectShellTab('hq:tab-triage', 0);
-      emitNavigationRequested({
-        path: '/triage',
-        reason: workflowStatus === 'AwaitingHumanReview'
-          ? 'AI triage is ready for human review.'
-          : 'AI triage is complete and ready for scheduling.',
-      });
+      // Navigation is now user-initiated via "Continue to Triage" button
     } catch {
       // Backend offline — simulate a demo triage result so the flow completes
       const level = 'P2_Urgent';
@@ -802,11 +790,7 @@ export function VoiceSessionController() {
         status: workflowStatus,
       });
       emitAgentDecision({ sessionId: resolvedSessionId, triageLevel: level, reasoning });
-      selectShellTab('hq:tab-triage', 0);
-      emitNavigationRequested({
-        path: '/triage',
-        reason: 'Demo triage is ready for human review.',
-      });
+      // Navigation is now user-initiated via "Continue to Triage" button
     } finally {
       setSubmitting(false);
     }
@@ -1016,6 +1000,21 @@ export function VoiceSessionController() {
           )}
           {aiDone && triageResult && (
             <SoapNotePanel note={generateSoapNote(submittedTranscriptText || transcriptText, triageResult)} />
+          )}
+          {aiDone && triageResult && (
+            <Button
+              onClick={() => {
+                selectShellTab('hq:tab-triage', 0);
+                emitNavigationRequested({
+                  path: '/triage',
+                  reason: getWorkflowHandoffStatus(triageResult.assignedLevel) === 'AwaitingHumanReview'
+                    ? 'AI triage flagged this case for human review.'
+                    : 'AI triage is complete and ready for scheduling.',
+                });
+              }}
+            >
+              Continue to Triage →
+            </Button>
           )}
         </Stack>
       </CardContent>
