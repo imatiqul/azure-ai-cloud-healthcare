@@ -102,20 +102,12 @@ public static class VoiceEndpoints
             var session = await db.VoiceSessions.FindAsync([id], ct);
             if (session is null) return Results.NotFound();
 
-            // Capture accumulated transcript before ending (End() closes the session)
-            var accumulatedTranscript = session.TranscriptText;
-
             session.End();
             await db.SaveChangesAsync(ct);
 
-            // If audio chunks accumulated a transcript, publish it now so triage runs
-            if (!string.IsNullOrWhiteSpace(accumulatedTranscript))
-            {
-                _ = dapr.PublishEventAsync("pubsub", "transcript.produced",
-                    new { SessionId = id, TranscriptText = accumulatedTranscript, session.PatientId }, CancellationToken.None);
-            }
-
             // Publish session.ended — downstream services can react (scheduling, billing audit)
+            // NOTE: transcript.produced is NOT published here. The user must explicitly call
+            // POST /sessions/{id}/transcript to submit the transcript for AI triage.
             _ = dapr.PublishEventAsync("pubsub", "session.ended",
                 new { SessionId = id, session.EndedAt }, CancellationToken.None);
 
