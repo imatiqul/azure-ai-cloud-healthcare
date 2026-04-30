@@ -7,6 +7,18 @@ export { type Client };
 const BFF_URL    = import.meta.env?.VITE_BFF_URL    ?? 'http://localhost:5010';
 const BFF_WS_URL = import.meta.env?.VITE_BFF_WS_URL ?? 'ws://localhost:5010';
 
+// ── Global auth token provider ────────────────────────────────────────────────
+// Call `setAuthTokenProvider` once (e.g. in shell main.tsx) to wire the MSAL
+// token into every `gqlFetch` request automatically. Individual callers can
+// still pass their own `getHeaders` callback to override the global provider.
+
+type TokenProvider = () => string | undefined;
+let _authTokenProvider: TokenProvider | null = null;
+
+export function setAuthTokenProvider(provider: TokenProvider): void {
+  _authTokenProvider = provider;
+}
+
 // ── Singleton HTTP fetch client ───────────────────────────────────────────────
 
 export interface GraphQLRequest<V = Record<string, unknown>> {
@@ -30,9 +42,17 @@ export async function gqlFetch<T, V = Record<string, unknown>>(
   request: GraphQLRequest<V>,
   getHeaders?: () => Record<string, string>,
 ): Promise<T> {
+  // Resolve auth: explicit getHeaders callback takes precedence; fall back to
+  // the global token provider registered via setAuthTokenProvider().
+  const resolvedAuthHeaders = (): Record<string, string> => {
+    if (getHeaders) return getHeaders();
+    const token = _authTokenProvider?.();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...getHeaders?.(),
+    ...resolvedAuthHeaders(),
   };
 
   const res = await fetch(`${BFF_URL}/graphql`, {
