@@ -13,8 +13,8 @@
     "build": "pnpm run build:tokens"
   },
   "dependencies": {
-    "@mui/material": "^7.3.10",
-    "@mui/icons-material": "^7.3.10",
+    "@mui/material": "^9.0.0",
+    "@mui/icons-material": "^9.0.0",
     "@mui/lab": "^7.0.1-beta.24",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0"
