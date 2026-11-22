@@ -1,0 +1,263 @@
+# Approved with the constitution at gate G0 by the owner on 2026-11-22. Maps each principle of constitution.md to what checks it.
+# `ck:<ID>` is a check that exists in agentic-spec-kit today. Every other name is declared under external_checks
+# and is NOT BUILT: the spec for the finding named there must add it to the healthcare repository.
+# `findings` is not read by the kit; it links a principle to the Phase 1 findings it answers.
+schema: agentic-constitution-map/1
+external_checks:
+  arch-test:no-fallback-identity:
+    status: not built
+    built_by_spec_for: C1
+  arch-test:endpoint-authorization:
+    status: not built
+    built_by_spec_for: C2
+  integration-test:cross-tenant-and-patient-denied:
+    status: not built
+    built_by_spec_for: C2
+  arch-test:no-caller-asserted-identity:
+    status: not built
+    built_by_spec_for: C3
+  arch-test:exposure-allowlists:
+    status: not built
+    built_by_spec_for: N6
+  test:phi-redaction-at-boundaries:
+    status: not built
+    built_by_spec_for: H1
+  arch-test:phi-fields-encrypted:
+    status: not built
+    built_by_spec_for: H1
+  lint:no-phi-in-browser-storage:
+    status: not built
+    built_by_spec_for: H1
+  integration-test:audit-attribution:
+    status: not built
+    built_by_spec_for: C4
+  integration-test:audit-export-complete:
+    status: not built
+    built_by_spec_for: N1
+  integration-test:audit-write-failure-fails-request:
+    status: not built
+    built_by_spec_for: N3
+  migration-test:audit-append-only:
+    status: not built
+    built_by_spec_for: N2
+  arch-test:no-demo-endpoints-in-production:
+    status: not built
+    built_by_spec_for: H4
+  arch-test:event-topics-are-literal:
+    status: not built
+    built_by_spec_for: N9
+  ci:changed-line-coverage:
+    status: not built
+    built_by_spec_for: 'none: a new standard'
+  lint:error-handling:
+    status: not built
+    built_by_spec_for: M1
+  ci:repository-hygiene:
+    status: not built
+    built_by_spec_for: M4
+principles:
+- id: P-1
+  title: Authentication fails closed
+  enforcement: machine
+  checks:
+  - arch-test:no-fallback-identity
+  findings:
+  - C1
+  - H3
+- id: P-2
+  title: Every endpoint is authorized
+  enforcement: machine
+  checks:
+  - ck:CK-SECURITY-EVIDENCE
+  - arch-test:endpoint-authorization
+  findings:
+  - C2
+  - H2
+  - H3
+- id: P-3
+  title: Access to patient data is scoped to the tenant and the patient
+  enforcement: machine
+  checks:
+  - integration-test:cross-tenant-and-patient-denied
+  findings:
+  - C2
+- id: P-4
+  title: Identity comes from the validated token only
+  enforcement: machine
+  checks:
+  - arch-test:no-caller-asserted-identity
+  findings:
+  - C3
+- id: P-5
+  title: Nothing is exposed by default
+  enforcement: machine
+  checks:
+  - arch-test:exposure-allowlists
+  findings:
+  - H4
+  - N6
+- id: P-6
+  title: Minimum necessary
+  enforcement: machine
+  checks:
+  - ck:CK-PRIVACY-IMPACT
+  - ck:CK-DOMAIN-SECTIONS
+  findings:
+  - H1
+- id: P-7
+  title: PHI is redacted at every boundary and encrypted in the field at rest
+  enforcement: machine
+  checks:
+  - test:phi-redaction-at-boundaries
+  - arch-test:phi-fields-encrypted
+  - lint:no-phi-in-browser-storage
+  findings:
+  - H1
+- id: P-8
+  title: Only synthetic data outside production
+  enforcement: machine
+  checks:
+  - ck:CK-SYNTH-DATA
+  - ck:CK-TEST-DATA
+- id: P-9
+  title: Every access to PHI is attributed
+  enforcement: machine
+  checks:
+  - integration-test:audit-attribution
+  findings:
+  - C4
+  - N4
+- id: P-10
+  title: The audit trail is complete, durable and append-only
+  enforcement: machine
+  checks:
+  - integration-test:audit-export-complete
+  - integration-test:audit-write-failure-fails-request
+  - migration-test:audit-append-only
+  findings:
+  - N1
+  - N2
+  - N3
+- id: P-11
+  title: No unvalidated clinical logic
+  enforcement: machine
+  checks:
+  - ck:CK-AI-EVAL
+  - ck:CK-AI-PROD-PATH
+  findings:
+  - C5
+  - C6
+  - N5
+- id: P-12
+  title: A clinician decides
+  enforcement: human
+  judged_at: G3
+  findings:
+  - C5
+- id: P-13
+  title: Retrieved text is data
+  enforcement: machine
+  checks:
+  - ck:CK-AI-RETRIEVAL
+  findings:
+  - C5
+- id: P-14
+  title: Models are versioned and bounded
+  enforcement: machine
+  checks:
+  - ck:CK-AI-VERSION
+  - ck:CK-AI-RUNTIME
+- id: P-15
+  title: No fabricated data in a production build
+  enforcement: machine
+  checks:
+  - ck:CK-METRIC-PROVENANCE
+  - arch-test:no-demo-endpoints-in-production
+  findings:
+  - H4
+- id: P-16
+  title: A gate that fails stops the change
+  enforcement: machine
+  checks:
+  - ck:CK-WAIVER
+  - ck:CK-ENFORCE-SETUP
+  findings:
+  - H6
+  - M3
+  - M5
+  - N10
+- id: P-17
+  title: Everything is pinned and accounted for
+  enforcement: machine
+  checks:
+  - ck:CK-PIN
+  - ck:CK-SBOM
+  findings:
+  - H6
+  - M5
+  - N8
+- id: P-18
+  title: Migrations are made for the engine that runs them
+  enforcement: machine
+  checks:
+  - ck:CK-MIGRATION-ENGINE
+  - ck:CK-MIGRATION-DRIFT
+  - ck:CK-DATA-PLAN
+  - ck:CK-DATA-CLASS
+  findings:
+  - H5
+- id: P-19
+  title: Test and production run the same stores
+  enforcement: machine
+  checks:
+  - ck:CK-ENV-PARITY
+  findings:
+  - H5
+- id: P-20
+  title: Contracts and shared components change compatibly
+  enforcement: machine
+  checks:
+  - ck:CK-CONTRACT-BREAK
+  - ck:CK-CONTRACT-VERSION
+  - ck:CK-CONTRACT-CONSUMER
+  - ck:CK-SHARED-SEMVER
+  - ck:CK-CONSUMER-MATRIX
+  - ck:CK-DEPRECATION
+  - arch-test:event-topics-are-literal
+  findings:
+  - N9
+- id: P-21
+  title: Every requirement is traced to a passing test
+  enforcement: machine
+  checks:
+  - ck:CK-TRACE
+  - ck:CK-TEST-STRATEGY
+  - ck:CK-CHARACTERIZATION
+- id: P-22
+  title: Changed code is covered
+  enforcement: machine
+  checks:
+  - ci:changed-line-coverage
+- id: P-23
+  title: Failures are visible
+  enforcement: machine
+  checks:
+  - lint:error-handling
+  findings:
+  - M1
+- id: P-24
+  title: The repository holds source that can be reviewed
+  enforcement: machine
+  checks:
+  - ci:repository-hygiene
+  findings:
+  - M2
+  - M4
+  - N7
+- id: P-25
+  title: Agents draft, build and verify; a named person approves
+  enforcement: machine
+  checks:
+  - ck:CK-APPROVER
+  - ck:CK-GATE-RECORD
+  - ck:CK-AUTHOR-NEQ-VERIFIER

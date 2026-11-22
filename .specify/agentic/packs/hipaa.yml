@@ -1,0 +1,34 @@
+# HIPAA domain pack for agentic-spec-kit.
+#
+# This is an engineering aid. It is not legal advice and using it does not make a system compliant
+# or certify anything. Have counsel and your compliance officer confirm what applies to you.
+#
+# Mapping basis: the HIPAA Security Rule technical safeguards at 45 CFR 164.312 and the minimum
+# necessary standard at 45 CFR 164.502(b), as in force on 2026-11-21. HHS proposed an overhaul of the
+# Security Rule in January 2025; as of this date it had not been finalised. Re-check this mapping
+# when a final rule is published.
+schema: agentic-pack/1
+id: hipaa
+classification:
+  restricted: "Protected health information (PHI) or anything that can identify a patient"
+  internal: "Operational data with no patient link"
+  none: "No personal data"
+agreement:
+  name: "Business associate agreement"
+  required_when: "PHI is disclosed to, or handled by, an external party"
+required_sections:
+  - PHI Involved
+  - Access Control
+  - Audit Controls
+  - Integrity
+  - Authentication
+  - Transmission Security
+  - Minimum Necessary
+controls:
+  - {section: Access Control, reference: "45 CFR 164.312(a)(1)", asks: "Who may reach the PHI this change touches, how each access is authorised, and how emergency access works"}
+  - {section: Audit Controls, reference: "45 CFR 164.312(b)", asks: "What is recorded when PHI is read or changed, with which user, tenant and patient, and where the record is kept"}
+  - {section: Integrity, reference: "45 CFR 164.312(c)(1)", asks: "How PHI is protected from improper alteration or destruction"}
+  - {section: Authentication, reference: "45 CFR 164.312(d)", asks: "How the person or system seeking access is verified, and where identity comes from"}
+  - {section: Transmission Security, reference: "45 CFR 164.312(e)(1)", asks: "How PHI is protected in transit, including to model providers and other external services"}
+  - {section: Minimum Necessary, reference: "45 CFR 164.502(b)", asks: "Which PHI fields are used and why each is needed; what is redacted or left out"}
+  - {section: PHI Involved, reference: "45 CFR 160.103 (definitions)", asks: "Which PHI this change reads, writes, stores or sends; say 'none' and why if none"}

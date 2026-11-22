@@ -1,0 +1,12 @@
+# What a Product Owner decided about work that looks like this spec.
+schema: agentic-origin/1
+intake: []
+source: Phase 1 finding C6; see docs/phase-reports/phase-1-verification.md in the agentic-spec-kit repository
+dispositions:
+- target: 005-triage-validation
+  decision: distinct
+  reason: '005 changes the classifier and puts a clinician in the loop; 006 builds the evaluation that the release of 005 depends on. Decided in chat on
+    2026-11-22: the owner approved both specs at G1 ("G1: yes") after being told that `distinct` would be recorded for this pair.'
+  decided_by:
+    reviewer: imatiqul
+    role: product-owner

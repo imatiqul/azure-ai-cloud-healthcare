@@ -1,0 +1,15 @@
+schema: agentic-kit/1
+profile: regulated            # lite | standard | regulated
+domain_packs: [hipaa]
+enforcement:
+  adapter: github
+  repository: imatiqul/azure-ai-cloud-healthcare    # owner/name
+  default_branch: main
+upstream:
+  speckit: "1.4.3"
+gates:
+  single_approver_exception: allowed     # allowed | forbidden. Charter D3: one person holds every role, so each decision states the exception
+  require_evidence_hash: true
+metrics:
+  - {id: lead-time-per-gate, source: audit-log}
+  - {id: rework-rate, source: audit-log}
