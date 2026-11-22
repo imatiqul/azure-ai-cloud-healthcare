@@ -1,0 +1,13 @@
+schema: agentic-run/1
+id: r1
+spec: 004-audit-identity
+mode: sequential
+budget:
+  steps: 200
+  minutes: 240
+steps: 9
+started: '2026-11-22T21:44:30Z'
+last: '2026-11-22T22:42:25Z'
+state: running
+stop_reason: null
+report: null

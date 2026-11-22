@@ -1,0 +1,61 @@
+schema: agentic-work/1
+id: T002
+spec: 004-audit-identity
+title: Put the audit middleware between authentication and authorization in `src/HealthQCopilot.Agents/Program.cs`, `src/HealthQCopilot.Fhir/Program.cs`,
+  `src/HealthQC
+state: done
+owner_agent: backend-implementer
+paths:
+- src/HealthQCopilot.Agents/Program.cs
+- src/HealthQCopilot.Fhir/Program.cs
+- src/HealthQCopilot.Identity/Program.cs
+- src/HealthQCopilot.Notifications/Program.cs
+- src/HealthQCopilot.Ocr/Program.cs
+- src/HealthQCopilot.PopulationHealth/Program.cs
+- src/HealthQCopilot.RevenueCycle/Program.cs
+- src/HealthQCopilot.Scheduling/Program.cs
+- src/HealthQCopilot.Voice/Program.cs
+depends_on: []
+rework_rounds: 0
+history:
+- state: ready
+  by: orchestrator
+  at: '2026-11-22T21:44:30Z'
+- state: in-progress
+  by: backend-implementer
+  at: '2026-11-22T21:46:23Z'
+- state: in-review
+  by: backend-implementer
+  at: '2026-11-22T21:46:36Z'
+- state: done
+  by: security-reviewer
+  at: '2026-11-22T22:29:35Z'
+context:
+  path: .specify/agentic/context/004-audit-identity/T002.md
+  hash: sha256:2a4930e242ef930957571c4ffbdd2cccafb41c6794d65d2195993941eca42a3c
+  sources: 5
+base: 769efd4bf2b74f121dcdbaddd76a8c9af34a3b24
+dirty_at_claim:
+  specs/004-audit-identity/evidence/T001-middleware.md: ba6e997d5aeafc9a6c00b6cf70c77dbd79db66e2693e29c7e08bc4154655c857
+  src/HealthQCopilot.Infrastructure/Middleware/PhiAuditMiddleware.cs: 80369a7d53512280217a401b79ac98a8c009bbaca20360ff669a6be1f071567b
+handoff:
+  done: In all nine services the audit middleware is registered directly after authentication and before authorization. Seven
+    swap two lines; the agent service moves authentication up so the audit stays outside the idempotency middleware; the FHIR
+    service moves the audit below the consent middleware and authentication, as the plan's table says.
+  evidence:
+  - specs/004-audit-identity/evidence/T002-order.md
+  open_questions:
+  - The agent service now authenticates before the idempotency middleware runs. That middleware does not read the user, and
+    it still answers a repeated request before authorization (reported in the plan, not changed here).
+  files:
+  - specs/004-audit-identity/evidence/T002-order.md
+  - src/HealthQCopilot.Agents/Program.cs
+  - src/HealthQCopilot.Fhir/Program.cs
+  - src/HealthQCopilot.Identity/Program.cs
+  - src/HealthQCopilot.Notifications/Program.cs
+  - src/HealthQCopilot.Ocr/Program.cs
+  - src/HealthQCopilot.PopulationHealth/Program.cs
+  - src/HealthQCopilot.RevenueCycle/Program.cs
+  - src/HealthQCopilot.Scheduling/Program.cs
+  - src/HealthQCopilot.Voice/Program.cs
+reviewer_agent: security-reviewer

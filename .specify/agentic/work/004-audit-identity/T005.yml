@@ -1,0 +1,20 @@
+schema: agentic-work/1
+id: T005
+spec: 004-audit-identity
+title: Run the eleven existing tests of the audit middleware at the base commit, then the unit test project at the change's
+  commit, and record both in `specs/004-audit
+state: ready
+owner_agent: test-agent
+paths:
+- specs/004-audit-identity/evidence/characterization.yml
+- specs/004-audit-identity/evidence/unit-tests.md
+depends_on:
+- T001
+- T002
+- T003
+- T004
+rework_rounds: 0
+history:
+- state: ready
+  by: orchestrator
+  at: '2026-11-22T21:44:30Z'
