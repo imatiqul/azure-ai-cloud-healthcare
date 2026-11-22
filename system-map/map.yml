@@ -1670,6 +1670,60 @@ edges:
   to: gateway
   origin: assumed
   evidence: frontend
+- from: identity-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Identity/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: voice-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Voice/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: agent-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Agents/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: fhir-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Fhir/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: ocr-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Ocr/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: scheduling-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Scheduling/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: notification-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Notifications/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: pophealth-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.PopulationHealth/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: revenue-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
 - from: pkg-auth-client
   rel: builds-with
   to: pkg-tsconfig
