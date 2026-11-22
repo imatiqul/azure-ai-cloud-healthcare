@@ -3,7 +3,7 @@ id: T003
 spec: 004-audit-identity
 title: Rewrite the tests that assert the old behaviour in `tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditMiddlewareTests.cs`
   and add `tests/HealthQCopilot.Tes
-state: in-review
+state: done
 owner_agent: test-agent
 paths:
 - tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditMiddlewareTests.cs
@@ -26,6 +26,9 @@ history:
 - state: in-review
   by: test-agent
   at: '2026-11-22T22:41:51Z'
+- state: done
+  by: independent-verifier
+  at: '2026-11-22T23:05:04Z'
 context:
   path: .specify/agentic/context/004-audit-identity/T003.md
   hash: sha256:719f50a7d1615a36bbaddc1628aa8ec3e3a845da196e04da92515cbf3a70ca99

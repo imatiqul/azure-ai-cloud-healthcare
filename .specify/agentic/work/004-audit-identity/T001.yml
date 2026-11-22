@@ -3,7 +3,7 @@ id: T001
 spec: 004-audit-identity
 title: 'Change `src/HealthQCopilot.Infrastructure/Middleware/PhiAuditMiddleware.cs`: the user is the subject of the authenticated
   identity; a marker where there is none'
-state: in-review
+state: done
 owner_agent: backend-implementer
 paths:
 - src/HealthQCopilot.Infrastructure/Middleware/PhiAuditMiddleware.cs
@@ -25,6 +25,9 @@ history:
 - state: in-review
   by: backend-implementer
   at: '2026-11-22T22:41:22Z'
+- state: done
+  by: security-reviewer
+  at: '2026-11-22T23:05:03Z'
 context:
   path: .specify/agentic/context/004-audit-identity/T001.md
   hash: sha256:b46784663eaa292c7d62a14fd05d56a2232449f76389ae75d51694f76c151fdf
