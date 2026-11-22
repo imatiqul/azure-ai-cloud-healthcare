@@ -34,6 +34,7 @@ PASS  RequestPipelineOrderTests.TheAuditMiddlewareRunsDirectlyAfterAuthenticatio
 - AC-001: one row per service; each passes on this change.
 - AC-005: `AuditBeforeAuthenticationFailsAndNamesTheService` applies the check to a pipeline in the old order and expects the service's name in the failure. `AuditAfterAuthorizationFails`, `AMiddlewareBetweenAuthenticationAndTheAuditFails`, `ARegistrationThatIsCommentedOutDoesNotCount` and `AMissingAuthenticationOrAuthorizationFails` are the boundary cases.
 - `EveryServiceThatRegistersTheAuditMiddlewareIsChecked` lists the services under `src/` whose `Program.cs` registers the middleware and compares the list with the nine rows, so a tenth service cannot be added unchecked.
+  **Corrected on 2026-11-22: this was wrong.** The census compared what it found with a second list, not with the rows, and saw only one form of registration; the independent verifier showed a tenth service passing (V-5). `T004-rework-1.md` has the rework.
 
 ## Every test of the change
 
