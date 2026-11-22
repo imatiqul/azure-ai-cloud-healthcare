@@ -1,0 +1,40 @@
+schema: agentic-threats/1
+# Phase 9, 2026-11-22. Analysis for the programme (finding C2); nothing here is implemented.
+# Draft: the programme has no plan yet, so no gate has seen this file.
+# Each threat names the requirement that mitigates it and the acceptance criterion, written as an abuse case, that tests it.
+# `gaps` lists threats the approved spec has no abuse case for. Closing one is an amendment to the spec, which is the owner's to approve.
+threats:
+  - id: TH-1
+    threat: A signed-in user of one tenant reads patients of another tenant, by listing or by searching
+    category: information disclosure
+    mitigation: FR-003
+    test: AC-003
+  - id: TH-2
+    threat: A signed-in clinician reads a patient outside their care team or panel by asking for the patient's identifier directly
+    category: information disclosure
+    mitigation: FR-004
+    test: AC-004
+  - id: TH-3
+    threat: A caller inside the cluster goes round the gateway and calls a service with no token
+    category: spoofing
+    mitigation: FR-005
+    test: AC-005
+gaps:
+  - threat: A caller whose role does not allow an endpoint calls it, for example a patient calls a clinician's endpoint or a clinician calls the audit export
+    why_untested: FR-001 gives every endpoint a named policy and AC-001 checks that the policy is named. No criterion shows a caller with the wrong role being refused
+    proposed: An abuse-case criterion for FR-001, and the role rows of authorization-matrix.yml as its evidence at G5
+  - threat: A tenant's administrator provisions tenants, exports the audit trail of every tenant, or reads patient records, because every other policy the code defines also admits the Admin role
+    why_untested: The spec asks that each endpoint names a policy. It does not ask what each policy admits. The five policies are in src/HealthQCopilot.Infrastructure/Auth/JwtBearerExtensions.cs:42-51
+    proposed: A requirement that each policy admits only the roles its name says, with the administrator rows of authorization-matrix.yml as the test
+  - threat: A break-glass grant that has expired or been revoked is still honoured
+    why_untested: Decision A1 makes an active grant a way to a patient. No requirement says when a grant stops counting, and no criterion tests the moment after it does
+    proposed: A requirement and an abuse-case criterion for a grant past its end
+  - threat: An endpoint is put on the allowlist to make the build pass
+    why_untested: AC-002 checks that each allowlist entry has a reason and a review. It does not show that an entry added without one is refused
+    proposed: Make AC-002 an abuse case, or add one beside it
+  - threat: A service's own token (decision A3) is accepted where a person's token is required, or allows more than the calling service needs
+    why_untested: The spec says services carry a token of their own. It does not say what such a token may do
+    proposed: A requirement that a service token is limited to the calls that service makes, with a criterion
+  - threat: An answer is served from the agent service's idempotency cache before authentication and authorization run, so a policy on the endpoint does not guard it
+    why_untested: Found while planning spec 004. The cache key holds no user and no tenant. No spec owns this yet
+    proposed: Its own finding and spec, ahead of the children of this programme that cover the agent service

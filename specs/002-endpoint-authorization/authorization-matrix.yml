@@ -1,0 +1,38 @@
+# Phase 9, 2026-11-22. The authorization matrix for finding C2, as a design: who may reach what, and what a refusal looks like.
+# Analysis only. No row has been run (`result: not-run`); the kit asks for this file, with every row passing, in the
+# security evidence of G5 for a spec that changes an endpoint (QLT-5).
+# The rows follow from the approved spec (FR-001 to FR-007, decisions A1 to A3) and from the five policies the code
+# defines today in src/HealthQCopilot.Infrastructure/Auth/JwtBearerExtensions.cs:42-51: Clinician, Admin, PlatformAdmin,
+# Patient, PatientOrClinician. `basis` says which. A row whose basis is "current code" records what one endpoint does today;
+# whether that is right is decided at G3 of the programme's first child (026-authz-policy-set).
+# One thing the code does today that the rows below do not accept: each of the other four policies also admits the Admin role
+# (lines 43, 47, 49 and 51). A tenant's administrator therefore passes the PlatformAdmin policy, which guards tenant
+# onboarding and the audit export, and the Patient and Clinician policies too. The rows marked "to decide" depend on that.
+# The per-endpoint matrix for the 263 endpoints is generated from the code by that child (NFR-002), not written by hand.
+rows:
+  # no token
+  - {role: none, tenant: any, resource: any endpoint that is not on the reviewed allowlist, expect: "401", basis: FR-005 and AC-005, result: not-run}
+  - {role: none, tenant: any, resource: an endpoint on the reviewed allowlist, expect: allowed, basis: FR-002, result: not-run}
+  # clinician
+  - {role: clinician, tenant: own, resource: a patient in their care team or panel, expect: allowed, basis: decision A1, result: not-run}
+  - {role: clinician, tenant: own, resource: a patient outside their care team and panel, expect: "403, and no patient data in the body", basis: FR-004 and AC-004, result: not-run}
+  - {role: clinician, tenant: own, resource: a patient outside their care team with an active break-glass grant, expect: allowed, basis: decision A1, result: not-run}
+  - {role: clinician, tenant: own, resource: a list of patients, expect: only patients of their tenant, basis: FR-003 and AC-003, result: not-run}
+  - {role: clinician, tenant: other, resource: a patient of another tenant by identifier, expect: "403", basis: FR-003 and decision A2, result: not-run}
+  - {role: clinician, tenant: own, resource: the audit export and the audit summary, expect: "403", basis: "current code: AuditExportEndpoints.cs:25 asks for PlatformAdmin", result: not-run}
+  - {role: clinician, tenant: own, resource: tenant onboarding, expect: "403", basis: "current code: TenantOnboardingEndpoints.cs:26 asks for PlatformAdmin", result: not-run}
+  # patient
+  - {role: patient, tenant: own, resource: their own profile, expect: allowed, basis: "current code: IdentityEndpoints.cs:265 asks for Patient", result: not-run}
+  - {role: patient, tenant: own, resource: another patient's record, expect: "403", basis: FR-004 and decision A2, result: not-run}
+  - {role: patient, tenant: own, resource: an endpoint for clinicians, expect: "403", basis: FR-001, result: not-run}
+  # administrators
+  - {role: admin, tenant: own, resource: the users of their tenant, expect: allowed, basis: "FR-001; no endpoint that manages users names a policy today, so which role may is to decide", result: not-run}
+  - {role: admin, tenant: other, resource: the users of another tenant, expect: "403", basis: FR-003, result: not-run}
+  - {role: admin, tenant: own, resource: tenant onboarding and the audit export, expect: "403", basis: "to decide: the code allows it today, because the PlatformAdmin policy admits the Admin role (JwtBearerExtensions.cs:46-47)", result: not-run}
+  - {role: admin, tenant: own, resource: a patient's record, expect: "403 unless the administrator is also in the care team", basis: "to decide: the code allows it today, because the Clinician and Patient policies admit the Admin role; decision A1 names the care team, the panel and break-glass, and no administrator", result: not-run}
+  - {role: platform-admin, tenant: any, resource: tenant onboarding and the audit export, expect: allowed, basis: "current code: TenantOnboardingEndpoints.cs:26 and AuditExportEndpoints.cs:25", result: not-run}
+  # another service
+  - {role: service, tenant: the tenant of the request it serves, resource: the endpoint that service calls, expect: allowed, basis: decision A3, result: not-run}
+  - {role: service, tenant: any, resource: an endpoint that service has no reason to call, expect: "403", basis: "decision A3; see the gap about service tokens in threat-model.yml", result: not-run}
+  # every refusal above
+  - {role: any, tenant: any, resource: any request refused in a row above, expect: one audit record with the status of the refusal, basis: FR-007 and AC-007, result: not-run}
