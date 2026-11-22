@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
@@ -84,6 +85,13 @@ public sealed class PhiAuditMiddlewareTests
         await using var db = OpenDb(dbName);
         return await db.PhiAuditLogs.SingleOrDefaultAsync();
     }
+
+    /// <summary>The text of each line the middleware logged at one level, in order.</summary>
+    private static List<string> LoggedLines(ILogger<PhiAuditMiddleware> logger, LogLevel level = LogLevel.Information) =>
+        logger.ReceivedCalls()
+            .Where(c => c.GetArguments()[0] is LogLevel logged && logged == level)
+            .Select(c => c.GetArguments()[2]?.ToString() ?? string.Empty)
+            .ToList();
 
     // ── Non-PHI paths ─────────────────────────────────────────────────────────
 
@@ -263,6 +271,175 @@ public sealed class PhiAuditMiddlewareTests
         var entry = await SingleEntryAsync(dbName);
         entry.Should().NotBeNull();
         entry!.UserId.Should().Be("set-downstream");
+    }
+
+    [Fact]
+    public void TheMarkersAreTheTextThePlanFixes()
+    {
+        // Readers of the audit table and the rollout's signals search for these two values.
+        PhiAuditMiddleware.UnauthenticatedUser.Should().Be("(unauthenticated)");
+        PhiAuditMiddleware.NoSubjectUser.Should().Be("(no-subject)");
+    }
+
+    [Fact]
+    public async Task PhiPath_RecordsTheSubjectExactlyAsTheTokenCarriesIt()
+    {
+        // A subject is case-sensitive and opaque. Nothing folds its case or trims it.
+        var (sut, _, dbName) = BuildSut();
+        var ctx = MakeContext("/api/v1/encounters/99", subject: "AbC-dEf_0123:XyZ");
+
+        await sut.InvokeAsync(ctx);
+
+        var entry = await SingleEntryAsync(dbName);
+        entry.Should().NotBeNull();
+        entry!.UserId.Should().Be("AbC-dEf_0123:XyZ");
+    }
+
+    [Fact]
+    public async Task PhiPath_TheEventNamesTheSameUserAsTheRecord()
+    {
+        // The event stream is the second copy of the record. A header naming someone else changes neither.
+        var eventHub = Substitute.For<IEventHubAuditService>();
+        var (sut, _, dbName) = BuildSut(eventHub: eventHub);
+        var ctx = MakeContext("/api/v1/patients/7", subject: "user-u");
+        ctx.Request.Headers["X-User-Id"] = "user-v";
+
+        await sut.InvokeAsync(ctx);
+
+        var entry = await SingleEntryAsync(dbName);
+        entry.Should().NotBeNull();
+        var published = eventHub.ReceivedCalls()
+            .Select(c => c.GetArguments()[0])
+            .OfType<AuditEvent>()
+            .ToList();
+        published.Should().ContainSingle();
+        published[0].UserId.Should().Be("user-u");
+        published[0].UserId.Should().Be(entry!.UserId);
+        published[0].HttpStatusCode.Should().Be(entry.StatusCode);
+    }
+
+    [Fact]
+    public async Task PhiPath_TheEventOfAnUnauthenticatedRequestCarriesTheMarker()
+    {
+        var eventHub = Substitute.For<IEventHubAuditService>();
+        var (sut, _, _) = BuildSut(eventHub: eventHub);
+
+        await sut.InvokeAsync(MakeContext("/api/v1/patients/7"));
+
+        var published = eventHub.ReceivedCalls()
+            .Select(c => c.GetArguments()[0])
+            .OfType<AuditEvent>()
+            .ToList();
+        published.Should().ContainSingle();
+        published[0].UserId.Should().Be(PhiAuditMiddleware.UnauthenticatedUser);
+    }
+
+    [Fact]
+    public async Task PhiPath_TheLogLinesNameTheUserOfTheRecordAndNotAHeader()
+    {
+        // The log scope's UserId can come from the X-User-Id header. The middleware's own
+        // lines carry the user they are about.
+        var (sut, logger, _) = BuildSut();
+        var ctx = MakeContext("/api/v1/patients/7", subject: "user-u");
+        ctx.Request.Headers["X-User-Id"] = "user-v";
+
+        await sut.InvokeAsync(ctx);
+
+        var lines = LoggedLines(logger);
+        lines.Should().HaveCount(2);
+        lines[0].Should().StartWith("PHI_ACCESS: User=user-u ");
+        lines[1].Should().StartWith("PHI_ACCESS_COMPLETE: User=user-u ");
+    }
+
+    [Fact]
+    public async Task PhiPath_TheCompletionLineNamesTheIdentityThePipelineEndedWith()
+    {
+        var (sut, logger, _) = BuildSut(next: ctx =>
+        {
+            ctx.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", "set-downstream")], "test"));
+            ctx.Response.StatusCode = 200;
+            return Task.CompletedTask;
+        });
+
+        await sut.InvokeAsync(MakeContext("/api/v1/patients/7"));
+
+        var lines = LoggedLines(logger);
+        lines.Should().HaveCount(2);
+        lines[0].Should().StartWith($"PHI_ACCESS: User={PhiAuditMiddleware.UnauthenticatedUser} ");
+        lines[1].Should().StartWith("PHI_ACCESS_COMPLETE: User=set-downstream ");
+    }
+
+    [Fact]
+    public async Task PhiPath_PersistsTheStatusTheTimeAndTheCorrelationId()
+    {
+        var before = DateTime.UtcNow;
+        var (sut, _, dbName) = BuildSut(
+            next: ctx => { ctx.Response.StatusCode = 403; return Task.CompletedTask; });
+        var ctx = MakeContext("/api/v1/patients/7", subject: "user-u");
+        ctx.TraceIdentifier = "trace-0042";
+        var expectedCorrelationId = Activity.Current?.Id ?? "trace-0042";
+
+        await sut.InvokeAsync(ctx);
+
+        var entry = await SingleEntryAsync(dbName);
+        entry.Should().NotBeNull();
+        entry!.UserId.Should().Be("user-u");
+        entry.StatusCode.Should().Be(403);
+        entry.CorrelationId.Should().Be(expectedCorrelationId);
+        (entry.AccessedAt >= before && entry.AccessedAt <= DateTime.UtcNow)
+            .Should().BeTrue("the record carries the time of the request");
+    }
+
+    [Fact]
+    public async Task PhiPath_AFailedWriteIsLoggedWithWhatTheLostRowHeld()
+    {
+        var brokenScopeFactory = Substitute.For<IServiceScopeFactory>();
+        brokenScopeFactory.CreateScope()
+            .Returns<IServiceScope>(_ => throw new InvalidOperationException("DB unavailable"));
+        var logger = Substitute.For<ILogger<PhiAuditMiddleware>>();
+        var sut = new PhiAuditMiddleware(
+            ctx => { ctx.Response.StatusCode = 201; return Task.CompletedTask; },
+            logger,
+            brokenScopeFactory);
+        var ctx = MakeContext("/api/v1/revenue/coding-jobs", subject: "user-u", method: "POST");
+        ctx.Request.Headers["X-User-Id"] = "user-v";
+
+        await sut.InvokeAsync(ctx);
+        await Task.Delay(150);
+
+        var errors = LoggedLines(logger, LogLevel.Error);
+        errors.Should().ContainSingle();
+        errors[0].Should().Contain("User=user-u ");
+        errors[0].Should().Contain("Method=POST ");
+        errors[0].Should().Contain("Path=/api/v1/revenue/coding-jobs ");
+        errors[0].Should().Contain("Status=201 ");
+        errors[0].Should().Contain("CorrelationId=");
+    }
+
+    [Fact]
+    public void ResolveUserId_DoesNotReadASubjectFromAnIdentityThatIsNotAuthenticated()
+    {
+        var withoutSubject = new ClaimsIdentity([new Claim("oid", "object-id-123")], "test");
+        var notAuthenticated = new ClaimsIdentity([new Claim("sub", "forged")]);
+
+        PhiAuditMiddleware.ResolveUserId(new ClaimsPrincipal(new[] { withoutSubject, notAuthenticated }))
+            .Should().Be(PhiAuditMiddleware.NoSubjectUser);
+        PhiAuditMiddleware.ResolveUserId(new ClaimsPrincipal(new[] { notAuthenticated, withoutSubject }))
+            .Should().Be(PhiAuditMiddleware.NoSubjectUser);
+        PhiAuditMiddleware.ResolveUserId(new ClaimsPrincipal(notAuthenticated))
+            .Should().Be(PhiAuditMiddleware.UnauthenticatedUser);
+    }
+
+    [Fact]
+    public void ResolveUserId_ReadsTheAuthenticatedIdentityWhereverItStands()
+    {
+        var authenticated = new ClaimsIdentity([new Claim("sub", "user-u")], "test");
+        var notAuthenticated = new ClaimsIdentity([new Claim("sub", "forged")]);
+
+        PhiAuditMiddleware.ResolveUserId(new ClaimsPrincipal(new[] { authenticated, notAuthenticated }))
+            .Should().Be("user-u");
+        PhiAuditMiddleware.ResolveUserId(new ClaimsPrincipal(new[] { notAuthenticated, authenticated }))
+            .Should().Be("user-u");
     }
 
     [Theory]
