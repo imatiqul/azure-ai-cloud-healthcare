@@ -327,3 +327,110 @@ In the services:
 - Matched lines only, from searches of the ten folders for code that sets the user, claims transformations, schemes on policies, `X-User-Id`, `IncludeScopes`, "anonymous", `oid`, `ExternalId`, route prefixes and exception handling: `Identity/Validators/IdentityValidators.cs`, `Identity/Persistence/IdentityDbContext.cs`, `Notifications/Endpoints/NotificationEndpoints.cs`, `Notifications/Controllers/NotificationsSubscriberController.cs`, `Notifications/Controllers/AppointmentReminderController.cs`, `Agents/Endpoints/WorkflowOperationalEndpoints.cs`, `Agents/Services/Safety/RedactingChatCompletionDecorator.cs`, `Voice/Hubs/VoiceHub.cs`, `Agents/README.md`, `Notifications/README.md`
 
 Outside the repository: the harness's `run.py`, `Runner.cs`, `Harness.csproj` and its five stand-in files. `Directory.Build.props`, `.editorconfig` and `HealthQCopilot.sln` were used by the harness and by `dotnet format`; I did not open them.
+
+## Round 2
+
+- **Date and commits:** 2026-11-22; the rework `03c9f5b..15bf0f9`. Five files under `src` and `tests` changed; no `Program.cs` did. Same inputs and rules as round 1; the input list adds three rework evidence files.
+- **Not mine and not opened:** `reviews/G5-security.md`, which changed again while I worked. The rework evidence and the corrected documents cite it, and cite files outside my list (the gateway, the bff, a deployment workflow). What rests on those is not verified by me.
+- **As before:** nothing here is a run of the solution's own build or test project. Everything ran offline, on the clone read-only or on temporary copies; this section is the only thing I wrote in the repository.
+
+### 1. The fourteen findings
+
+| Finding | Status | Evidence |
+|---|---|---|
+| V-1 | Open | CK-TOUCH with the 14 changed files fails with the same message. `spec.md`, `impact.md` and `system-map/map.yml` are unchanged since `03c9f5b`. |
+| V-2 | Open | CK-CHARACTERIZATION still fails on `not-run`. `evidence/unit-tests.md` and `staging-check.md` do not exist. T005 is not done. |
+| V-3 | Resolved | `PhiPath_TheEventNamesTheSameUserAsTheRecord`, `PhiPath_TheEventOfAnUnauthenticatedRequestCarriesTheMarker`, `EventsShouldMatch` in every pipeline test (`PhiAuditPipelineTests.cs:124-134`), `PhiPath_TheLogLinesNameTheUserOfTheRecordAndNotAHeader`. My round 1 seeds S1 and S2 are now caught by 17 and by 4 tests. |
+| V-4 | Resolved | 403: `ASignedInCallerWithoutTheRole_...`. Marker text: `TheMarkersAreTheTextThePlanFixes`. Case: `PhiPath_RecordsTheSubjectExactlyAsTheTokenCarriesIt` and a mixed-case subject in `ValidToken_...`. A token the scheme rejects: `ATokenTheSchemeRejects_...`, two rows; the no-token rows are renamed to say what they are. Time and correlation id: `PhiPath_PersistsTheStatusTheTimeAndTheCorrelationId`. The harness's seeds D9, D13 and D14 are my S4, S5 and S6; all caught. |
+| V-5 | Resolved for every case of round 1. New cases survive (part 2). | One list feeds the order rows and the census (`RequestPipelineOrderTests.cs:17-23, 38-39`). The census counts a `Program.cs` that names the middleware in any form; a second test looks at the other files under `src`. What is in front of the audit has to be on a list (`RequestPipelineOrder.cs:35-57, 105-111`). My twelve texts of round 1 now all fail the check, or are false alarms in the safe direction. X1 to X3 are the harness's seeds O2 to O4; all caught. |
+| V-6 | Partly resolved: written down, not built | The plan now says the check P-9 names is not built by this change and that the notification service records nothing (`plan.md:46-47`). `constitution.map.yml:32-34` still says `not built`, and the constitution still says the spec for C4 must add it. The owner has to accept that deferral. No test goes through a service. |
+| V-7 | Resolved | `privacy-impact.md` names the logs as a store, under fields, lineage, retention and access paths. The statements I could check are right: `JwtBearerExtensions.cs:26-34, 46-47`; `EventHubAuditService.cs:49-57`; `ObservabilityExtensions.cs:84-93`; the lookup at `IdentityEndpoints.cs:49` has no guard. |
+| V-8 | Partly resolved | Fixed: only an authenticated identity is asked for a subject (`PhiAuditMiddleware.cs:125-137`; two tests; my case H4 now gives `(no-subject)`). The completion line names the record's user (`:98-100`). Not changed, and now stated (`plan.md:26`; threat model, open 10): a policy with its own scheme that fails still leaves a validated caller recorded as `(unauthenticated)`. H2a gives the same record as in round 1. |
+| V-9 | Partly resolved | The row is still lost, and no length is checked. A failed write now logs the user, method, path, status and correlation id (`PhiAuditMiddleware.cs:160-166`; my case H6), the rollout halts on that line's rate (`rollout.yml:27`), and the threat model lists it (open 3, to spec 015). |
+| V-10 | Open, by decision | The code is unchanged (`PhiAuditMiddleware.cs:83`); H1e and H5a give the same results. It is now stated: `plan.md:30` and the risks, threat model open 2 (to specs 015 and 016). The resilience case in `test-strategy.yml` no longer assumes a 401. |
+| V-11 | Resolved | The halt signal is limited to OCR routes and names a replayed answer as expected and counted (`rollout.yml:25`). I checked its premise: in the nine services the only guard on a route under an audited prefix is `OcrEndpoints.cs:16`. |
+| V-12 | Open | CK-GATE-RECORD and CK-THREAT-MODEL fail as before. The plan's header says nobody has approved either version. |
+| V-13 | Partly resolved | `test-strategy.yml` now says `unit-tests.md` and "eight tests". `T004-order-tests.md:37` corrects its sentence. `unit-tests.md` still does not exist. One session still wrote the code and the tests. Every result in the rework evidence reproduces (part 2). |
+| V-14 | Open | `impact.md` and the map are unchanged; the four test files are indexed to no node. The privacy impact now says the readers of the stream and of the telemetry store are on no map. One thing I could not tell in round 1 is now shown: the census passes on the real tree, so no `Program.cs` of the gateway or the bff names the middleware in any form. |
+
+### 2. Whether the rework holds
+
+**What I ran.**
+1. `run.py --repo /home/claude/work/hq-c4`: `80 passed, 0 failed`. The 80 names are the list in `T004-rework-1.md`. With `--at 8d04df3`: `11 passed, 0 failed`.
+2. `run.py ... --seed --base 8d04df3`, once: `24 of 24 seeded defects caught`. The output is the same as in `T004-rework-1.md`, line for line.
+3. The two intermediate states the rework evidence describes, rebuilt in temporary directories: 49 passed for `T001-rework-1.md`, 61 passed for `T003-rework-1.md`.
+4. `dotnet format whitespace --folder --verify-no-changes` on the five files: exit 0. The AC-006 search at `15bf0f9`: 0 of 237 files.
+5. The kit's checks, with the 14 changed files: CK-TOUCH, CK-THREAT-MODEL, CK-CHARACTERIZATION and CK-GATE-RECORD fail as in round 1. CK-VERIFY-INPUTS, CK-TRACE, CK-PRIVACY-IMPACT, CK-ROLLOUT, CK-PROGRESSIVE, CK-TEST-STRATEGY, CK-IMPACT, CK-WORKITEM, CK-REWORK-LIMIT, CK-PATH-DIFF and CK-AUTHOR-NEQ-VERIFIER are ok.
+6. Twenty seeds of my own, through the harness's own build-and-run function, each on a fresh temporary copy.
+7. The reworked `RequestPipelineOrder.Check` on the twelve texts of round 1 and on sixteen new ones.
+8. The reworked middleware on the real host of round 1, with five new cases.
+
+**My seeds.**
+
+| Seed | Defect | Result |
+|---|---|---|
+| S1, from round 1 | The event carries a fixed word in place of the user | Caught by 17 tests |
+| S2, from round 1 | The first log line takes its user from `X-User-Id` | Caught by 4 |
+| N7 | The completion line names the user read before the pipeline ran | Caught by 1 |
+| N8 | The event names the user read before the pipeline ran | Caught by 1, the old-order pipeline test |
+| N15 | The event always says status 200 | Caught by 8 |
+| N17 | The object id is preferred to the subject when a token carries both | Caught by 2 |
+| N18 | The start log line is not written | Caught by 7 |
+| N16 | The display-name claim is preferred to the subject when a token carries both | Not caught: 80 of 80 pass |
+| N5 | A request header names the user when the token has no subject | Not caught |
+| N11 | A 401 is recorded as `(unauthenticated)` whoever the caller is | Not caught |
+| N4 | Only the first authenticated identity is asked for a subject | Not caught |
+| N2 | The event carries another path than the request's | Not caught |
+| N3 | The event carries no correlation id | Not caught |
+| N1 | The subject is trimmed before it is recorded | Not caught |
+| N6 | The line for a failed write carries an empty correlation id | Not caught |
+| X4 | A tenth service audits before authentication through an extension method kept in a second file named `Program.cs` | Not caught |
+| X5 | A tenth service whose folder does not start with `HealthQCopilot.` audits before authentication | Not caught |
+| X6 | One service puts a refusing middleware in front of authentication with a static call, `GateExtensions.UseGate(app);` | Not caught |
+| X8 | The same with an awaited call, `await app.UseGateAsync();` | Not caught |
+| X7 | One service hides a refusing middleware between a `//` comment that contains `/*` and a block comment | Not caught |
+
+**The order check on texts.** The twelve of round 1: O1 "not registered"; O2 "registered before authentication"; O3 "preprocessor condition"; O4 "not on the list"; O5 "between authentication and the audit"; O6 and O7 "not registered"; O8 and O9 false alarms, as before; O10 and O11 "registered 2 times"; O12 "inside a block". Of the sixteen new texts it handles six rightly: `app.Run();` in front, authentication moved above the consent middleware in FHIR, and a refusing branch written across several lines all fail; Windows line endings, a trailing block comment and the FHIR order pass. Two are false alarms in the safe direction: a logging line in front, and a registration indented by one space. One is outside what a text check can be asked: a second application built and run after the first. It passes seven that it should not: the forms of X6, X7 and X8; the same static call placed between authentication and the audit; a refusing middleware registered through a second variable; a string that contains `/*` before a refusing middleware and a string that contains `*/` after it; and authentication inside a block whose content is not indented.
+
+**The real host.**
+
+| Case | Request | Result |
+|---|---|---|
+| H2a, again | Valid default-scheme token; the policy names another scheme; no credential for it | Record `(unauthenticated)`, 401. Start line `clinician-7`; completion line `(unauthenticated)` |
+| H4, again | An authenticated identity with no subject and an unauthenticated one with a `sub` claim | `(no-subject)`; in round 1 it was the other identity's subject |
+| H1e, H5a, again | The endpoint throws; the authentication handler throws | No record, as in round 1 |
+| H6 | Valid token; the audit database is down | 200; the event is published; one error line with user, method, path, status and correlation id, and no time of access |
+| H7 | Two authenticated identities with different subjects | The first in order is recorded: `integration-svc` one way, `clinician-7` the other |
+| H8 | An authenticated identity with no subject, then one with a subject | The second one's subject |
+| H9 | One identity with the claims a mapped token carries: object id, name, user name, subject, tenant, role | The subject |
+| H10 | A policy that names two schemes, both credentials valid | The subject of the scheme named last: `Test,Key` records the key's, `Key,Test` the token's |
+
+**What still survives.**
+- In the tests of the middleware, eight of my fifteen seeds. The one I would close first is N16: every test identity carries one claim, two in a single test, and a real token carries a dozen. The code is right (H9); no test would notice a change that prefers the name, the e-mail address or the user name. The object id is protected (N17). The others: a header when the token has no subject (N5), a 401 for a caller who is signed in (N11), a second authenticated identity (N4), the event's path and correlation id (N2, N3), trimming (N1), the correlation id on the failed-write line (N6).
+- In the order check, four things:
+  - A statement that does not start with `app.` is not read, in front of the audit or between authentication and the audit (`RequestPipelineOrder.cs:69`; X6, X8). The nine files hold eighteen statements of the awaited form today, `await app.InitializeDatabaseAsync<...>();`, all harmless.
+  - Block comments are removed before line comments and without regard to strings, so a `/*` inside either hides everything up to the next `*/` (`RequestPipelineOrder.cs:124-127`; X7). None of the nine files contains `/*` today.
+  - "Top level" is the first column, so a block whose content is not indented is read as top level. The formatter would re-indent it.
+  - A `Program.cs` that is not `src/HealthQCopilot.*/Program.cs` is read by neither the census (`RequestPipelineOrderTests.cs:52-55`) nor the second test, which leaves out every file of that name (`:70-73`): X4, X5.
+  None of the four is among the limits the file's own comment lists.
+
+### 3. What the rework broke or introduced
+
+Broke: nothing I can find. The 80 tests pass, the eleven at the base pass, both intermediate states reproduce, the formatting is clean, and no `Program.cs`, migration or table definition changed.
+
+Introduced:
+1. The comment handling of the order check, and the gap between the two tests' sets of files (part 2). The sentences that describe them say more than the code does: `T004-rework-1.md:20` ("any `Program.cs`", "any other file under `src/`") and the plan ("fails on any other", section 3).
+2. With two authenticated identities the first that has a subject is recorded, so their order decides (H7), and the framework puts the scheme a policy names last in front (H10). `T001-rework-1.md:17` says two identities give the same answer in either order. That holds when one of them is not authenticated, which is what the tests cover. No policy names two schemes today.
+3. The comment at `PhiAuditMiddleware.cs:162` says the error line holds everything the lost row held. The time of access is not in it (H6); the line's own timestamp is the time the write gave up. The comment at line 105 still says "append-only", which the corrected class comment no longer claims.
+4. Two log lines changed their text (`PhiAuditMiddleware.cs:99, 164`), and the user is now on two more lines, one of them at error level. The privacy impact says so. Anything outside my inputs that matches the old text of those lines would need the new one; the rollout's new halt signal matches the part both share.
+5. The order check now fails on any `app.` statement in front of the audit that is not on its list, a logging line included. That is intended and fails in the safe direction; a harmless addition will need the list edited, with a reason.
+
+### 4. Verdict per work item
+
+| Work item | Verdict | Why, and what is left |
+|---|---|---|
+| T001, the middleware | Accept | The rework does what `T001-rework-1.md` says, and the cases that showed V-8's third point now give the right answer. Left, all stated in the plan or here and none in the way: the policy-with-its-own-scheme case (V-8), the lost row (V-9), the request that throws (V-10), and points 2 and 3 of part 3. |
+| T003, the middleware and pipeline tests | Accept | V-3 and V-4, the reasons for the return, are resolved, and the tests are unchanged where the plan says they must be. Eight further seeds survive; none is a reason I returned the item for. N16 is the one worth a test. |
+| T004, the order tests | Accept | Every case of V-5 is resolved, including the two I named as the least that had to be. Four narrower limits remain. I would add them to the file's comment and make the census read every `Program.cs` under `src`; neither needs another round. |
+
+"Accept" means the item's files are right as far as this machine can show. The gate still cannot pass: V-1, V-2 and V-12 are open, V-6 needs the owner's decision, and V-14 is unchanged.

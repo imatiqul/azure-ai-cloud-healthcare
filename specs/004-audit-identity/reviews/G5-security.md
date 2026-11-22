@@ -292,3 +292,71 @@ Threats the model misses:
 | The spec's documents (not a work item I was given) | Return | Must be resolved before the gate: S-1 (`spec.md`, `threat-model.yml`), S-2 (`threat-model.yml`, `spec.md`), S-3 (`privacy-impact.md`). Should-fix: S-12 (`rollout.yml`). |
 
 The code does what the plan says. The gate should not pass until S-1, S-2 and S-3 are resolved: a kit check fails, one threat is recorded as mitigated where it is not, and the privacy impact is wrong about where the identifier goes and who sees it. An accepted work item is not a resolved finding: each should-fix above stays open until I see the change that closes it or the spec that takes it.
+
+## Round 2
+
+- **Date and reference:** 2026-11-22; the rework `03c9f5b..HEAD` (HEAD `15bf0f9`): five code files and four documents.
+- **What I read:** the two diffs the orchestrator named; the five changed code files in full; `threat-model.yml`, `privacy-impact.md` and `rollout.yml` in full, and the changed parts of `plan.md`; `.github/workflows/microservice-deploy.yml:440-480`, which the corrected privacy impact cites. Kit checks run again: `CK-THREAT-MODEL` fails with the same two messages; `CK-PRIVACY-IMPACT` passes.
+- **Unverified:** nothing was built or run, so "passes" below means "passes by reading". I did not read `verification/` or `evidence/`; the corrected documents cite a verification report (V-6 to V-11) that I have not seen. I cannot read the folders of specs 001, 002, 003, 007, 008, 015 or 016, so "given to spec N" is what this spec's documents say, not something I checked there.
+- **A correction to round 1:** assumption 4 said gate G3 had approved the plan. The plan says nobody has approved either version (`plan.md:8`). No verdict changes. Decisions P1 to P3 and the questions at `plan.md:100-106` go to the owner as open, not as settled.
+
+### 1. The fifteen findings
+
+| Finding | Status | What shows it |
+|---|---|---|
+| S-1 | Open. The owner. | `CK-THREAT-MODEL` still fails. `spec.md:40-41` is approved text that only the owner can amend, and it is unchanged. The threat model now states this truthfully (`threat-model.yml:3-4`). |
+| S-2 | Partly resolved. The owner. | The threat model is truthful now: TH-2 holds for a refusal by a service and not at the gateway (`threat-model.yml:19`), and the gateway is open threat 1, given to the owner (`threat-model.yml:27`; `plan.md:89, 103`). FR-003 and `spec.md:68` are approved text and still say more than the system does. |
+| S-3 | Resolved as a document. | The path, the provider, the three stores, the readers and the lookup are corrected (`privacy-impact.md:14-23, 26, 29-33, 36-37`), and the workflow it cites says what it claims (`microservice-deploy.yml:447-478`). One decision is left with the owner: whether logs carry the identifier (`privacy-impact.md:11`; `plan.md:101`). |
+| S-4 | Partly resolved. | The part in T001 is done: the completion line and the failure line name the resolved user (`PhiAuditMiddleware.cs:97-100, 162-165`), tested behind the tenant-context middleware (`PhiAuditPipelineTests.cs:57, 160`; `PhiAuditMiddlewareTests.cs:338, 394`). The scope is still set by the header: spec 003 (`threat-model.yml:13, 31`). |
+| S-5 | Open. Given to specs 015 and 016. | Not changed, and the plan says so (`plan.md:30, 92`). Listed as open threat 2 (`threat-model.yml:28`). |
+| S-6 | Partly resolved. | The rollout waits for spec 001 and for a provider on each service, reads a real subject back in staging and halts on `demo-user` (`rollout.yml:6, 17, 26`). The audit still records the made-up user as a person: spec 001 (`threat-model.yml:30`). The deployment falls back to that user with one echoed line when two variables are unset (`microservice-deploy.yml:457-462`). |
+| S-7 | Open. The owner. | The plan no longer claims the join and puts the question first (`plan.md:50, 100`; `threat-model.yml:32`). One part is answered: the deployment gives every service the same client id and audience, so a person has one subject across the services (`microservice-deploy.yml:469-477`). |
+| S-8 | Resolved. | Only an authenticated identity can name the user (`PhiAuditMiddleware.cs:125-137`); two identities are tested in both orders (`PhiAuditMiddlewareTests.cs:420, 434`). The limit for a policy scheme that fails is stated (`plan.md:26`; `threat-model.yml:36`). |
+| S-9 | Points 1, 2 and 3 resolved; 4 and 5 open. | The event's user is asserted (`PhiAuditPipelineTests.cs:124-134`; `PhiAuditMiddlewareTests.cs:299, 322`); a 403 is recorded under the caller's subject (`PhiAuditPipelineTests.cs:237`); the tenant-context middleware is in the pipeline (`PhiAuditPipelineTests.cs:57`). Point 4 is not built and the plan says so, with a staging check in its place (`plan.md:46-47`; `rollout.yml:17`); the wording of AC-002 is the owner's. Point 5 is unchanged. |
+| S-10 | Point 1 partly resolved; point 2 resolved; points 3 and 4 open. | What may precede the audit is a list, with the consent middleware as an exception for FHIR only (`RequestPipelineOrder.cs:35-57, 105-111`; `RequestPipelineOrderTests.cs:154-185`). Comments, blocks, chains, second registrations and `#if` now fail for the three registrations (`RequestPipelineOrder.cs:64-91`). Two limits remain (R2-1, R2-2). Point 3 is stated as a limit (`RequestPipelineOrder.cs:17-19`); point 4 is a rollout precondition (`rollout.yml:7`). |
+| S-11 | Open. Given to spec 015. | Listed as open threat 3 (`threat-model.yml:29`; `plan.md:94`). The path is still not cut to fit. The failure line now holds what the lost row held (`PhiAuditMiddleware.cs:162-165`). |
+| S-12 | Resolved. | Preconditions, staging checks, the change-over time and the signals (`rollout.yml:5-7, 16-19, 25-27`). |
+| S-13 | Open (note). | Recorded for the specs that own the export (`plan.md:96-97`; `threat-model.yml:34`). Nothing was expected here. |
+| S-14 | Partly resolved (note). | The class comment no longer claims rows cannot be altered (`PhiAuditMiddleware.cs:13-15`); an inline comment still says "append-only" (`PhiAuditMiddleware.cs:105`). The markers are pinned by a test (`PhiAuditMiddlewareTests.cs:277`) and `(no-subject)` has a halt signal (`rollout.yml:26`). The words that mean "no person" are still not listed for a reader of the export. |
+| S-15 | Open (note). | Recorded, with no spec to own it yet (`threat-model.yml:35`; `plan.md:95`). The notification service is named as writing no record (`plan.md:47`; `rollout.yml:17`). |
+
+### 2. What the rework broke or introduced
+
+Nothing is broken that I can see by reading. I traced the new order check over the nine real `Program.cs` files. Each has only listed statements in front of the audit, one registration of each kind, one mention of the middleware and no preprocessor condition; the one `#pragma` in the agent service is not a condition (`src/HealthQCopilot.Agents/Program.cs:25`). No other file under `src/` names the middleware, so the new test for that passes too. I found no test that asserts something the code does not do.
+
+Six new points. None is a must-fix.
+
+- **R2-1, should-fix, T004 and `plan.md`.** The list of what may precede the audit is applied only to top-level statements that begin `app.` (`RequestPipelineOrder.cs:68-69, 105-108`). A registration inside a block, behind `await`, or made by a helper call, in front of the audit, is not read. The file's own list of what it cannot see (`RequestPipelineOrder.cs:16-20`) and the plan (`plan.md:45`, "anything in front of it") do not say so. How it is met: someone wraps an output cache in a feature-flag block ahead of authentication, and the build stays green. What must change: the plan states the limit now. The check is closed by the spec that changes the consent middleware, which has to touch this order anyway.
+- **R2-2, should-fix, outside this change (the spec that changes the consent middleware).** The exception for the consent middleware is tied to its registration line, not to what the middleware does (`RequestPipelineOrder.cs:48-57`). No test of that middleware exists under `tests/`. A change inside it that makes it refuse passes every check; the file says as much for its allow-list (`RequestPipelineOrder.cs:17-18`). This is the case I described under S-10 and it is still possible. The likelier repairs, moving the consent middleware or authentication, are now caught. What must change: the spec that changes the consent middleware moves it behind the audit and removes the exception in the same change, and its security review checks that.
+- **R2-3, note, T001.** The completion line and the failure line use the attribute name `UserId`, the name the scope uses (`PhiAuditMiddleware.cs:99, 164`; `TenantContextMiddleware.cs:51`). The text of each line is right. Which of the two values a log store keeps under that name is still not established. It goes away with spec 003. TH-1's `holds_for` (`threat-model.yml:13`) is true of the text of the lines.
+- **R2-4, note, T001.** With two authenticated identities, the first that has a subject names the user (`PhiAuditMiddleware.cs:129-135`). No test pins that, and no such principal exists today.
+- **R2-5, note, T001 and the owner.** The rework adds the identifier to two more log lines before the owner has chosen whether logs carry it (`plan.md:101`). That is the branch I asked for under S-4. If the owner chooses the other, it is a change to T001's file after the item has closed, and the owner has to reopen it or give it to another spec.
+- **R2-6, note, `rollout.yml:18`.** The request with no token has to go to the OCR service itself. Sent through the gateway it is refused there and no row is written (S-2), which would read as a failed check.
+
+### 3. Verdict by work item
+
+| Work item | Verdict | Why |
+|---|---|---|
+| T001, the middleware | Accept | S-8 and the T001 part of S-4 are resolved, and I have seen the change. S-5, S-6 and S-7 stay open with the specs and the owner named above; none of them is resolved by this verdict. |
+| T003, the middleware and pipeline tests | Accept | The points of S-9 that I required (1, 2 and 3) and the tests S-8 asked for are there. Points 4 and 5 stay open. |
+| T004, the order tests | Accept | What I required under S-10 point 1 is there: a list, and the consent middleware as a named exception. R2-1 and R2-2 are open and recorded. They are narrow, the likelier mistakes are now caught, and the spec that changes the consent middleware is the place to close both. I do not use the last return for them. |
+
+T002 was accepted in round 1 and is unchanged.
+
+### 4. Verdict on the documents
+
+**Must-fix findings that still stand before the gate: S-1 and S-2. Both wait for the owner. The authors have nothing left to do on them.**
+
+- **S-1, the owner.** Amend `spec.md:40-41` so that AC-004 and AC-005 are abuse cases, or give TH-2 and TH-3 criteria that are. The check then passes. A waiver does not resolve it.
+- **S-2, the owner.** Narrow FR-003 and the sentence at `spec.md:68` to a refusal made by a service, or bring the gateway into this spec or a new one (`plan.md:103`). The threat model already says where the requirement holds and where it does not.
+- **S-3 no longer stands.** The privacy impact is right. It leaves the owner one decision: whether the logs carry the identifier. If they do, someone has to say who reads the telemetry store and how long it keeps data; the document says that nobody knows (`privacy-impact.md:23, 26`).
+
+Also the owner's, before the gate means anything:
+
+- The plan is a draft that nobody has approved (`plan.md:8`). Its questions at `plan.md:100-106` are the owner's, and the first is how a recorded identifier is resolved to a person (S-7).
+- The plan's third question (`plan.md:102`) is a real option from the audit's side. Since the identity is read after the pipeline, an audit placed in front of everything would also record what the consent middleware answers, which removes the exception in T004. It changes FR-001, AC-001 and AC-005, so it is an amendment.
+- The release waits for spec 001 and for a workflow that runs the tests (`rollout.yml:6-7`).
+
+For the authors, should-fix and no code: `plan.md:45` gains the limit in R2-1, and `rollout.yml:18` says the request goes to the OCR service itself (R2-6).
+
+Every finding marked open or partly resolved above stays so until I see the change that closes it or the spec that takes it.
