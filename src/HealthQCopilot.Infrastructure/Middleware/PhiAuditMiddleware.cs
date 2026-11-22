@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,9 +13,22 @@ namespace HealthQCopilot.Infrastructure.Middleware;
 /// HIPAA audit control: records every access to PHI endpoints in an append-only
 /// audit log table. Log entries are immutable once written (no UPDATE/DELETE allowed
 /// at the database level via row-level security policy).
+/// <para>
+/// Register it directly after <c>UseAuthentication()</c> and before
+/// <c>UseAuthorization()</c>. After authentication, so that the record names the
+/// caller the service authenticated. Before authorization, because authorization
+/// answers a refused request itself: placed after it, this middleware would never
+/// see a 401 or a 403 and refused attempts would leave no record.
+/// </para>
 /// </summary>
 public class PhiAuditMiddleware
 {
+    /// <summary>Recorded in place of a user when the request carried no authenticated identity.</summary>
+    public const string UnauthenticatedUser = "(unauthenticated)";
+
+    /// <summary>Recorded in place of a user when the request was authenticated and its token carried no subject.</summary>
+    public const string NoSubjectUser = "(no-subject)";
+
     private readonly RequestDelegate _next;
     private readonly ILogger<PhiAuditMiddleware> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
@@ -59,15 +73,24 @@ public class PhiAuditMiddleware
             return;
         }
 
-        var userId = context.User.FindFirst("oid")?.Value ?? "anonymous";
         var correlationId = Activity.Current?.Id ?? context.TraceIdentifier;
         var startedAt = DateTime.UtcNow;
 
         _logger.LogInformation(
             "PHI_ACCESS: User={UserId} Method={Method} Path={Path} CorrelationId={CorrelationId}",
-            userId, context.Request.Method, path, correlationId);
+            ResolveUserId(context.User), context.Request.Method, path, correlationId);
 
         await _next(context);
+
+        // The record names whoever the pipeline authenticated. It is read here, after the
+        // pipeline has run, because authorization can authenticate with a scheme of its own.
+        var userId = ResolveUserId(context.User);
+        if (userId == NoSubjectUser)
+        {
+            _logger.LogWarning(
+                "PHI_ACCESS_NO_SUBJECT: an authenticated request carried no subject claim. Path={Path} CorrelationId={CorrelationId}",
+                path, correlationId);
+        }
 
         var statusCode = context.Response.StatusCode;
 
@@ -87,6 +110,22 @@ public class PhiAuditMiddleware
             _ = _eventHubAudit.PublishAsync(
                 AuditEvent.PhiAccess(path, context.Request.Method, userId,
                     null, statusCode, durationMs, correlationId));
+    }
+
+    /// <summary>
+    /// The user an audit record names: the subject of the authenticated identity, read from
+    /// the <c>sub</c> claim or from the name-identifier claim it is mapped to. Never a request
+    /// header and never a value the caller can choose.
+    /// </summary>
+    internal static string ResolveUserId(ClaimsPrincipal? user)
+    {
+        if (user?.Identity?.IsAuthenticated != true)
+            return UnauthenticatedUser;
+
+        var subject = user.FindFirst("sub")?.Value
+            ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        return string.IsNullOrWhiteSpace(subject) ? NoSubjectUser : subject;
     }
 
     private async Task PersistAuditEntryAsync(string userId, string method, string path,
