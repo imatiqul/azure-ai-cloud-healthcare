@@ -13,8 +13,9 @@ These files were written with [agentic-spec-kit](https://github.com/imatiqul/age
 | `.specify/memory/constitution.md` | The constitution: 25 principles, each checked by a machine or judged by a named role |
 | `.specify/agentic/` | Kit settings (Regulated profile, HIPAA pack), who holds which role, what checks each principle, the audit log |
 | `.specify/agentic/agents/` | 16 agent specs: what each agent may read, write and run, and what it never does |
-| `system-map/map.yml` | What exists and what depends on what: 100 components and 197 dependencies |
+| `system-map/map.yml` | What exists and what depends on what: 100 components and 206 dependencies |
 | `specs/` | 25 specs, one per finding of the review. 6 have a plan; 5 have a task list |
+| `.specify/agentic/work/`, `.specify/agentic/runs/` | What agents did, task by task and step by step, for: `004-audit-identity` |
 
 ## State
 
