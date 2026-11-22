@@ -1,0 +1,54 @@
+# What the independent verifier is given for spec 004, and nothing else (QLT-1). Written by the orchestrator.
+# Not on the list: the work records and hand-off statements under .specify/agentic/work/, any notes, and the
+# conversation in which the change was written.
+verifier: independent-verifier
+author: backend-implementer        # the tests were written by test-agent; the same session played both, in turn
+inputs:
+  # what the change must satisfy
+  - specs/004-audit-identity/spec.md
+  - specs/004-audit-identity/plan.md
+  - specs/004-audit-identity/tasks.md
+  - specs/004-audit-identity/impact.md
+  - specs/004-audit-identity/threat-model.yml
+  - specs/004-audit-identity/privacy-impact.md
+  - specs/004-audit-identity/test-strategy.yml
+  - specs/004-audit-identity/rollout.yml
+  - .specify/memory/constitution.md
+  - .specify/agentic/constitution.map.yml
+  - system-map/map.yml
+  # the change: every file the task list names
+  - src/HealthQCopilot.Infrastructure/Middleware/PhiAuditMiddleware.cs
+  - src/HealthQCopilot.Agents/Program.cs
+  - src/HealthQCopilot.Fhir/Program.cs
+  - src/HealthQCopilot.Identity/Program.cs
+  - src/HealthQCopilot.Notifications/Program.cs
+  - src/HealthQCopilot.Ocr/Program.cs
+  - src/HealthQCopilot.PopulationHealth/Program.cs
+  - src/HealthQCopilot.RevenueCycle/Program.cs
+  - src/HealthQCopilot.Scheduling/Program.cs
+  - src/HealthQCopilot.Voice/Program.cs
+  - tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditMiddlewareTests.cs
+  - tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditPipelineTests.cs
+  - tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrder.cs
+  - tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrderTests.cs
+  # what the authors say they ran
+  - specs/004-audit-identity/evidence/characterization.yml
+  - specs/004-audit-identity/evidence/T001-middleware.md
+  - specs/004-audit-identity/evidence/T002-order.md
+  - specs/004-audit-identity/evidence/T003-tests.md
+  - specs/004-audit-identity/evidence/T004-order-tests.md
+  # the first rework round
+  - specs/004-audit-identity/evidence/T001-rework-1.md
+  - specs/004-audit-identity/evidence/T003-rework-1.md
+  - specs/004-audit-identity/evidence/T004-rework-1.md
+  # the rest of the components the spec touches or depends on, to read around the change
+  - src/HealthQCopilot.Infrastructure/**
+  - src/HealthQCopilot.Agents/**
+  - src/HealthQCopilot.Fhir/**
+  - src/HealthQCopilot.Identity/**
+  - src/HealthQCopilot.Notifications/**
+  - src/HealthQCopilot.Ocr/**
+  - src/HealthQCopilot.PopulationHealth/**
+  - src/HealthQCopilot.RevenueCycle/**
+  - src/HealthQCopilot.Scheduling/**
+  - src/HealthQCopilot.Voice/**
