@@ -1,0 +1,20 @@
+schema: agentic-threats/1
+# Draft, waiting at gate G3. `mitigation` is a requirement of the spec; `test` is one of its acceptance criteria.
+# TH-2 and TH-3 are tested by criteria the approved spec did not write as abuse cases. The kit's check reports that;
+# marking them is an amendment to the spec, which is the owner's to approve.
+threats:
+  - id: TH-1
+    threat: A caller with a valid token sends an X-User-Id header naming someone else, so that an access is recorded against that person
+    category: spoofing
+    mitigation: FR-002
+    test: AC-003
+  - id: TH-2
+    threat: A caller with no token probes paths that hold patient data, and the attempts leave no record because they were refused before the audit ran
+    category: repudiation
+    mitigation: FR-003
+    test: AC-004
+  - id: TH-3
+    threat: A service is released with the audit middleware in front of authentication again, so that every record names nobody and nobody notices
+    category: repudiation
+    mitigation: FR-004
+    test: AC-005

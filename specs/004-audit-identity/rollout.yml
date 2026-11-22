@@ -1,0 +1,18 @@
+schema: agentic-rollout/1
+# Draft, waiting at gate G3. Release is out of scope for the reference: G7 is "evidence prepared, decision pending".
+# The order follows the system map: a service is deployed after the services it calls or whose events it reads.
+deploy: [identity-service, voice-service, agent-service, scheduling-service, revenue-service, ocr-service, fhir-service, pophealth-service, notification-service]
+rollback: [notification-service, pophealth-service, fhir-service, ocr-service, revenue-service, scheduling-service, agent-service, voice-service, identity-service]
+flags: []
+compatibility_window: None is needed. The record's shape does not change, so a service on the old order and a service on the new one write rows the same reader can read. All nine are released together so that no service audits under the old order after the release (NFR-002).
+stages:
+  - {name: staging, scope: all nine services in the staging environment, min_duration: 24h}
+  - {name: canary, scope: one revision of each service taking 10 percent of production traffic, min_duration: 2h}
+  - {name: everyone, scope: all production traffic}
+halt_signals:
+  - the share of requests answered 401 or 403 rises by more than one percentage point against the week before
+  - any service's audit table receives no row for five minutes while that service is serving audited paths
+  - the share of rows recorded as (unauthenticated) with a status below 400 is above zero on a guarded path
+rollback_trigger: Any halt signal, or a failed check in production. Rolling back is redeploying the previous revision of each service, in the rollback order. No data is migrated, so nothing has to be undone in a database.
+rollback_rehearsal:
+  plan: In staging, deploy the nine services, send audited requests, roll back in the stated order, and confirm that rows are still written and that the rows from before and after the rollback are both readable by the export.

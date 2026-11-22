@@ -1,0 +1,18 @@
+schema: agentic-threats/1
+# Draft, waiting at gate G3.
+threats:
+  - id: TH-1
+    threat: A user of one tenant sends another tenant's identifier in a header and is served as that tenant
+    category: elevation-of-privilege
+    mitigation: FR-002
+    test: AC-002
+  - id: TH-2
+    threat: A user requests break-glass access in a colleague's name, so that the emergency access and its alert are attributed to the colleague
+    category: spoofing
+    mitigation: FR-003
+    test: AC-003
+  - id: TH-3
+    threat: A user sends another user's identifier in a header so that the logs of their own requests name someone else
+    category: repudiation
+    mitigation: FR-005
+    test: AC-005

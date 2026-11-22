@@ -1,0 +1,17 @@
+schema: agentic-ai-eval/1
+# Draft evaluation design, waiting at gate G3.
+# No clinician has signed the golden set, so `signed_off_by` is absent and the kit's check fails. It should, until one does.
+golden_set:
+  path: tests/HealthQCopilot.Tests.Eval/GoldenSets/triage.json
+  version: 1
+  provenance: Five synthetic cases written by the repository's authors. No clinician is recorded for them. Two are labelled P1, one P2, two P3; none is P4, none has a denied symptom, none is input that matches no rule.
+  # What version 2 has to hold, for a clinician to set at G3 (A1). The agent's proposal, to be replaced:
+  plan: {P1: 30, P2: 30, P3: 30, P4: 30, denied_symptom: 20, matches_no_rule: 20}
+thresholds:
+  p1_recall: 1.0                   # from spec 005, FR-001
+  under_triage_rate: {max: 0.0}    # proposed; a clinician sets it
+# Still to be set by a clinician: accuracy by level, the over-triage rate that is acceptable, and the time to a proposal.
+first_release: true                # no evaluation of the production classifier has ever been recorded
+entrypoint: src/HealthQCopilot.Agents/Plugins/TriagePlugin.cs::ClassifyUrgency
+harness: tests/HealthQCopilot.Tests.Eval/ClinicalAccuracyHarnessTests.cs
+results: specs/006-eval-production-path/evidence/eval-results.json

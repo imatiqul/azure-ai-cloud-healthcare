@@ -1,0 +1,8 @@
+schema: agentic-threats/1
+# Draft, waiting at gate G3.
+threats:
+  - id: TH-1
+    threat: A line that hides a migration warning is added again, and a schema that differs from the model reaches production unseen
+    category: tampering
+    mitigation: FR-003
+    test: AC-003

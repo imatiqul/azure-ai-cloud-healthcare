@@ -7,9 +7,19 @@ enforcement:
   default_branch: main
 upstream:
   speckit: "1.4.3"
+adoption:
+  mode: brownfield            # an existing codebase: a spec with a plan says whether it changes existing code, and pins that code down first
 gates:
   single_approver_exception: allowed     # allowed | forbidden. Charter D3: one person holds every role, so each decision states the exception
   require_evidence_hash: true
 metrics:
   - {id: lead-time-per-gate, source: audit-log}
   - {id: rework-rate, source: audit-log}
+team:
+  runtimes: [sequential]
+  mode: sequential            # one agent plays each role in turn; the verifier and the security reviewer each start from a new session
+  budget: {steps: 200, minutes: 240}
+  routing:                    # which model each class of agent may run on. A proposal for the owner: it names the one model the Phase 7 walkthrough ran on
+    fast: {model: claude-fable-5-2, version: "5.2"}
+    standard: {model: claude-fable-5-2, version: "5.2"}
+    strong: {model: claude-fable-5-2, version: "5.2"}

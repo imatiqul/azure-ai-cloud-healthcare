@@ -7,7 +7,7 @@ principles: [P-2, P-3]
 touches: [lib-infrastructure, identity-service, voice-service, agent-service, fhir-service, ocr-service, scheduling-service, notification-service, pophealth-service, revenue-service]
 depends_on:
   nodes: [gateway, entra-id]
-  specs: [001-fail-closed-auth, 003-identity-from-token, 004-audit-identity, 005-triage-validation, 007-audit-export-complete, 008-audit-append-only]
+  specs: [001-fail-closed-auth, 003-identity-from-token, 004-audit-identity, 005-triage-validation, 007-audit-export-complete, 008-audit-append-only, 009-phi-protection, 012-no-fabricated-data, 013-migrations-production-engine, 015-audit-write-durable, 016-audit-record-content, 017-visible-failures, 018-reviewable-files, 025-event-contracts]
 endpoints_changed: true
 ---
 # Feature Specification: Every endpoint is authorized and scoped

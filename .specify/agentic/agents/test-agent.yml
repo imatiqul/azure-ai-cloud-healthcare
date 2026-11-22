@@ -1,0 +1,29 @@
+schema: agentic-agent/1
+id: test-agent
+title: Test Agent
+supports_role: qa
+profiles:
+- standard
+- regulated
+charter: Write the tests for each acceptance criterion from the spec, before reading the implementation.
+inputs:
+- specs/*/spec.md
+- specs/*/plan.md
+- specs/*/contracts/*
+outputs:
+- tests inside the task's paths
+- specs/*/evidence/*
+tools:
+- read
+- search
+- edit
+- run:tests
+- run:agentic_kit
+write_paths:
+- '{task.paths}'
+- specs/*/evidence/*
+never:
+- Read the implementation before the tests are written
+- Weaken, skip or delete a failing test
+- Change production code
+model_class: standard

@@ -1,0 +1,32 @@
+schema: agentic-test-strategy/1
+# Draft, waiting at gate G4. `evidence` is where each result will be recorded; none exists yet.
+tier: critical
+kinds:
+  unit:
+    plan: AuthenticationStartupCheckTests and AuthenticatedIdentitySourcesTests
+    evidence: specs/001-fail-closed-auth/evidence/unit-tests.trx
+  integration:
+    plan: One service started in-process as Production with no client id; the host fails to start and the message names the setting
+    evidence: specs/001-fail-closed-auth/evidence/unit-tests.trx
+  end-to-end:
+    plan: A deploy to a test environment with the variables unset; the job fails before anything is deployed
+    evidence: specs/001-fail-closed-auth/evidence/deploy-run.md
+  performance:
+    plan: NFR-001. The start-up check is timed in the unit tests and makes no network call; a test fails if it resolves an HTTP client
+    evidence: specs/001-fail-closed-auth/evidence/unit-tests.trx
+  resilience:
+    plan: The identity provider is configured and cannot be reached at start-up; the service starts, refuses requests with 401, and recovers when the provider is back
+    evidence: specs/001-fail-closed-auth/evidence/staging-check.md
+mutation:
+  threshold: 60
+  scope: src/HealthQCopilot.Infrastructure/Auth
+negative_boundary:
+  AC-001: The client id is present and empty; the whole section is absent; the client id is whitespace
+  AC-002: Staging, and an environment name nobody has used before; both refuse
+  AC-003: Development with the setting absent, and with it set to false
+  AC-004: Production with the setting on and a provider configured; Production with the setting on and none
+  AC-005: One variable unset; all unset; set and empty
+  AC-006: The log line is searched for the client secret's value and for the word that names it
+  AC-007: A second handler that builds an identity; a helper that returns a principal with no handler
+resilience:
+  entra-id: The resilience test above, run in staging

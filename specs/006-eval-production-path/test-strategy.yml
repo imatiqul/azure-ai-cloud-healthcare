@@ -1,0 +1,33 @@
+schema: agentic-test-strategy/1
+# Draft, waiting at gate G4. `evidence` is where each result will be recorded; none exists yet.
+tier: critical
+kinds:
+  unit:
+    plan: HarnessSelfTests, with the two wrong classifiers, the unsigned set and the counting test
+    evidence: specs/006-eval-production-path/evidence/eval-tests.trx
+  integration:
+    plan: The harness against the production assembly and the golden set, writing the result file
+    evidence: specs/006-eval-production-path/evidence/eval-results.json
+  end-to-end:
+    plan: A pull request that changes one rule, in the repository's own pipeline; the evaluation job runs and reports
+    evidence: specs/006-eval-production-path/evidence/pipeline-run.md
+  performance:
+    plan: The evaluation job finishes within the workflow's 15-minute limit with the full set
+    evidence: specs/006-eval-production-path/evidence/pipeline-run.md
+  resilience:
+    plan: The golden set is missing, empty, or not valid JSON; the harness fails and says why. It never passes on no cases
+    evidence: specs/006-eval-production-path/evidence/eval-tests.trx
+mutation:
+  threshold: 60
+  scope: tests/HealthQCopilot.Tests.Eval, the scoring code only
+negative_boundary:
+  AC-001: A harness that calls a copy of the classifier in the test project fails the production-path check
+  AC-002: A classifier that always answers P1; one that always answers P4; one that throws
+  AC-003: A case whose input contains the keywords of a different level than its label
+  AC-004: One case short in one category; a category with none
+  AC-005: A signature with no name; a signature for an earlier version of the set
+  AC-006: A change to the golden set alone; a change to a prompt alone
+  AC-007: A result exactly at the threshold; one below it by one case
+  AC-008: No recorded result at all on the default branch, which is the first run
+  AC-009: A stand-in defined in another file of the test project; one defined with a different name
+resilience: {}

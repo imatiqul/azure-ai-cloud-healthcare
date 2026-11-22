@@ -1,0 +1,17 @@
+schema: agentic-rollout/1
+# Draft, waiting at gate G3. The order follows the system map: a schema before its service, and a service after those whose events it reads.
+deploy: [identity-db, voice-db, agent-db, fhir-db, ocr-db, scheduling-db, notification-db, pophealth-db, revenue-db, identity-service, voice-service, agent-service, scheduling-service, revenue-service, ocr-service, fhir-service, pophealth-service, notification-service]
+rollback: [notification-service, pophealth-service, fhir-service, ocr-service, revenue-service, scheduling-service, agent-service, voice-service, identity-service, revenue-db, pophealth-db, notification-db, scheduling-db, ocr-db, fhir-db, agent-db, voice-db, identity-db]
+flags: []
+compatibility_window: One release per step of expand, migrate, contract. During expand and migrate the previous revision of each service runs against the new schema.
+stages:
+  - {name: copy, scope: every step on the schema-only copy of each database, min_duration: 7d}
+  - {name: one service, scope: the service whose production schema differs least, in production, min_duration: 7d}
+  - {name: the rest, scope: the other eight services, one at a time}
+halt_signals:
+  - a migration fails or takes longer than it did on the copy by more than half
+  - any row fails to convert
+  - a service's error rate rises after its schema changes
+rollback_trigger: Any halt signal. Redeploy the previous revision; before the contract step nothing has to be restored.
+rollback_rehearsal:
+  plan: On the copy, run expand and migrate for one table, roll back by redeploying the previous revision, and confirm it reads and writes as before. Then run the contract step and restore from the backup taken before it.

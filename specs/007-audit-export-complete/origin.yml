@@ -1,0 +1,19 @@
+# What a Product Owner decided about work that looks like this spec.
+schema: agentic-origin/1
+intake: []
+source: Phase 1 finding N1; see docs/phase-reports/phase-1-verification.md in the agentic-spec-kit repository
+dispositions:
+- target: 015-audit-write-durable
+  decision: distinct
+  reason: '007 is about an export that covers every store; 015 is about a write that is never lost. Decided in chat on 2026-11-22: the owner answered "go
+    ahead" to the list that recommended `distinct` for this pair.'
+  decided_by:
+    reviewer: imatiqul
+    role: product-owner
+- target: 016-audit-record-content
+  decision: distinct
+  reason: '007 is about the export; 016 is about the content of what is exported. Decided in chat on 2026-11-22: the owner answered "go ahead" to the list
+    that recommended `distinct` for this pair.'
+  decided_by:
+    reviewer: imatiqul
+    role: product-owner

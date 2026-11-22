@@ -1,0 +1,16 @@
+schema: agentic-rollout/1
+# Draft, waiting at gate G3. Release is out of scope for the reference.
+deploy: [identity-service]
+rollback: [identity-service]
+flags: []
+compatibility_window: Clients that send a correct tenant header, or none, work before and after. Clients that send a wrong one are refused after; the list from task T001 is cleared before the release.
+stages:
+  - {name: staging, scope: every service that builds with the shared library, in the staging environment, min_duration: 48h}
+  - {name: canary, scope: 10 percent of production traffic, min_duration: 4h}
+  - {name: everyone, scope: all production traffic}
+halt_signals:
+  - the share of requests answered 403 rises by more than half a percentage point against the week before
+  - any front end reports a tenant mismatch for a signed-in user
+rollback_trigger: Any halt signal. Rolling back is redeploying the previous revision of each service; no data changes.
+rollback_rehearsal:
+  plan: In staging, deploy, send requests with matching and mismatching headers, roll back, and confirm the previous behaviour returns and that grants made in between are intact.

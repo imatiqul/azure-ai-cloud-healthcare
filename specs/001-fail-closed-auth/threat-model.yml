@@ -1,0 +1,8 @@
+schema: agentic-threats/1
+# Draft, waiting at gate G3.
+threats:
+  - id: TH-1
+    threat: A production deployment is configured, by mistake or on purpose, to switch the development identity on, and every caller becomes an administrator
+    category: elevation-of-privilege
+    mitigation: FR-002
+    test: AC-004

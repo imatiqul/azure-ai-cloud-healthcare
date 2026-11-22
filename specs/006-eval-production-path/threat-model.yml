@@ -1,0 +1,13 @@
+schema: agentic-threats/1
+# Draft, waiting at gate G3.
+threats:
+  - id: TH-1
+    threat: A classifier that ignores its input is released because the evaluation never asked it anything
+    category: tampering
+    mitigation: FR-002
+    test: AC-002
+  - id: TH-2
+    threat: Cases are written so that their own text contains the answer, and the evaluation passes whatever the classifier says
+    category: tampering
+    mitigation: FR-002
+    test: AC-003

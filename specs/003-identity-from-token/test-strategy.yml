@@ -1,0 +1,31 @@
+schema: agentic-test-strategy/1
+# Draft, waiting at gate G4. `evidence` is where each result will be recorded; none exists yet.
+tier: critical
+kinds:
+  unit:
+    plan: TenantContextMiddlewareTests, the tenant the rate limiter resolves, CallerAssertedIdentityTests
+    evidence: specs/003-identity-from-token/evidence/unit-tests.trx
+  integration:
+    plan: Break-glass through the identity service's real pipeline, with a token for one user and a body naming another
+    evidence: specs/003-identity-from-token/evidence/integration-tests.trx
+  end-to-end:
+    plan: A front end signed in to tenant A calling through the gateway with a header for tenant B, in staging; 403
+    evidence: specs/003-identity-from-token/evidence/staging-check.md
+  performance:
+    plan: The tenant guard adds a claim lookup and a string comparison; the p95 of one endpoint in staging before and after
+    evidence: specs/003-identity-from-token/evidence/staging-check.md
+  resilience:
+    plan: The identity provider's keys cannot be fetched; requests are refused with 401 and no tenant is assumed
+    evidence: specs/003-identity-from-token/evidence/staging-check.md
+mutation:
+  threshold: 60
+  scope: src/HealthQCopilot.Infrastructure/Middleware/TenantContextMiddleware.cs and the caller context
+negative_boundary:
+  AC-001: A token with no tenant claim is refused; it is never served as "unknown"
+  AC-002: The header differs only in letter case; the header is empty; the header is sent twice with two values
+  AC-003: The body names the caller themself; the body names a user that does not exist; the body has no requester at all
+  AC-004: A token with no role; a token with a role that sounds alike; no token
+  AC-005: The header is present and the token has no subject; the log context says so and names nobody
+  AC-006: A read of the header inside a helper; a read of a differently cased header name; a tenant taken from a query string
+resilience:
+  entra-id: The resilience test above, run in staging

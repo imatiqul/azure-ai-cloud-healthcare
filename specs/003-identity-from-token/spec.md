@@ -5,6 +5,7 @@ tier_declared: critical
 owner_role: backend
 principles: [P-4]
 touches: [lib-infrastructure, identity-service]
+changes_existing_code: true
 depends_on:
   nodes: [entra-id, gateway]
   specs: [001-fail-closed-auth]
