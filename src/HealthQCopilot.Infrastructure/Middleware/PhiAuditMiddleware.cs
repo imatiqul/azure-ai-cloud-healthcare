@@ -10,9 +10,9 @@ using HealthQCopilot.Infrastructure.Persistence;
 namespace HealthQCopilot.Infrastructure.Middleware;
 
 /// <summary>
-/// HIPAA audit control: records every access to PHI endpoints in an append-only
-/// audit log table. Log entries are immutable once written (no UPDATE/DELETE allowed
-/// at the database level via row-level security policy).
+/// HIPAA audit control: records every access to PHI endpoints in an audit log table
+/// that is meant to be append-only. Nothing in this repository enforces that yet: the
+/// row-level security policy exists only as a comment in <c>AuditDbContext</c>.
 /// <para>
 /// Register it directly after <c>UseAuthentication()</c> and before
 /// <c>UseAuthorization()</c>. After authentication, so that the record names the
@@ -94,9 +94,10 @@ public class PhiAuditMiddleware
 
         var statusCode = context.Response.StatusCode;
 
+        // This line names the user itself. The log scope's UserId can come from a request header.
         _logger.LogInformation(
-            "PHI_ACCESS_COMPLETE: Path={Path} Status={StatusCode} DurationMs={DurationMs}",
-            path, statusCode, (DateTime.UtcNow - startedAt).TotalMilliseconds);
+            "PHI_ACCESS_COMPLETE: User={UserId} Path={Path} Status={StatusCode} DurationMs={DurationMs}",
+            userId, path, statusCode, (DateTime.UtcNow - startedAt).TotalMilliseconds);
 
 
         var durationMs = (long)(DateTime.UtcNow - startedAt).TotalMilliseconds;
@@ -119,13 +120,21 @@ public class PhiAuditMiddleware
     /// </summary>
     internal static string ResolveUserId(ClaimsPrincipal? user)
     {
-        if (user?.Identity?.IsAuthenticated != true)
+        // A principal can carry more than one identity. Only an identity the pipeline
+        // authenticated can name the user; claims on any other identity are not read.
+        var authenticated = user?.Identities.Where(identity => identity.IsAuthenticated).ToList();
+        if (authenticated is null || authenticated.Count == 0)
             return UnauthenticatedUser;
 
-        var subject = user.FindFirst("sub")?.Value
-            ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        foreach (var identity in authenticated)
+        {
+            var subject = identity.FindFirst("sub")?.Value
+                ?? identity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrWhiteSpace(subject))
+                return subject;
+        }
 
-        return string.IsNullOrWhiteSpace(subject) ? NoSubjectUser : subject;
+        return NoSubjectUser;
     }
 
     private async Task PersistAuditEntryAsync(string userId, string method, string path,
@@ -150,7 +159,10 @@ public class PhiAuditMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to persist PHI audit log entry for {Path}", path);
+            // Everything the lost row held, so that it can be rebuilt from this line.
+            _logger.LogError(ex,
+                "Failed to persist PHI audit log entry: User={UserId} Method={Method} Path={Path} Status={StatusCode} CorrelationId={CorrelationId}",
+                userId, method, path, statusCode, correlationId);
         }
     }
 }
