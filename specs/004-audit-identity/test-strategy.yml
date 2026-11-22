@@ -3,11 +3,11 @@ schema: agentic-test-strategy/1
 tier: critical
 kinds:
   unit:
-    plan: PhiAuditMiddlewareTests (the claim that is read, the two markers, the nine tests that must not change) and RequestPipelineOrderTests
-    evidence: specs/004-audit-identity/evidence/unit-tests.trx
+    plan: PhiAuditMiddlewareTests (the claim that is read, the two markers, the event and the log lines, the eight tests that must not change) and RequestPipelineOrderTests
+    evidence: specs/004-audit-identity/evidence/unit-tests.md
   integration:
     plan: PhiAuditPipelineTests, the middleware between the framework's own authentication and authorization middleware
-    evidence: specs/004-audit-identity/evidence/unit-tests.trx
+    evidence: specs/004-audit-identity/evidence/unit-tests.md
   end-to-end:
     plan: One request with a valid token through the gateway to a deployed service in staging, then the row read back from that service's audit table
     evidence: specs/004-audit-identity/evidence/staging-check.md
@@ -15,7 +15,7 @@ kinds:
     plan: NFR-001. The request path gains no database round trip; shown by the diff, and by the p95 of one audited endpoint in staging before and after
     evidence: specs/004-audit-identity/evidence/staging-check.md
   resilience:
-    plan: The identity provider's keys cannot be fetched; a request is refused with 401 and the refusal is recorded with the marker
+    plan: The identity provider's keys cannot be fetched. What the bearer handler does then is not known from reading. If it fails the token, the request is refused with 401 and recorded with the marker; if it throws, the request ends in 500 and nothing is recorded. The test shows which
     evidence: specs/004-audit-identity/evidence/staging-check.md
 mutation:
   threshold: 60

@@ -5,6 +5,7 @@
 - **Requirement IDs exercised:** MAP-10 to MAP-12, GOV-10, QLT-3, QLT-6 to QLT-9, CHG-18, CHG-19, AGT-3
 - **Assumptions:** P1 to P3 under "Decisions this plan makes"
 - **Unverified:** the plan was written from reading the code at `8d04df3`. Nothing in it had been built or run when it was written
+- **Changed on 2026-11-22, after the security review and the independent verification** (`reviews/G5-security.md`, `verification/G6-report.md`): section 1 (two log lines, the identity that is read), section 3 (what the tests and the order check cover), decision P1, the risks, and "Found while planning" items 6 to 14. The plan is still a draft; nobody has approved either version
 
 ## What the code does today
 
@@ -22,8 +23,11 @@
 ### 1. The middleware (`src/HealthQCopilot.Infrastructure/Middleware/PhiAuditMiddleware.cs`)
 - The user of a record is the subject of the authenticated identity: the `sub` claim, or the name-identifier claim that ASP.NET Core maps `sub` to. Nothing else is read: no header, no `oid`.
 - A request with no authenticated identity is recorded as `(unauthenticated)`. An authenticated request whose token carries no subject is recorded as `(no-subject)` and logged as a warning.
-- The identity is read again after the pipeline has run, and that value goes into the record and the event. The record is written after the request in any case; this way it names whoever the pipeline authenticated, including where a policy authenticates with a scheme of its own.
-- Nothing else in the file changes: the audited paths, the two log lines, the write that is started and not awaited, and the event all stay.
+- The identity is read again after the pipeline has run, and that value goes into the record and the event. The record is written after the request in any case; this way it names whoever the pipeline authenticated, including where a policy authenticates with a scheme of its own and succeeds. Where such a policy fails, the framework empties the principal and the caller is recorded as `(unauthenticated)` (V-8); no policy in the nine services names a scheme today.
+- Only an identity the pipeline authenticated can name the user. A principal can carry several identities; a subject on one that is not authenticated is not read (S-8).
+- The lines the middleware logs name the user themselves: `PHI_ACCESS` as before, and now `PHI_ACCESS_COMPLETE` and the line for a row that could not be saved, which also gains the method, the status and the correlation id. The log scope's `UserId` can come from a request header (finding C3), so a line that relied on the scope could name someone else (S-4). Whether logs should carry the identifier at all is put to the owner under "For the reviewer".
+- The class comment said rows cannot be altered. Nothing enforces that (finding N2); the comment now says so.
+- Nothing else in the file changes: the audited paths, the write that is started and not awaited, and the event all stay. A request that ends in an exception still leaves no row and no event, as before (S-5, V-10).
 
 ### 2. The order in the nine services
 
@@ -37,11 +41,13 @@ The audit middleware goes directly after `UseAuthentication` and before `UseAuth
 
 ### 3. Tests
 - `tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditMiddlewareTests.cs` exists and pins today's behaviour in 11 tests. Two of them assert what this spec changes (`oid`, and the word "anonymous") and are rewritten. A third sets its user up through the `oid` claim; its set-up changes and its assertions do not. The other eight must pass unchanged.
-- `tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditPipelineTests.cs`, new: the middleware in a real request pipeline with the framework's own authentication and authorization middleware and a test scheme. Covers AC-002, AC-003 and AC-004.
-- `tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrderTests.cs`, new: reads each service's `Program.cs` and fails, naming the service, when the audit middleware is not directly between authentication and authorization. Covers AC-001 and AC-005. It is in the unit test project because no workflow runs the architecture test project (see "Found while planning", 4).
+- `tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditPipelineTests.cs`, new: the middleware in a real request pipeline with the framework's own authentication and authorization middleware, behind the tenant-context middleware that reads `X-User-Id`, with a test scheme. Covers AC-002, AC-003 and AC-004, a 403, and that the event and the log lines name the same user as the row.
+- `tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrderTests.cs`, new: reads each service's `Program.cs` and fails, naming the service, when the audit middleware is not directly after authentication and before authorization, or when anything in front of it is not on a short list of middleware that cannot answer a request. The FHIR consent middleware is on that list as an exception with its reason. Covers AC-001 and AC-005. It is in the unit test project because no workflow runs the architecture test project (see "Found while planning", 4). It reads source text in one form only and fails on any other; its limits are in the file's own comment.
+- Not built by this change: the check the constitution names for P-9, `integration-test:audit-attribution`, a request through a service's own host with a signed token. It needs the solution to build and a test identity provider. Until it exists, P-9 is stated and not enforced; the rollout's staging stage reads a row with a real subject back from each service instead.
+- AC-002 says "through any of the nine services". The notification service serves no audited path, so it writes no record before or after the change (V-6).
 
 ## Decisions this plan makes
-- P1: the subject is `sub`, or the mapped name-identifier claim. The identity service reads the same two for a user's external identifier (`src/HealthQCopilot.Identity/Endpoints/IdentityEndpoints.cs:132-133`), so an audit record can be joined to a user account. This is assumption A1 of the spec, made exact.
+- P1: the subject is `sub`, or the mapped name-identifier claim. This is assumption A1 of the spec, made exact. The identity service reads the same two claims when it looks an account up (`src/HealthQCopilot.Identity/Endpoints/IdentityEndpoints.cs:132-133`). The first draft said an audit record can therefore be joined to a user account. That does not hold (S-7): what an account's external identifier holds is supplied by the caller when the account is registered, on endpoints with no guard, and the comment there calls it the directory's object id, which is a different value. How a recorded identifier is resolved to a person is not settled by this plan; it is the first question under "For the reviewer".
 - P2: the markers are `(unauthenticated)` and `(no-subject)`. Brackets cannot occur in a subject issued by the identity provider. This is A2 of the spec, made exact.
 - P3: all nine services change in one pull request and one release (NFR-002).
 
@@ -66,7 +72,9 @@ The audit middleware goes directly after `UseAuthentication` and before `UseAuth
 - **003 is not fixed.** The tenant is still caller-asserted. It is not in the record.
 - **Readers see new values.** `GET /api/v1/admin/audit/summary` groups by user and returns the 100 largest groups (`AuditExportEndpoints.cs:60-79`). With one "anonymous" user that was every row; with real users it is the 100 busiest user-and-method pairs. The export is unaffected. The event stream's `UserId` changes in the same way.
 - **Old records stay as they are.** Every record written before this change says "anonymous". Nothing rewrites them.
-- **A second middleware that authenticates.** If a policy names its own scheme, the user can change during authorization. Reading the identity after the pipeline covers it.
+- **A second middleware that authenticates.** If a policy names its own scheme, the user can change during authorization. Reading the identity after the pipeline covers the case where that scheme succeeds, not the one where it fails (V-8).
+- **The identity provider cannot be reached.** The first draft of the test strategy expected a 401 and a record. By reading, the bearer handler may throw instead; the request then ends in a 500, and since the audit middleware now sits behind authentication, not even its first log line is written (V-10, S-5). The staging test has to show which.
+- **Demo mode.** The settings files give none of the nine services an identity provider. The deployment workflow sets one when two repository variables exist and otherwise leaves the demo handler in place, silently (`microservice-deploy.yml:447-477`). In that mode every row names `demo-user` after this change (S-6). The rollout now waits for spec 001 and halts on that value.
 
 ## Found while planning, and not part of this change
 
@@ -78,7 +86,21 @@ Each is reported to the owner. None is fixed here.
 4. **No workflow runs the architecture test project.** `dotnet test` is called for the unit and integration projects only (`pr-validation.yml:50, 57`; `microservice-deploy.yml:282, 291`). The 18 architecture tests Phase 1 counted are not part of any pipeline run.
 5. **No workflow has run since May 2026.** By the repository's public record on 2026-11-22, the last run on a pull request was on 2026-05-04, on a push 2026-04-30, on a schedule 2026-05-10. Pull request 72 and the two latest commits on `main` have no check run. Until that changes, "the build fails" in AC-001 and AC-005 has no pipeline to fail in.
 
+6. **The gateway refuses a caller with no token and writes no audit record.** It authenticates first and has no audit middleware (`src/HealthQCopilot.Gateway/Program.cs:33-49`). Inside the services, only the OCR routes under an audited prefix have a guard. So FR-003 is met for a refusal by a service and not where most refusals happen (S-2).
+7. **The bff calls six services directly and sends no token** (`src/HealthQCopilot.BFF/Program.cs:11-39`); by the review, calls between services carry none either. Those accesses are recorded with no person (S-3).
+8. **The logs hold the identifier beside the path**, and go to the telemetry store when one is configured. Who reads that store and how long it keeps data is not in the repository (S-3, V-7).
+9. **A request that ends in an exception leaves no row and no event.** No service has an exception handler. A FHIR bulk export cut off part-way is such a request (S-5).
+10. **An account's external identifier is whatever the caller sends**, on endpoints with no guard, and an unguarded endpoint turns an identifier into a name and an e-mail address (`IdentityEndpoints.cs:49`, `152-181`; S-7).
+11. **A caller can make the audit write fail**, for example with a path longer than the column's 512 characters; the failure is only logged (S-11).
+12. **The audited prefixes are not the list of routes that hold patient data.** Population-health, break-glass, consent, registration, the streamed chat, the bff's GraphQL endpoint and the HL7 listener are outside them (S-15).
+13. **The policy named PlatformAdmin admits the Admin role**, as every other policy does (`JwtBearerExtensions.cs:42-51`). The export is not limited to a tenant and reads one of the nine tables (S-3, S-13).
+14. **The summary stops at 100 groups without saying so, the CSV export quotes too little, and reading the export is not audited** (S-13).
+
 ## For the reviewer at G3
+- How is a recorded identifier resolved to a person? The spec decided on the token's subject (A1). By the security review, a subject from Entra ID is specific to one application registration and cannot be looked up in the directory; the object id, with the tenant id, can. Recording the object id beside the subject changes the record's shape and needs the amendment the spec describes; recording it in place of the subject changes A1.
+- Should the logs carry the identifier? Today's change keeps it on the lines that had a user and makes them name the right one. The other choice is to take the user off every log line and keep it in the row and the event only.
+- The spec fixes the order (FR-001). Since the identity is read after the pipeline, the order no longer decides who a record names: a test shows the old order naming the caller too. An audit that sat in front of everything would also record what the consent middleware or a failing authentication answers. That would be an amendment of FR-001, AC-001 and AC-005.
+- FR-003 says a refused request leaves a record. At the gateway it does not (item 6). Narrow the requirement, or add the gateway to the spec.
 - Is the subject the right identifier (P1)? The code read `oid` before, and never successfully.
 - Is the FHIR order acceptable, given that it leaves the consent middleware as it is?
 - The threat model lists three threats. Two of them are tested by criteria the approved spec did not write as abuse cases (AC-004, AC-005), and the kit's check says so. Marking them is an amendment to the spec.
