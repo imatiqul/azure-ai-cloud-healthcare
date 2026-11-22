@@ -55,22 +55,34 @@ public sealed class PhiAuditMiddlewareTests
         return new AuditDbContext(opts);
     }
 
+    /// <summary>
+    /// A request context. With <paramref name="subject"/> set, the request is authenticated
+    /// and its token carries that subject in <paramref name="subjectClaimType"/>.
+    /// </summary>
     private static DefaultHttpContext MakeContext(
         string path,
-        string? oidClaim = null,
+        string? subject = null,
         string method = "GET",
-        int responseStatus = 200)
+        int responseStatus = 200,
+        string subjectClaimType = "sub")
     {
         var ctx = new DefaultHttpContext();
         ctx.Request.Path = path;
         ctx.Request.Method = method;
         ctx.Response.StatusCode = responseStatus;
-        if (oidClaim is not null)
+        if (subject is not null)
         {
             ctx.User = new ClaimsPrincipal(
-                new ClaimsIdentity([new Claim("oid", oidClaim)], "test"));
+                new ClaimsIdentity([new Claim(subjectClaimType, subject)], "test"));
         }
         return ctx;
+    }
+
+    private static async Task<PhiAuditLog?> SingleEntryAsync(string dbName)
+    {
+        await Task.Delay(150); // let fire-and-forget persist to InMemory DB
+        await using var db = OpenDb(dbName);
+        return await db.PhiAuditLogs.SingleOrDefaultAsync();
     }
 
     // ── Non-PHI paths ─────────────────────────────────────────────────────────
@@ -143,34 +155,141 @@ public sealed class PhiAuditMiddlewareTests
         logger.ReceivedCalls().Should().NotBeEmpty("audit must fire for case-insensitive PHI path");
     }
 
+    // ── Who the record names (spec 004-audit-identity) ───────────────────────
+
     [Fact]
-    public async Task PhiPath_ExtractsUserIdFromOidClaim()
+    public async Task PhiPath_RecordsTheSubjectOfTheAuthenticatedIdentity()
     {
         var (sut, _, dbName) = BuildSut();
-        var ctx = MakeContext("/api/v1/encounters/99", oidClaim: "user-abc");
+        var ctx = MakeContext("/api/v1/encounters/99", subject: "user-abc");
 
         await sut.InvokeAsync(ctx);
-        await Task.Delay(150); // let fire-and-forget persist to InMemory DB
 
-        await using var db = OpenDb(dbName);
-        var entry = await db.PhiAuditLogs.SingleOrDefaultAsync();
+        var entry = await SingleEntryAsync(dbName);
         entry.Should().NotBeNull();
         entry!.UserId.Should().Be("user-abc");
     }
 
     [Fact]
-    public async Task PhiPath_FallsBackToAnonymousWhenNoOidClaim()
+    public async Task PhiPath_RecordsTheSubjectWhenItArrivesAsTheMappedNameIdentifierClaim()
     {
+        // ASP.NET Core maps the token's "sub" to the name-identifier claim by default.
         var (sut, _, dbName) = BuildSut();
-        var ctx = MakeContext("/api/v1/fhir/Patient/1"); // no oid claim
+        var ctx = MakeContext("/api/v1/encounters/99", subject: "user-abc",
+            subjectClaimType: ClaimTypes.NameIdentifier);
 
         await sut.InvokeAsync(ctx);
-        await Task.Delay(150);
 
-        await using var db = OpenDb(dbName);
-        var entry = await db.PhiAuditLogs.SingleOrDefaultAsync();
+        var entry = await SingleEntryAsync(dbName);
         entry.Should().NotBeNull();
-        entry!.UserId.Should().Be("anonymous");
+        entry!.UserId.Should().Be("user-abc");
+    }
+
+    [Fact]
+    public async Task PhiPath_RecordsTheUnauthenticatedMarkerWhenThereIsNoIdentity()
+    {
+        var (sut, _, dbName) = BuildSut();
+        var ctx = MakeContext("/api/v1/fhir/Patient/1"); // no authenticated identity
+
+        await sut.InvokeAsync(ctx);
+
+        var entry = await SingleEntryAsync(dbName);
+        entry.Should().NotBeNull();
+        entry!.UserId.Should().Be(PhiAuditMiddleware.UnauthenticatedUser);
+        entry.UserId.Should().NotBe("anonymous", "the old placeholder named signed-in users and nobody alike");
+    }
+
+    [Fact]
+    public async Task PhiPath_DoesNotTakeTheUserFromTheOidClaim()
+    {
+        // An authenticated identity with an object id and no subject: the record says so.
+        // It does not fall back to another claim, and it is not "unauthenticated" either.
+        var (sut, logger, dbName) = BuildSut();
+        var ctx = MakeContext("/api/v1/encounters/99", subject: "object-id-123", subjectClaimType: "oid");
+
+        await sut.InvokeAsync(ctx);
+
+        var entry = await SingleEntryAsync(dbName);
+        entry.Should().NotBeNull();
+        entry!.UserId.Should().Be(PhiAuditMiddleware.NoSubjectUser);
+        logger.ReceivedCalls()
+            .Where(c => c.GetArguments()[0] is LogLevel.Warning)
+            .Should().HaveCount(1, "a token with no subject is worth a warning");
+    }
+
+    [Fact]
+    public async Task PhiPath_IgnoresAUserNamedInARequestHeader()
+    {
+        // AC-003: a valid token for U and an X-User-Id header naming V. The record names U.
+        var (sut, _, dbName) = BuildSut();
+        var ctx = MakeContext("/api/v1/patients/7", subject: "user-u");
+        ctx.Request.Headers["X-User-Id"] = "user-v";
+
+        await sut.InvokeAsync(ctx);
+
+        var entry = await SingleEntryAsync(dbName);
+        entry.Should().NotBeNull();
+        entry!.UserId.Should().Be("user-u");
+    }
+
+    [Fact]
+    public async Task PhiPath_IgnoresAUserNamedInARequestHeaderWhenThereIsNoIdentity()
+    {
+        var (sut, _, dbName) = BuildSut();
+        var ctx = MakeContext("/api/v1/patients/7");
+        ctx.Request.Headers["X-User-Id"] = "user-v";
+
+        await sut.InvokeAsync(ctx);
+
+        var entry = await SingleEntryAsync(dbName);
+        entry.Should().NotBeNull();
+        entry!.UserId.Should().Be(PhiAuditMiddleware.UnauthenticatedUser);
+    }
+
+    [Fact]
+    public async Task PhiPath_RecordsTheIdentityThePipelineEndedWith()
+    {
+        // The identity is read after the rest of the pipeline has run, so a principal set
+        // further down (a policy that authenticates with its own scheme) is the one recorded.
+        var (sut, _, dbName) = BuildSut(next: ctx =>
+        {
+            ctx.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", "set-downstream")], "test"));
+            ctx.Response.StatusCode = 200;
+            return Task.CompletedTask;
+        });
+
+        await sut.InvokeAsync(MakeContext("/api/v1/patients/7"));
+
+        var entry = await SingleEntryAsync(dbName);
+        entry.Should().NotBeNull();
+        entry!.UserId.Should().Be("set-downstream");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ResolveUserId_TreatsABlankSubjectAsNoSubject(string blank)
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", blank)], "test"));
+
+        PhiAuditMiddleware.ResolveUserId(user).Should().Be(PhiAuditMiddleware.NoSubjectUser);
+    }
+
+    [Fact]
+    public void ResolveUserId_TreatsAMissingPrincipalAsUnauthenticated()
+    {
+        PhiAuditMiddleware.ResolveUserId(null).Should().Be(PhiAuditMiddleware.UnauthenticatedUser);
+        PhiAuditMiddleware.ResolveUserId(new ClaimsPrincipal(new ClaimsIdentity()))
+            .Should().Be(PhiAuditMiddleware.UnauthenticatedUser);
+    }
+
+    [Fact]
+    public void ResolveUserId_PrefersTheSubClaimToTheMappedOne()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "mapped"), new Claim("sub", "raw")], "test"));
+
+        PhiAuditMiddleware.ResolveUserId(user).Should().Be("raw");
     }
 
     [Fact]
@@ -178,7 +297,7 @@ public sealed class PhiAuditMiddlewareTests
     {
         var (sut, _, dbName) = BuildSut(
             next: ctx => { ctx.Response.StatusCode = 201; return Task.CompletedTask; });
-        var ctx = MakeContext("/api/v1/scheduling/bookings", oidClaim: "doc-007", method: "POST");
+        var ctx = MakeContext("/api/v1/scheduling/bookings", subject: "doc-007", method: "POST");
 
         await sut.InvokeAsync(ctx);
         await Task.Delay(150);
