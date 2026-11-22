@@ -15,7 +15,7 @@ stages:
     min_duration: 24h
     checks:
       - One request with a real token through the gateway to each of the eight services that serve an audited path, and the row read back from that service's table with the token's subject. The notification service serves no audited path and writes no row
-      - One request with no token to an OCR route, and the row read back with (unauthenticated) and status 401
+      - One request with no token sent to the OCR service itself, not through the gateway, and the row read back with (unauthenticated) and status 401. Through the gateway the request is refused there and no row is written
       - The time each service changed over, recorded with the release. Rows written before it say "anonymous" and stay so
   - {name: canary, scope: one revision of each service taking 10 percent of production traffic, min_duration: 2h}
   - {name: everyone, scope: all production traffic}

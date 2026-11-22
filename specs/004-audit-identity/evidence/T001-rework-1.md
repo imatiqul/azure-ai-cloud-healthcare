@@ -14,7 +14,7 @@ The security reviewer returned the item for S-8 and the part of S-4 that is in t
 
 | Finding | Change |
 |---|---|
-| S-8, V-8: authentication was checked on the first identity and the subject read from any | `ResolveUserId` reads the subject from an identity that is authenticated, and from no other. Two identities, in either order, give the same answer |
+| S-8, V-8: authentication was checked on the first identity and the subject read from any | `ResolveUserId` reads the subject from an identity that is authenticated, and from no other. Two identities, in either order, give the same answer when one of them is not authenticated, which is what the tests cover. **Corrected after the second round:** with two authenticated identities the first that has a subject is recorded, so their order decides (the verification, round 2, H7 and H10). No policy in the nine services names two schemes today |
 | S-4: the lines written after the pipeline named no user, so only the log scope did, and the scope's user can come from a request header | `PHI_ACCESS_COMPLETE` names the user of the record. The line for a row that could not be saved names the user, the method, the status and the correlation id |
 | S-14, point 2: the class comment said rows cannot be altered | The comment says nothing enforces that yet |
 

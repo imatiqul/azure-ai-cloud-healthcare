@@ -17,7 +17,7 @@ The independent verifier returned the item for V-5 (`verification/G6-report.md`)
 | The verifier's case | Before | Now |
 |---|---|---|
 | X2: a tenth service in the old order, its name added to the list of audited services | All tests passed | The order rows and the census read one list, so the new name is a row, and the row fails |
-| X3, O6, O7: the middleware registered by type, or through an extension method | Invisible to the census | The census counts any `Program.cs` that names the middleware in any form; a second test fails when any other file under `src/` names it |
+| X3, O6, O7: the middleware registered by type, or through an extension method | Invisible to the census | The census counts any `src/HealthQCopilot.*/Program.cs` that names the middleware in any form; a second test fails when a file under `src/` that is not called `Program.cs` names it. **Corrected after the second round:** the first wording said "any `Program.cs`" and "any other file". A `Program.cs` in another folder is read by neither test (the verification, round 2, X4 and X5) |
 | O4, S-10 point 1: a middleware that can refuse sits in front of authentication | Not examined | Everything registered in front of the audit has to be on a short list, each entry with the reason it cannot answer a request. The FHIR consent middleware is on it as an exception for that service only, with its reason |
 | O5: `app.MapWhen(...)` or `app.Run(...)` between authentication and the audit | Passed | Nothing may sit between the two |
 | O1: the registration inside a block comment | Counted as registered | Block comments are removed before reading |
