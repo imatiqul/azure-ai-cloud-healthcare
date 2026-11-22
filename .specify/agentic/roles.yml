@@ -1,0 +1,21 @@
+# Who may approve. Read from the base branch only, so a pull request cannot grant itself approvers.
+# List people by their account name in the enforcement channel. Never list an agent or CI account.
+schema: agentic-roles/1
+# Charter D3: the owner is the only human and holds every role. Approvals are recorded under his GitHub identity with the
+# role he is acting in, and each one states a single-approver exception. Written by an agent in Phase 5 for him to confirm.
+# The kit's check CK-ENFORCE-SETUP fails while agents run under this same account: they need an identity of their own.
+people:
+  - id: imatiqul
+    roles: [product-owner, solutions-architect, backend, frontend, ai-engineer, data-owner, platform, qa, security-compliance, devops-sre, engineering-manager]
+roles:
+  product-owner: {title: Product Owner}
+  solutions-architect: {title: Solutions Architect}
+  backend: {title: Backend}
+  frontend: {title: Frontend}
+  ai-engineer: {title: AI Engineer}
+  data-owner: {title: Data Owner}
+  platform: {title: Platform}
+  qa: {title: QA}
+  security-compliance: {title: Security & Compliance}
+  devops-sre: {title: DevOps/SRE}
+  engineering-manager: {title: Engineering Manager}
