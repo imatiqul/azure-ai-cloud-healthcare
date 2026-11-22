@@ -388,9 +388,11 @@ app.MapOpenApi();
 app.UseCloudEvents();
 app.UseMiddleware<TenantContextMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseAuthentication();
+// The PHI audit runs directly after authentication and before authorization (see PhiAuditMiddleware).
+// It stays outside the idempotency middleware, so that an answer served from the idempotency cache is audited too.
 app.UseMiddleware<PhiAuditMiddleware>();
 app.UseMiddleware<IdempotencyMiddleware>();
-app.UseAuthentication();
 app.UseAuthorization();
 app.UseOutputCache();
 app.UseHealthcareRateLimiting();

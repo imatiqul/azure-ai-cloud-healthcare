@@ -81,9 +81,10 @@ app.MapOpenApi();
 app.UseCloudEvents();
 app.UseMiddleware<TenantContextMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
-app.UseMiddleware<PhiAuditMiddleware>();
 app.UseMiddleware<ConsentEnforcementMiddleware>();
 app.UseAuthentication();
+// The PHI audit runs directly after authentication and before authorization (see PhiAuditMiddleware).
+app.UseMiddleware<PhiAuditMiddleware>();
 app.UseAuthorization();
 app.UseHealthcareRateLimiting();
 app.MapControllers();
