@@ -3,7 +3,7 @@ id: T005
 spec: 004-audit-identity
 title: Run the eleven existing tests of the audit middleware at the base commit, then the unit test project at the change's
   commit, and record both in `specs/004-audit
-state: ready
+state: in-review
 owner_agent: test-agent
 paths:
 - specs/004-audit-identity/evidence/characterization.yml
@@ -18,3 +18,25 @@ history:
 - state: ready
   by: orchestrator
   at: '2026-11-22T21:44:30Z'
+- state: in-progress
+  by: test-agent
+  at: '2026-11-23T02:14:18Z'
+- state: in-review
+  by: test-agent
+  at: '2026-11-23T02:15:11Z'
+context:
+  path: .specify/agentic/context/004-audit-identity/T005.md
+  hash: sha256:80c3a33c9f0edd55a8cafe53511ca7da7440f3d73ac258a6fcae2d0789b20a82
+  sources: 4
+base: 2a8f5166f1d0a9fb2f599b7e48b7fed7d3f0e1b0
+dirty_at_claim: {}
+handoff:
+  done: 'The owner ran both test runs on his machine; this records them from the two results files. Unit test project at 2a8f516:
+    520 of 520 passed, among them the 80 tests of this spec. The eleven existing audit tests at the base commit 8d04df3: 11
+    of 11 passed. The agent ran nothing. Not covered: the other test projects, coverage, a pipeline.'
+  evidence:
+  - specs/004-audit-identity/evidence/unit-tests.md
+  open_questions: []
+  files:
+  - specs/004-audit-identity/evidence/characterization.yml
+  - specs/004-audit-identity/evidence/unit-tests.md
