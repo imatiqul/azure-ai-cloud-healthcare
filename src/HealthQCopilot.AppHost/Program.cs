@@ -130,35 +130,47 @@ builder.AddContainer("dapr-placement", "daprio/dapr", "1.14")
 // ──────────────────────────────────────────────
 // Frontend MFEs (Vite dev servers)
 // ──────────────────────────────────────────────
-builder.AddNpmApp("shell", "../../frontend/apps/shell")
+// Aspire.Hosting.JavaScript (13.x) has no AddNpmApp; AddJavaScriptApp replaces it. "start" was the default
+// script of AddNpmApp and is named here because the new default is "dev". WithNpm(install: false) keeps the
+// host from running "npm install" before each app, which AddJavaScriptApp does by default and AddNpmApp
+// never did.
+builder.AddJavaScriptApp("shell", "../../frontend/apps/shell", runScriptName: "start")
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3000, env: "PORT")
     .WithExternalHttpEndpoints();
 
-builder.AddNpmApp("voice-mfe", "../../frontend/apps/voice-mfe")
+builder.AddJavaScriptApp("voice-mfe", "../../frontend/apps/voice-mfe", runScriptName: "start")
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3001, env: "PORT")
     .WithExternalHttpEndpoints();
 
-builder.AddNpmApp("triage-mfe", "../../frontend/apps/triage-mfe")
+builder.AddJavaScriptApp("triage-mfe", "../../frontend/apps/triage-mfe", runScriptName: "start")
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3002, env: "PORT")
     .WithExternalHttpEndpoints();
 
-builder.AddNpmApp("scheduling-mfe", "../../frontend/apps/scheduling-mfe")
+builder.AddJavaScriptApp("scheduling-mfe", "../../frontend/apps/scheduling-mfe", runScriptName: "start")
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3003, env: "PORT")
     .WithExternalHttpEndpoints();
 
-builder.AddNpmApp("pophealth-mfe", "../../frontend/apps/pophealth-mfe")
+builder.AddJavaScriptApp("pophealth-mfe", "../../frontend/apps/pophealth-mfe", runScriptName: "start")
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3004, env: "PORT")
     .WithExternalHttpEndpoints();
 
-builder.AddNpmApp("revenue-mfe", "../../frontend/apps/revenue-mfe")
+builder.AddJavaScriptApp("revenue-mfe", "../../frontend/apps/revenue-mfe", runScriptName: "start")
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3005, env: "PORT")
     .WithExternalHttpEndpoints();
 
-builder.AddNpmApp("encounters-mfe", "../../frontend/apps/encounters-mfe")
+builder.AddJavaScriptApp("encounters-mfe", "../../frontend/apps/encounters-mfe", runScriptName: "start")
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3006, env: "PORT")
     .WithExternalHttpEndpoints();
 
-builder.AddNpmApp("engagement-mfe", "../../frontend/apps/engagement-mfe")
+builder.AddJavaScriptApp("engagement-mfe", "../../frontend/apps/engagement-mfe", runScriptName: "start")
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3007, env: "PORT")
     .WithExternalHttpEndpoints();
 
