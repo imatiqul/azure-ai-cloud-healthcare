@@ -17,4 +17,12 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\HealthQCopilot.AppHost\HealthQCopilot.AppHost.csproj" />
   </ItemGroup>
+
+  <!-- Pinned on 2026-11-22: Aspire 9.3.0 brings MessagePack 2.5.192, with twelve published advisories (first
+       patched in 2.5.301 and 2.5.303). Remove when Aspire is updated. The two Aspire advisories themselves
+       (GHSA-4g86-54fm-h9h8, GHSA-f7vh-h5g3-7jrh) are fixed only in Aspire 13.6.5 and are not addressed here. -->
+  <ItemGroup>
+    <PackageReference Include="MessagePack" Version="2.5.303" />
+  </ItemGroup>
+
 </Project>

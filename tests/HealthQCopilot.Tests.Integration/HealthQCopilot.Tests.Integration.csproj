@@ -28,4 +28,15 @@
     <ProjectReference Include="..\..\src\HealthQCopilot.RevenueCycle\HealthQCopilot.RevenueCycle.csproj" />
     <ProjectReference Include="..\..\src\HealthQCopilot.Fhir\HealthQCopilot.Fhir.csproj" />
   </ItemGroup>
+
+  <!-- Pinned on 2026-11-22: 9.0.0 came in transitively, with nine published advisories (the latest first
+       patched in 9.0.21). Remove once nothing brings an earlier version in. -->
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="9.0.21" />
+    <!-- Testcontainers 4.3.0 brings SSH.NET 2024.2.0. GHSA-mggc-4xg6-vcxf, GHSA-q939-rpr3-3284: first patched
+         2026.0.0. Testcontainers 4.3.0 was built against the older version: if these tests fail inside
+         Testcontainers, update Testcontainers and remove this pin. -->
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
+  </ItemGroup>
+
 </Project>
