@@ -29,4 +29,11 @@
     <ProjectReference Include="..\..\src\HealthQCopilot.RevenueCycle\HealthQCopilot.RevenueCycle.csproj" />
     <ProjectReference Include="..\..\src\HealthQCopilot.Scheduling\HealthQCopilot.Scheduling.csproj" />
   </ItemGroup>
+
+  <!-- Pinned on 2026-11-22: 9.0.0 came in transitively, with nine published advisories (the latest first
+       patched in 9.0.21). Remove once nothing brings an earlier version in. -->
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="9.0.21" />
+  </ItemGroup>
+
 </Project>

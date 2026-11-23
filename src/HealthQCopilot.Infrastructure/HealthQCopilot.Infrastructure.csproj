@@ -11,14 +11,14 @@
     <PackageReference Include="Azure.Messaging.EventHubs" Version="5.12.2" />
     <PackageReference Include="Azure.Messaging.WebPubSub" Version="1.4.0" />
     <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.4.0" />
-    <PackageReference Include="OpenTelemetry" Version="1.13.0" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.13.0" />
+    <PackageReference Include="OpenTelemetry" Version="1.15.3" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.13.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.13.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.13.0-beta.1" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.13.0" />
     <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.13.0-beta.1" />
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.13.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3" />
     <PackageReference Include="MediatR" Version="12.4.1" />
     <PackageReference Include="Dapr.Client" Version="1.17.9" />
     <PackageReference Include="Dapr.AspNetCore" Version="1.17.9" />
@@ -44,4 +44,18 @@
   <ItemGroup>
     <InternalsVisibleTo Include="HealthQCopilot.Tests.Unit" />
   </ItemGroup>
+
+  <!-- Pinned on 2026-11-22. These packages are not used directly: they come in through other packages, at
+       versions that have published advisories. A direct reference makes every project that references this
+       one resolve the version below. Remove a pin once the package that brings it in asks for this version
+       or a later one by itself. -->
+  <ItemGroup>
+    <!-- 9.0.0 came in transitively. GHSA-2fmv-rv2c-59x7, GHSA-846f-f764-76mx: first patched 9.0.21. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
+    <!-- Microsoft.EntityFrameworkCore.Sqlite 10.0.0 brings 2.1.11, whose SQLitePCLRaw.lib.e_sqlite3 is in the
+         range of GHSA-2m69-gcr7-jv3q (2.1.11 and earlier; the advisory names no patched version). 2.1.13 is
+         outside that range and is the version Microsoft.Data.Sqlite 10.0.15 asks for. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.13" />
+  </ItemGroup>
+
 </Project>
