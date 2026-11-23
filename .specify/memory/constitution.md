@@ -1,12 +1,14 @@
 # HealthQ Copilot — constitution
 
-- **Phase and date:** Phase 4, 2026-11-22. Version 1.0.0
+- **Phase and date:** Phase 4, 2026-11-22. Version 2 (version 1, called 1.0.0 in earlier reports, was approved the same day)
 - **Requirement IDs covered:** GOV-11
 - **Assumptions:** the reference system is `imatiqul/azure-ai-cloud-healthcare` at commit `6e0879d2`, as verified in Phase 1; profile Regulated with the HIPAA pack; all example data is synthetic
 - **Unverified:** nothing here has been applied to the healthcare repository. 13 of the 25 principles name at least one check that does not exist yet (listed in `constitution.map.yml` as `status: not built`)
 
 **Approved at gate G0 by the owner on 2026-11-22**, in chat, in these words: "Needs you: approve". He holds the three roles G0 needs (Product Owner, Solutions Architect, Security and Compliance). It was approved as drafted, including the two numbers an agent had proposed: 80 percent in P-22 and 600 lines in P-24.
 This approval is recorded here and in the README's progress table, as earlier phases were. It is not a kit decision record: the constitution is not yet in a repository where a pull-request review can pass a gate.
+
+**Amended to version 2 on 2026-11-22**, approved by the owner at G0 again ("Batch 2, waiting on you: go ahead"). One sentence of P-7 changed; see "Amendments" at the end.
 
 An agent wrote the text from the twelve topics in `docs/prompts/reference/20-healthq.md` and the 27 findings of Phase 1. A change to it is an amendment: a new version, a report of what the change affects, and G0 again.
 
@@ -41,7 +43,7 @@ A feature uses only the PHI fields it needs, and its spec says which and why. [H
 Checked by: kit checks CK-PRIVACY-IMPACT and CK-DOMAIN-SECTIONS (the HIPAA pack's "Minimum Necessary" section).
 
 ### P-7 PHI is redacted at every boundary and encrypted in the field at rest
-PHI is redacted before it reaches a model provider, a log or a browser. Redaction is not behind a feature flag. PHI fields are encrypted at rest. No patient identifier or conversation is kept in browser storage. [H1]
+PHI is redacted before it reaches a model provider or a log. Redaction is not behind a feature flag. PHI fields are encrypted at rest. No patient identifier or conversation is kept in browser storage. [H1]
 Checked by, to build: `test:phi-redaction-at-boundaries`, `arch-test:phi-fields-encrypted`, `lint:no-phi-in-browser-storage`.
 
 ### P-8 Only synthetic data outside production
@@ -127,3 +129,8 @@ Checked by, to build: `ci:repository-hygiene`.
 ### P-25 Agents draft, build and verify; a named person approves
 Nothing passes a gate on an agent's say-so. Every gate decision is a review by a person entitled to make it, bound to the evidence they saw, and the agent that wrote something never verifies it.
 Checked by: kit checks CK-APPROVER, CK-GATE-RECORD and CK-AUTHOR-NEQ-VERIFIER.
+
+## Amendments
+
+### Version 2, 2026-11-22
+P-7 said PHI is redacted "before it reaches a model provider, a log or a browser". Read literally, that forbids showing a patient's record to their clinician. The words "or a browser" were an agent's mistake and are removed. The next sentences of P-7, on browser storage, are unchanged and say what finding H1 needs. No check changed. The report is `.specify/agentic/constitution/amendment-v2.md`.

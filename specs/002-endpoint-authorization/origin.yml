@@ -10,3 +10,10 @@ dispositions:
   decided_by:
     reviewer: imatiqul
     role: product-owner
+- target: 010-bff-authorization
+  decision: distinct
+  reason: '002 is about the services'' endpoints; 010 is about the GraphQL door in front of them. Decided in chat on 2026-11-22: the owner answered "go
+    ahead" to the list that recommended `distinct` for this pair.'
+  decided_by:
+    reviewer: imatiqul
+    role: product-owner

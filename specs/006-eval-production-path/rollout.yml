@@ -1,0 +1,15 @@
+schema: agentic-rollout/1
+# Draft, waiting at gate G3. What is rolled out here is a gate, not a service.
+deploy: [ai-eval-golden-set]
+rollback: [ai-eval-golden-set]
+flags: []
+compatibility_window: The stub gate is removed in the same change that adds the true one, so there is no time in which neither runs. Until the true one passes, it reports and does not block; see the stages.
+stages:
+  - {name: report, scope: the evaluation runs on the default branch and on pull requests and records its result without failing the build, min_duration: 14d}
+  - {name: block, scope: the evaluation fails pull requests that change the classifier, its rules, its prompts or the golden set}
+halt_signals:
+  - the evaluation job fails for a reason other than a result, such as a missing file or a build error, on two runs in a row
+  - a pull request that changes the classifier is merged with no evaluation result
+rollback_trigger: Any halt signal. Rolling back is reverting the workflow change; the result files already recorded stay.
+rollback_rehearsal:
+  plan: On a branch, revert the workflow change and confirm that the previous gate runs again and that the recorded results are untouched.

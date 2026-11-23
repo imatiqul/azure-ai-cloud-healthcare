@@ -5,6 +5,7 @@ tier_declared: critical
 owner_role: ai-engineer
 principles: [P-11]
 touches: [ai-eval-golden-set]
+changes_existing_code: true
 depends_on:
   nodes: [ai-triage-classifier]
   specs: []

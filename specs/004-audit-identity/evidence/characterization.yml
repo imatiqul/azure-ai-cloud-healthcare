@@ -1,0 +1,8 @@
+schema: agentic-characterization/1
+# The tests that pinned the middleware's behaviour before this spec changed it. They existed already.
+# result is "not-run", and the kit's check fails on it, because nobody has run them at this commit: the agent that wrote
+# the change cannot restore the solution's packages, and no workflow of the repository has run since May 2026.
+tests:
+  - tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditMiddlewareTests.cs
+result: not-run
+commit: 8d04df3

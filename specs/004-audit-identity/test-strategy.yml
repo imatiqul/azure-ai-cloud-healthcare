@@ -1,0 +1,36 @@
+schema: agentic-test-strategy/1
+# Draft, waiting at gate G4. `evidence` is where each result will be recorded; none exists yet.
+tier: critical
+kinds:
+  unit:
+    plan: PhiAuditMiddlewareTests (the claim that is read, the two markers, the event and the log lines, the eight tests that must not change) and RequestPipelineOrderTests
+    evidence: specs/004-audit-identity/evidence/unit-tests.md
+  integration:
+    plan: PhiAuditPipelineTests, the middleware between the framework's own authentication and authorization middleware
+    evidence: specs/004-audit-identity/evidence/unit-tests.md
+  end-to-end:
+    plan: One request with a valid token through the gateway to a deployed service in staging, then the row read back from that service's audit table
+    evidence: specs/004-audit-identity/evidence/staging-check.md
+  performance:
+    plan: NFR-001. The request path gains no database round trip; shown by the diff, and by the p95 of one audited endpoint in staging before and after
+    evidence: specs/004-audit-identity/evidence/staging-check.md
+  resilience:
+    plan: The identity provider's keys cannot be fetched. What the bearer handler does then is not known from reading. If it fails the token, the request is refused with 401 and recorded with the marker; if it throws, the request ends in 500 and nothing is recorded. The test shows which
+    evidence: specs/004-audit-identity/evidence/staging-check.md
+mutation:
+  threshold: 60
+  scope: src/HealthQCopilot.Infrastructure/Middleware/PhiAuditMiddleware.cs
+negative_boundary:
+  AC-001: A pipeline in the old order fails the order test; a service with no audit middleware at all fails it too
+  AC-002: An authenticated identity with no subject claim is recorded as (no-subject), never as a user
+  AC-003: The header names another user; the header is empty; the header repeats the token's own subject
+  AC-004: No token; a malformed token; an expired token. Each is refused and each is recorded with the marker
+  AC-005: The audit line after authorization fails as well as the audit line before authentication
+  AC-006: The change is searched for any file under a Migrations folder and for AuditDbContext.cs
+resilience:
+  entra-id: The resilience test above, run in staging
+  azure-communication: {not_relied_on: The change is in the request pipeline. It makes no call to the communication service}
+  azure-document-intelligence: {not_relied_on: The change is in the request pipeline. It makes no call to document intelligence}
+  azure-openai: {not_relied_on: The change is in the request pipeline. It makes no call to a model}
+  azure-speech: {not_relied_on: The change is in the request pipeline. It makes no call to the speech service}
+  hapi-fhir: {not_relied_on: The change is in the request pipeline. It makes no call to the FHIR server}

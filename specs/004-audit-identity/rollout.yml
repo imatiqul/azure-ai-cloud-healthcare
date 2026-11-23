@@ -1,0 +1,30 @@
+schema: agentic-rollout/1
+# Draft, waiting at gate G3. Release is out of scope for the reference: G7 is "evidence prepared, decision pending".
+# The order follows the system map: a service is deployed after the services it calls or whose events it reads.
+# Corrected on 2026-11-22 after the two reviews (reviews/G5-security.md S-6 and S-12; verification/G6-report.md V-6 and V-11).
+preconditions:
+  - Spec 001 is released, and each of the nine services is given an identity provider. Without one every row names demo-user and nothing is refused, so this change shows nothing
+  - A workflow runs the unit test project on every pull request. Until then FR-004 has no build to fail
+deploy: [identity-service, voice-service, agent-service, scheduling-service, revenue-service, ocr-service, fhir-service, pophealth-service, notification-service]
+rollback: [notification-service, pophealth-service, fhir-service, ocr-service, revenue-service, scheduling-service, agent-service, voice-service, identity-service]
+flags: []
+compatibility_window: None is needed. The record's shape does not change, so a service on the old order and a service on the new one write rows the same reader can read. All nine are released together so that no service audits under the old order after the release (NFR-002).
+stages:
+  - name: staging
+    scope: all nine services in the staging environment
+    min_duration: 24h
+    checks:
+      - One request with a real token through the gateway to each of the eight services that serve an audited path, and the row read back from that service's table with the token's subject. The notification service serves no audited path and writes no row
+      - One request with no token sent to the OCR service itself, not through the gateway, and the row read back with (unauthenticated) and status 401. Through the gateway the request is refused there and no row is written
+      - The time each service changed over, recorded with the release. Rows written before it say "anonymous" and stay so
+  - {name: canary, scope: one revision of each service taking 10 percent of production traffic, min_duration: 2h}
+  - {name: everyone, scope: all production traffic}
+halt_signals:
+  - the share of requests answered 401 or 403 rises by more than one percentage point against the week before
+  - any service's audit table receives no row for five minutes while that service is serving audited paths
+  - a row recorded as (unauthenticated) with a status below 400 on an OCR route. Those are the only routes under an audited prefix that have a guard today (finding C2). Elsewhere such rows are expected from the first minute, from the bff, from other services, from open routes, and from an answer replayed by the agent service's idempotency cache; they are counted, not halted on
+  - any row whose user is demo-user in production, or more than a handful of rows whose user is (no-subject)
+  - the error line "Failed to persist PHI audit log entry" rises above its rate of the week before
+rollback_trigger: Any halt signal, or a failed check in production. Rolling back is redeploying the previous revision of each service, in the rollback order. No data is migrated, so nothing has to be undone in a database.
+rollback_rehearsal:
+  plan: In staging, deploy the nine services, send audited requests, roll back in the stated order, and confirm that rows are still written and that the rows from before and after the rollback are both readable by the export.

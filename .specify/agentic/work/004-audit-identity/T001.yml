@@ -1,0 +1,83 @@
+schema: agentic-work/1
+id: T001
+spec: 004-audit-identity
+title: 'Change `src/HealthQCopilot.Infrastructure/Middleware/PhiAuditMiddleware.cs`: the user is the subject of the authenticated
+  identity; a marker where there is none'
+state: done
+owner_agent: backend-implementer
+paths:
+- src/HealthQCopilot.Infrastructure/Middleware/PhiAuditMiddleware.cs
+depends_on: []
+rework_rounds: 1
+history:
+- state: ready
+  by: orchestrator
+  at: '2026-11-22T21:44:30Z'
+- state: in-progress
+  by: backend-implementer
+  at: '2026-11-22T21:45:11Z'
+- state: in-review
+  by: backend-implementer
+  at: '2026-11-22T21:46:05Z'
+- state: rework
+  by: security-reviewer
+  at: '2026-11-22T22:30:56Z'
+- state: in-review
+  by: backend-implementer
+  at: '2026-11-22T22:41:22Z'
+- state: done
+  by: security-reviewer
+  at: '2026-11-22T23:05:03Z'
+context:
+  path: .specify/agentic/context/004-audit-identity/T001.md
+  hash: sha256:b46784663eaa292c7d62a14fd05d56a2232449f76389ae75d51694f76c151fdf
+  sources: 5
+base: 769efd4bf2b74f121dcdbaddd76a8c9af34a3b24
+dirty_at_claim:
+  specs/004-audit-identity/evidence/T001-middleware.md: ba6e997d5aeafc9a6c00b6cf70c77dbd79db66e2693e29c7e08bc4154655c857
+  specs/004-audit-identity/evidence/T002-order.md: 3517b828b0435ac0001f0696cd8da5be8ad51edc1262f772a29c5ad74f3f9561
+  specs/004-audit-identity/evidence/T003-tests.md: 1233988106531117617ed7273b9eb93687029d2056b098d71ad909e939f697e7
+  specs/004-audit-identity/evidence/T004-order-tests.md: 3d38f30bd11dc6dd9da5d02279bd30bc638bb798a02fca34ff3430a127dd1ba3
+  specs/004-audit-identity/plan.md: 6cb7fdaeae37911d47e623f265f1a6b38c8832339a96136a291e26bb63ad4a5d
+  specs/004-audit-identity/privacy-impact.md: 3ed1730fe6042869f9f8df434ecf7ce98a291fa063b590e65fd91d4062b41094
+  specs/004-audit-identity/reviews/G5-security.md: 305a026e881db73d1ab205efecf737446026a1f898241f5400f911baf11656f5
+  specs/004-audit-identity/rollout.yml: 6ec15534bc850841d778d71576a509f33a0937e8831970e5b4877d7d9ad22160
+  specs/004-audit-identity/test-strategy.yml: 9c5ce7e690a5d827ceca7164ffd913caa42dbb7a7ef7e36f5e75892d6238b4fa
+  specs/004-audit-identity/threat-model.yml: e0731a4fa128c4000dae739e5d1381f4a45fc3e3003c5a130ea2ac78db611617
+  specs/004-audit-identity/verification/G6-inputs.yml: d741bb76b496f7b5cb8eb69ee0c75f683a6f49d1bee0d29f273a07cc8dc31718
+  specs/004-audit-identity/verification/G6-report.md: 456f0fb7604b0ca6ab8d16010cb09d48be3aa4bcb4a7046e3b463a384d38c747
+  src/HealthQCopilot.Agents/Program.cs: e595605a27b3b26e0bf3529a7876cd04e13e07075ad9b42406008b0bbcae2ec8
+  src/HealthQCopilot.Fhir/Program.cs: d41800b5ac2271dd0286a7653b813048f8e7e368cfc3fd5554eb44a8074aa3b5
+  src/HealthQCopilot.Identity/Program.cs: 17c3d3e67726eadc2a4bd55147e6dc1a2b1ee8cea7fb4460f12f5d6d27f6f2ad
+  src/HealthQCopilot.Infrastructure/Middleware/PhiAuditMiddleware.cs: 80369a7d53512280217a401b79ac98a8c009bbaca20360ff669a6be1f071567b
+  src/HealthQCopilot.Notifications/Program.cs: 251972096252ded0686594e2bc445545f0bf59684946d51dce9948e20b941c34
+  src/HealthQCopilot.Ocr/Program.cs: 2aea1f990b8b19e09f37cb4212d637960b2e4ea01e7c367bad7705eb38c27f37
+  src/HealthQCopilot.PopulationHealth/Program.cs: 7dcc7ba8af56fd229ca59a4a0301c2eec066006de56b11d39c59edb4305c63a9
+  src/HealthQCopilot.RevenueCycle/Program.cs: e7205c70b02c1f262c2dc33c9a132a20daedda093dd2118c827d2e0cc1af73f1
+  src/HealthQCopilot.Scheduling/Program.cs: dc8865849e20a6025194b4071d72927ac815dc9999e9870e3ed3e5187e5fb835
+  src/HealthQCopilot.Voice/Program.cs: 561c2d05e0c0621eae34e7486714b944d22ad9cd6cf5a262ab6f52f030bc798a
+  tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrder.cs: 18cf48b6db55d42293d6c74872631ab708c987388d467f81d95b15ce4b8c4511
+  tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrderTests.cs: 04c581273bf026e8186f4da4a9b6d27b6ec831e1916e14ce508524fb7438c16d
+  tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditMiddlewareTests.cs: 31a21736947b88b9308fb0ba6988776469a68a0614b32a24085ee9a51847a380
+  tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditPipelineTests.cs: db353edc40ffc3398060b6cfe9fe681c57cbbe5ab0d22e7b6e3d9ac13486550f
+handoff:
+  done: 'Rework for S-8 and S-4: the subject is read from an authenticated identity only; the completion line and the line
+    for a failed write name the user of the record, and the failure line carries the method, the status and the correlation
+    id. The class comment no longer says rows cannot be altered.'
+  evidence:
+  - specs/004-audit-identity/evidence/T001-rework-1.md
+  open_questions:
+  - The logs keep the user identifier, as before the change. Taking it off the log lines is the owner's decision (S-3, point
+    3).
+  - A request that ends in an exception still leaves no record (S-5); not changed here.
+  files:
+  - specs/004-audit-identity/evidence/T001-rework-1.md
+  - src/HealthQCopilot.Infrastructure/Middleware/PhiAuditMiddleware.cs
+reviewer_agent: security-reviewer
+findings:
+- round: 1
+  by: security-reviewer
+  text: S-8 and the T001 part of S-4 of reviews/G5-security.md. ResolveUserId checks one identity for authentication and reads
+    the subject from any. The lines the middleware writes after the pipeline carry no user of their own; the line for a failed
+    write also lacks the method, the status and the correlation id. The reviewer first wrote accept, and returned the item
+    when told that an accepted item cannot be changed again in this change.

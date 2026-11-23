@@ -1,0 +1,37 @@
+schema: agentic-threats/1
+# Draft, waiting at gate G3. `mitigation` is a requirement of the spec; `test` is one of its acceptance criteria.
+# TH-2 and TH-3 are tested by criteria the approved spec did not write as abuse cases. The kit's check fails on that;
+# marking them is an amendment to the spec, which is the owner's to approve.
+# Corrected on 2026-11-22 after the security review (reviews/G5-security.md): TH-2 said more than the code does, and
+# the model was silent about eleven threats. `open` lists them. The kit's check does not read `open`; a person does.
+threats:
+  - id: TH-1
+    threat: A caller with a valid token sends an X-User-Id header naming someone else, so that an access is recorded against that person
+    category: spoofing
+    mitigation: FR-002
+    test: AC-003
+    holds_for: The row, the event and the lines the audit middleware logs. Not the log scope, whose UserId can still come from the header (finding C3, spec 003)
+  - id: TH-2
+    threat: A caller with no token probes paths that hold patient data, and the attempts leave no record because they were refused before the audit ran
+    category: repudiation
+    mitigation: FR-003
+    test: AC-004
+    holds_for: A refusal made by one of the nine services. Not a refusal made by the gateway, which authenticates first in production and has no audit (see open, 1)
+  - id: TH-3
+    threat: A service is released with the audit middleware in front of authentication again, so that every record names nobody and nobody notices
+    category: repudiation
+    mitigation: FR-004
+    test: AC-005
+    holds_for: A build in which the unit tests run. No workflow has run them since May 2026
+open:
+  - {n: 1, threat: "A caller with no token is refused at the gateway, which writes no audit record", category: repudiation, source: S-2, goes_to: "The owner. FR-003 covers it by its wording and the gateway is not a component this spec touches. An amendment of FR-003, or a spec for auditing refusals at the gateway"}
+  - {n: 2, threat: "A request that ends in an exception or is cut off part-way leaves no row and no event", category: repudiation, source: "S-5, V-10", goes_to: "Spec 015 (lost records) and spec 016 (the outcome in the record). Not changed here"}
+  - {n: 3, threat: "A caller makes the audit write fail, for example with a path longer than the column, or floods the table", category: "repudiation, denial of service", source: "S-11, V-9", goes_to: Spec 015}
+  - {n: 4, threat: "With no identity provider configured, every record names a made-up user as if it were a person", category: spoofing, source: S-6, goes_to: "Spec 001. The rollout of this spec waits for it and watches for that user"}
+  - {n: 5, threat: "The UserId in the log scope is set by a request header", category: spoofing, source: S-4, goes_to: Spec 003}
+  - {n: 6, threat: "The recorded identifier is resolved to a person through an account table that any caller can write", category: spoofing, source: S-7, goes_to: "The owner. Decision A1 of the spec; see the plan, P1"}
+  - {n: 7, threat: "Requests from the bff and between services carry no user, so the access is recorded with no person", category: repudiation, source: S-3, goes_to: "No spec owns it yet"}
+  - {n: 8, threat: "The trail itself is disclosed: through the logs, through the export to the Admin role across tenants, through the unguarded lookup of an identifier", category: information disclosure, source: "S-3, V-7", goes_to: "Specs 002 and 007; the logs are the owner's decision"}
+  - {n: 9, threat: "Routes that hold patient data are not on the audited list, so an access to them is recorded nowhere", category: repudiation, source: "S-15, V-6", goes_to: "No spec owns it yet"}
+  - {n: 10, threat: "A principal with more than one identity is named by the wrong one", category: spoofing, source: "S-8, V-8", goes_to: "Fixed in this change, in the first rework round. A policy that names its own scheme and fails still leaves the caller unnamed"}
+  - {n: 11, threat: "Rows are altered or deleted after they are written", category: tampering, source: S-14, goes_to: "Spec 008. Out of scope here by the spec"}

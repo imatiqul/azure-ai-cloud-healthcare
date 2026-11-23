@@ -1,0 +1,16 @@
+schema: agentic-work/1
+id: T006
+spec: 004-audit-identity
+title: Verify the change against the spec, the constitution and the system map, with none of the author's notes, and write
+  `specs/004-audit-identity/verification/G6-re
+state: ready
+owner_agent: independent-verifier
+paths:
+- specs/004-audit-identity/verification/G6-report.md
+depends_on:
+- T005
+rework_rounds: 0
+history:
+- state: ready
+  by: orchestrator
+  at: '2026-11-22T21:44:30Z'

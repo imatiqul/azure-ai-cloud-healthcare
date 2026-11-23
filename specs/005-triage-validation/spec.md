@@ -5,6 +5,7 @@ tier_declared: critical
 owner_role: ai-engineer
 principles: [P-11, P-12, P-13]
 touches: [ai-triage-classifier, agent-service]
+changes_existing_code: true
 depends_on:
   nodes: [ai-rag-index, ai-eval-golden-set]
   specs: [004-audit-identity, 006-eval-production-path]

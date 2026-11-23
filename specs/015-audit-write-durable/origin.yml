@@ -1,0 +1,12 @@
+# What a Product Owner decided about work that looks like this spec.
+schema: agentic-origin/1
+intake: []
+source: Phase 1 finding N3; see docs/phase-reports/phase-1-verification.md in the agentic-spec-kit repository
+dispositions:
+- target: 007-audit-export-complete
+  decision: distinct
+  reason: '007 is about an export that covers every store; 015 is about a write that is never lost. Decided in chat on 2026-11-22: the owner answered "go
+    ahead" to the list that recommended `distinct` for this pair.'
+  decided_by:
+    reviewer: imatiqul
+    role: product-owner

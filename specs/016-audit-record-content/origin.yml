@@ -1,0 +1,19 @@
+# What a Product Owner decided about work that looks like this spec.
+schema: agentic-origin/1
+intake: []
+source: Phase 1 finding N4; see docs/phase-reports/phase-1-verification.md in the agentic-spec-kit repository
+dispositions:
+- target: 004-audit-identity
+  decision: distinct
+  reason: '004 is about who the record names; 016 adds whose data, which tenant and what outcome. Decided in chat on 2026-11-22: the owner answered "go
+    ahead" to the list that recommended `distinct` for this pair.'
+  decided_by:
+    reviewer: imatiqul
+    role: product-owner
+- target: 007-audit-export-complete
+  decision: distinct
+  reason: '007 is about the export; 016 is about the content of what is exported. Decided in chat on 2026-11-22: the owner answered "go ahead" to the list
+    that recommended `distinct` for this pair.'
+  decided_by:
+    reviewer: imatiqul
+    role: product-owner

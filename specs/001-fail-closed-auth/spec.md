@@ -5,6 +5,7 @@ tier_declared: critical
 owner_role: platform
 principles: [P-1]
 touches: [lib-infrastructure]
+changes_existing_code: true
 depends_on:
   nodes: [entra-id]
   specs: []

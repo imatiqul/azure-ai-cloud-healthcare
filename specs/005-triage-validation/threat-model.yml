@@ -1,0 +1,13 @@
+schema: agentic-threats/1
+# Draft, waiting at gate G3.
+threats:
+  - id: TH-1
+    threat: Text in the retrieval index that mentions an urgent symptom raises every patient's level, so that real emergencies are lost among false ones
+    category: tampering
+    mitigation: FR-003
+    test: AC-003
+  - id: TH-2
+    threat: Someone who can write to the retrieval index plants an instruction to mark cases non-urgent
+    category: tampering
+    mitigation: FR-003
+    test: AC-004

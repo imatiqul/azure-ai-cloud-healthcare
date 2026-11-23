@@ -3,6 +3,7 @@
 # and is NOT BUILT: the spec for the finding named there must add it to the healthcare repository.
 # `findings` is not read by the kit; it links a principle to the Phase 1 findings it answers.
 schema: agentic-constitution-map/1
+version: 2
 external_checks:
   arch-test:no-fallback-identity:
     status: not built

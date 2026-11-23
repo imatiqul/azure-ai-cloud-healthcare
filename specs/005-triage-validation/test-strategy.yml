@@ -1,0 +1,33 @@
+schema: agentic-test-strategy/1
+# Draft, waiting at gate G4. `evidence` is where each result will be recorded; none exists yet.
+tier: critical
+kinds:
+  unit:
+    plan: TriageRulesTests, TriageInputSeparationTests, TriageWorkflowProposalTests
+    evidence: specs/005-triage-validation/evidence/unit-tests.trx
+  integration:
+    plan: The agent service's triage and confirmation endpoints through its real pipeline
+    evidence: specs/005-triage-validation/evidence/integration-tests.trx
+  end-to-end:
+    plan: A voice session in staging through to a proposal in the clinician's queue, confirmed, then the booking that follows
+    evidence: specs/005-triage-validation/evidence/staging-check.md
+  performance:
+    plan: NFR-002. The time from transcript to proposal, measured in the evaluation, against the figure a clinician sets
+    evidence: specs/005-triage-validation/evidence/eval-results.json
+  resilience:
+    plan: The retrieval index cannot be reached; the classifier still proposes from the transcript, and the explanation says the protocols were unavailable
+    evidence: specs/005-triage-validation/evidence/staging-check.md
+mutation:
+  threshold: 60
+  scope: src/HealthQCopilot.Agents/Plugins and the changed methods of TriageWorkflow
+negative_boundary:
+  AC-001: A P1 case phrased without any listed word is in the golden set; so is one with the word misspelt
+  AC-002: A result exactly at a threshold passes; one below it by the smallest step fails
+  AC-003: Retrieved text containing each P1 phrase in turn; retrieved text and no transcript at all
+  AC-004: The instruction in another language; split across two retrieved passages; inside a quotation
+  AC-005: The words denies, no, without and not before the symptom; the denial in the sentence after it; a denied and an affirmed symptom together
+  AC-006: An empty transcript; a transcript of filler words; a transcript in another language
+  AC-007: The clinician changes the level; the clinician confirms twice; two clinicians act at once
+  AC-008: A proposal equal to the current level; one level lower; three levels lower
+resilience:
+  azure-openai: {not_relied_on: The classifier is a set of rules and calls no model. The model narrates the result; if it is unavailable the proposal is still made}

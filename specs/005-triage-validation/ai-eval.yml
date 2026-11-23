@@ -1,0 +1,15 @@
+schema: agentic-ai-eval/1
+# Draft evaluation design, waiting at gate G3. Spec 006 builds the harness; this file says what a release of the classifier must show.
+# No clinician has signed the golden set, so `signed_off_by` is absent and the kit's check fails. It should, until one does.
+golden_set:
+  path: tests/HealthQCopilot.Tests.Eval/GoldenSets/triage.json
+  version: 1
+  provenance: Five synthetic cases written by the repository's authors. No clinician is recorded for them. Two are labelled P1, one P2, two P3; none is P4, none has a denied symptom, none is input that matches no rule.
+thresholds:
+  p1_recall: 1.0            # FR-001 and A2: no case a clinician labelled P1 may receive a lower level
+  under_triage_rate: {max: 0.0}   # a case given a lower level than its label. Proposed; a clinician sets it at G3 (A2)
+# Still to be set by a clinician at G3: accuracy by level, the over-triage rate that is acceptable, and the time to a proposal (NFR-002).
+first_release: true          # no evaluation of the production classifier has ever been recorded, so there is nothing to regress against
+entrypoint: src/HealthQCopilot.Agents/Plugins/TriagePlugin.cs::ClassifyUrgency
+harness: tests/HealthQCopilot.Tests.Eval/ClinicalAccuracyHarnessTests.cs
+results: specs/005-triage-validation/evidence/eval-results.json

@@ -1,0 +1,17 @@
+schema: agentic-rollout/1
+# Draft, waiting at gate G3. Release is out of scope for the reference.
+deploy: [ai-triage-classifier, agent-service]
+rollback: [agent-service, ai-triage-classifier]
+flags: []
+compatibility_window: Subscribers to triage.completed receive the same event, later. Workflows that were completed automatically before the release stay completed; nothing re-opens them.
+stages:
+  - {name: shadow, scope: the new rules run beside the old ones in staging and both results are recorded for a clinician to compare, min_duration: 7d}
+  - {name: one clinic, scope: one tenant chosen with its clinical lead, min_duration: 14d}
+  - {name: everyone, scope: all tenants}
+halt_signals:
+  - any case a clinician raises to P1 that the classifier had proposed lower or left unclassified without alerting
+  - the median time from proposal to confirmation passes the limit a clinician sets at G3
+  - the share of unclassified input passes the share measured in the shadow stage by more than five percentage points
+rollback_trigger: Any halt signal. Rolling back restores the previous rules and the previous workflow behaviour; proposals made in between stay in the queue until a clinician acts on them.
+rollback_rehearsal:
+  plan: In staging, with proposals waiting in the queue, roll the agent service back and confirm that every waiting proposal is still shown to a clinician and none is completed by the old code.

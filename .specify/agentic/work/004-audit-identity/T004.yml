@@ -1,0 +1,87 @@
+schema: agentic-work/1
+id: T004
+spec: 004-audit-identity
+title: Add `tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrderTests.cs` and the helper it uses, `tests/HealthQCopilot.Tests.Unit/Architecture/RequestPip
+state: done
+owner_agent: test-agent
+paths:
+- tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrderTests.cs
+- tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrder.cs
+depends_on: []
+rework_rounds: 1
+history:
+- state: ready
+  by: orchestrator
+  at: '2026-11-22T21:44:30Z'
+- state: in-progress
+  by: test-agent
+  at: '2026-11-22T21:46:59Z'
+- state: in-review
+  by: test-agent
+  at: '2026-11-22T21:48:39Z'
+- state: rework
+  by: independent-verifier
+  at: '2026-11-22T22:29:35Z'
+- state: in-review
+  by: test-agent
+  at: '2026-11-22T22:42:25Z'
+- state: done
+  by: independent-verifier
+  at: '2026-11-22T23:05:04Z'
+context:
+  path: .specify/agentic/context/004-audit-identity/T004.md
+  hash: sha256:97174f57a6eb68909cfe6137b9ced929f6191cedebe0f2b23f0f790e93e4920d
+  sources: 4
+base: 769efd4bf2b74f121dcdbaddd76a8c9af34a3b24
+dirty_at_claim:
+  specs/004-audit-identity/evidence/T001-middleware.md: ba6e997d5aeafc9a6c00b6cf70c77dbd79db66e2693e29c7e08bc4154655c857
+  specs/004-audit-identity/evidence/T001-rework-1.md: ded7e9b62b34e48e17d5a0d91b110332a615c02696c69ed8a8dc6ae51bbf1816
+  specs/004-audit-identity/evidence/T002-order.md: 3517b828b0435ac0001f0696cd8da5be8ad51edc1262f772a29c5ad74f3f9561
+  specs/004-audit-identity/evidence/T003-rework-1.md: 107417a2a4fbaa1ac6e71b0aaf20fcc5c2ccbb5c7fe8f7a5060d1ed9d71d92b6
+  specs/004-audit-identity/evidence/T003-tests.md: 1233988106531117617ed7273b9eb93687029d2056b098d71ad909e939f697e7
+  specs/004-audit-identity/evidence/T004-order-tests.md: 3d38f30bd11dc6dd9da5d02279bd30bc638bb798a02fca34ff3430a127dd1ba3
+  specs/004-audit-identity/plan.md: 6cb7fdaeae37911d47e623f265f1a6b38c8832339a96136a291e26bb63ad4a5d
+  specs/004-audit-identity/privacy-impact.md: 3ed1730fe6042869f9f8df434ecf7ce98a291fa063b590e65fd91d4062b41094
+  specs/004-audit-identity/reviews/G5-security.md: 305a026e881db73d1ab205efecf737446026a1f898241f5400f911baf11656f5
+  specs/004-audit-identity/rollout.yml: 6ec15534bc850841d778d71576a509f33a0937e8831970e5b4877d7d9ad22160
+  specs/004-audit-identity/test-strategy.yml: 9c5ce7e690a5d827ceca7164ffd913caa42dbb7a7ef7e36f5e75892d6238b4fa
+  specs/004-audit-identity/threat-model.yml: e0731a4fa128c4000dae739e5d1381f4a45fc3e3003c5a130ea2ac78db611617
+  specs/004-audit-identity/verification/G6-inputs.yml: d741bb76b496f7b5cb8eb69ee0c75f683a6f49d1bee0d29f273a07cc8dc31718
+  specs/004-audit-identity/verification/G6-report.md: 456f0fb7604b0ca6ab8d16010cb09d48be3aa4bcb4a7046e3b463a384d38c747
+  src/HealthQCopilot.Agents/Program.cs: e595605a27b3b26e0bf3529a7876cd04e13e07075ad9b42406008b0bbcae2ec8
+  src/HealthQCopilot.Fhir/Program.cs: d41800b5ac2271dd0286a7653b813048f8e7e368cfc3fd5554eb44a8074aa3b5
+  src/HealthQCopilot.Identity/Program.cs: 17c3d3e67726eadc2a4bd55147e6dc1a2b1ee8cea7fb4460f12f5d6d27f6f2ad
+  src/HealthQCopilot.Infrastructure/Middleware/PhiAuditMiddleware.cs: 75a83ed31233ba9989e3970e534752a8760803b150a5ab22d711118c46d50bc9
+  src/HealthQCopilot.Notifications/Program.cs: 251972096252ded0686594e2bc445545f0bf59684946d51dce9948e20b941c34
+  src/HealthQCopilot.Ocr/Program.cs: 2aea1f990b8b19e09f37cb4212d637960b2e4ea01e7c367bad7705eb38c27f37
+  src/HealthQCopilot.PopulationHealth/Program.cs: 7dcc7ba8af56fd229ca59a4a0301c2eec066006de56b11d39c59edb4305c63a9
+  src/HealthQCopilot.RevenueCycle/Program.cs: e7205c70b02c1f262c2dc33c9a132a20daedda093dd2118c827d2e0cc1af73f1
+  src/HealthQCopilot.Scheduling/Program.cs: dc8865849e20a6025194b4071d72927ac815dc9999e9870e3ed3e5187e5fb835
+  src/HealthQCopilot.Voice/Program.cs: 561c2d05e0c0621eae34e7486714b944d22ad9cd6cf5a262ab6f52f030bc798a
+  tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrder.cs: 18cf48b6db55d42293d6c74872631ab708c987388d467f81d95b15ce4b8c4511
+  tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrderTests.cs: 04c581273bf026e8186f4da4a9b6d27b6ec831e1916e14ce508524fb7438c16d
+  tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditMiddlewareTests.cs: da2678e5ea492476c6d4aed184961cd1d080d7bdd6d614b05f4511d191535590
+  tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditPipelineTests.cs: 41ea25c054d114e738178f47e440447d74de8bc15094476c69eef8ea04eff249
+handoff:
+  done: 'Rework for V-5 and S-10 point 1: the order rows and the census read one list; any Program.cs that names the middleware
+    is counted and no other file may name it; everything in front of the audit has to be on a list of what cannot answer a
+    request, with the FHIR consent middleware as a stated exception; a block comment, a preprocessor condition, a registration
+    inside a block and a second registration fail.'
+  evidence:
+  - specs/004-audit-identity/evidence/T004-rework-1.md
+  open_questions:
+  - The check reads source text in one form and fails on any other. It cannot see a listed middleware being changed so that
+    it answers requests.
+  files:
+  - specs/004-audit-identity/evidence/T004-order-tests.md
+  - specs/004-audit-identity/evidence/T004-rework-1.md
+  - tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrder.cs
+  - tests/HealthQCopilot.Tests.Unit/Architecture/RequestPipelineOrderTests.cs
+reviewer_agent: independent-verifier
+findings:
+- round: 1
+  by: independent-verifier
+  text: V-5 of verification/G6-report.md. The order rows and the census are separate lists, so a service added to one and
+    not the other is not checked for order. The census sees only the exact registration line. Nothing in front of authentication
+    is examined. A block comment, a preprocessor condition, dead code, a branch that answers a request and a second registration
+    all pass. The sentence about the census in evidence/T004-order-tests.md is wrong.

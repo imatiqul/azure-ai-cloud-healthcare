@@ -5,6 +5,7 @@ tier_declared: critical
 owner_role: backend
 principles: [P-9]
 touches: [lib-infrastructure, identity-service, voice-service, agent-service, fhir-service, ocr-service, scheduling-service, notification-service, pophealth-service, revenue-service]
+changes_existing_code: true
 depends_on:
   nodes: [phi-audit-logs, event-hubs-audit, entra-id]
   specs: [001-fail-closed-auth, 003-identity-from-token]

@@ -3,6 +3,11 @@
 # Owners, tiers and classifications are an agent's proposals from Phase 1. A person confirms them when a plan is reviewed (G3).
 # `holds` keeps what Phase 1 wrote where the HIPAA pack's three classes are coarser. Not mapped: Per-route gateway targets and APIM policies; Redis and Cosmos contents and their classification; Tables and columns inside each service database (only phi_audit_logs is mapped); Infrastructure resources beyond the bicep module list; Publishers of triage.completed and escalation.required; Frontend to backend call paths; Kubernetes, Helm and Argo deployment topology
 schema: agentic-map/1
+discovery:
+  ignore:
+  - healthq-copilot-frontend
+  - servicebus-emulator
+  - sql-servicebus
 nodes:
 - id: identity-service
   type: service
@@ -12,6 +17,8 @@ nodes:
   origin: derived
   holds: PHI
   evidence: src/HealthQCopilot.AppHost/Program.cs; src/HealthQCopilot.Identity/Program.cs
+  aliases:
+  - healthqcopilot-identity
 - id: voice-service
   type: service
   owner: backend
@@ -20,6 +27,8 @@ nodes:
   origin: derived
   holds: PHI
   evidence: src/HealthQCopilot.AppHost/Program.cs; src/HealthQCopilot.Voice/Program.cs
+  aliases:
+  - healthqcopilot-voice
 - id: agent-service
   type: service
   owner: backend
@@ -28,6 +37,8 @@ nodes:
   origin: derived
   holds: PHI
   evidence: src/HealthQCopilot.AppHost/Program.cs; src/HealthQCopilot.Agents/Program.cs
+  aliases:
+  - healthqcopilot-agents
 - id: fhir-service
   type: service
   owner: backend
@@ -36,6 +47,8 @@ nodes:
   origin: derived
   holds: PHI
   evidence: src/HealthQCopilot.AppHost/Program.cs; src/HealthQCopilot.Fhir/Program.cs
+  aliases:
+  - healthqcopilot-fhir
 - id: ocr-service
   type: service
   owner: backend
@@ -44,6 +57,8 @@ nodes:
   origin: derived
   holds: PHI
   evidence: src/HealthQCopilot.AppHost/Program.cs; src/HealthQCopilot.Ocr/Program.cs
+  aliases:
+  - healthqcopilot-ocr
 - id: scheduling-service
   type: service
   owner: backend
@@ -52,6 +67,8 @@ nodes:
   origin: derived
   holds: PHI
   evidence: src/HealthQCopilot.AppHost/Program.cs; src/HealthQCopilot.Scheduling/Program.cs
+  aliases:
+  - healthqcopilot-scheduling
 - id: notification-service
   type: service
   owner: backend
@@ -60,6 +77,8 @@ nodes:
   origin: derived
   holds: PHI
   evidence: src/HealthQCopilot.AppHost/Program.cs; src/HealthQCopilot.Notifications/Program.cs
+  aliases:
+  - healthqcopilot-notifications
 - id: pophealth-service
   type: service
   owner: backend
@@ -68,6 +87,8 @@ nodes:
   origin: derived
   holds: PHI
   evidence: src/HealthQCopilot.AppHost/Program.cs; src/HealthQCopilot.PopulationHealth/Program.cs
+  aliases:
+  - healthqcopilot-populationhealth
 - id: revenue-service
   type: service
   owner: backend
@@ -76,6 +97,8 @@ nodes:
   origin: derived
   holds: PHI
   evidence: src/HealthQCopilot.AppHost/Program.cs; src/HealthQCopilot.RevenueCycle/Program.cs
+  aliases:
+  - healthqcopilot-revenuecycle
 - id: gateway
   type: service
   owner: backend
@@ -84,6 +107,8 @@ nodes:
   origin: derived
   holds: PHI in transit
   evidence: src/HealthQCopilot.Gateway/Program.cs
+  aliases:
+  - healthqcopilot-gateway
 - id: bff
   type: service
   owner: backend
@@ -92,6 +117,8 @@ nodes:
   origin: derived
   holds: PHI in transit
   evidence: src/HealthQCopilot.BFF/Program.cs
+  aliases:
+  - healthqcopilot-bff
 - id: lib-domain
   type: shared-library
   owner: platform
@@ -99,6 +126,8 @@ nodes:
   classification: none
   origin: derived
   evidence: src/HealthQCopilot.Domain
+  aliases:
+  - healthqcopilot-domain
 - id: lib-infrastructure
   type: shared-library
   owner: platform
@@ -106,6 +135,8 @@ nodes:
   classification: none
   origin: derived
   evidence: src/HealthQCopilot.Infrastructure
+  aliases:
+  - healthqcopilot-infrastructure
 - id: lib-service-defaults
   type: shared-library
   owner: platform
@@ -113,6 +144,8 @@ nodes:
   classification: none
   origin: derived
   evidence: src/HealthQCopilot.ServiceDefaults
+  aliases:
+  - healthqcopilot-servicedefaults
 - id: postgres
   type: data-store
   owner: data-owner
@@ -439,6 +472,8 @@ nodes:
   classification: none
   origin: derived
   evidence: frontend/packages/auth-client/package.json
+  aliases:
+  - healthcare-auth-client
 - id: pkg-design-system
   type: shared-package
   owner: platform
@@ -446,6 +481,8 @@ nodes:
   classification: none
   origin: derived
   evidence: frontend/packages/design-system/package.json
+  aliases:
+  - healthcare-design-system
 - id: pkg-fhir-types
   type: shared-package
   owner: platform
@@ -453,6 +490,8 @@ nodes:
   classification: none
   origin: derived
   evidence: frontend/packages/fhir-types/package.json
+  aliases:
+  - healthcare-fhir-types
 - id: pkg-graphql-client
   type: shared-package
   owner: platform
@@ -460,6 +499,8 @@ nodes:
   classification: none
   origin: derived
   evidence: frontend/packages/graphql-client/package.json
+  aliases:
+  - healthcare-graphql-client
 - id: pkg-mfe-events
   type: shared-package
   owner: platform
@@ -467,6 +508,8 @@ nodes:
   classification: none
   origin: derived
   evidence: frontend/packages/mfe-events/package.json
+  aliases:
+  - healthcare-mfe-events
 - id: pkg-signalr-client
   type: shared-package
   owner: platform
@@ -474,6 +517,8 @@ nodes:
   classification: none
   origin: derived
   evidence: frontend/packages/signalr-client/package.json
+  aliases:
+  - healthcare-signalr-client
 - id: pkg-tsconfig
   type: shared-package
   owner: platform
@@ -481,6 +526,8 @@ nodes:
   classification: none
   origin: derived
   evidence: frontend/packages/tsconfig/package.json
+  aliases:
+  - healthcare-tsconfig
 - id: pkg-web-pubsub-client
   type: shared-package
   owner: platform
@@ -488,6 +535,8 @@ nodes:
   classification: none
   origin: derived
   evidence: frontend/packages/web-pubsub-client/package.json
+  aliases:
+  - healthcare-web-pubsub-client
 - id: topic-escalation.required
   type: event
   owner: solutions-architect
@@ -608,6 +657,192 @@ nodes:
   origin: derived
   evidence: src/HealthQCopilot.Agents/EventHandlers/TriageCompletedHandler.cs
   note: 'Phase 1 cited: PublishEventAsync calls and Topic attributes in src. Not classified in Phase 1; treated as restricted until a person classifies it'
+- id: ci-pipeline
+  type: shared-pipeline
+  owner: devops-sre
+  tier: high
+  classification: none
+  origin: derived
+  evidence: .github/workflows
+  note: Not in the Phase 1 draft; added in Phase 5 because finding H6 changes it
+- id: repo-config
+  type: infrastructure
+  owner: platform
+  tier: high
+  classification: none
+  origin: derived
+  evidence: Directory.Build.props
+  note: Not in the Phase 1 draft; added in Phase 5 because findings M1, M4 and M5 change it
+- id: dev-apphost
+  type: infrastructure
+  owner: devops-sre
+  tier: medium
+  classification: none
+  origin: derived
+  evidence: src/HealthQCopilot.AppHost/Program.cs
+  note: Not in the Phase 1 draft; added in Phase 5 because finding N8 changes it
+  aliases:
+  - healthqcopilot-apphost
+- id: topic-booking.created
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.Scheduling/EventHandlers/BookingCreatedHandler.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-breakglass.granted
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.Identity/EventHandlers/BreakGlassAccessHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-breakglass.revoked
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.Identity/EventHandlers/BreakGlassAccessHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-campaign.activated
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.Notifications/EventHandlers/CampaignEventHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-campaign.cancelled
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.Notifications/EventHandlers/CampaignEventHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-campaign.completed
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.Notifications/EventHandlers/CampaignEventHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-care-gap.addressed
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.PopulationHealth/EventHandlers/CareGapHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-care-gap.closed
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.PopulationHealth/EventHandlers/CareGapHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-care-gap.identified
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.PopulationHealth/EventHandlers/CareGapHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-claim.rejected
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/EventHandlers/ClaimLifecycleHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-claim.submitted
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/EventHandlers/ClaimLifecycleHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-coding-job.submitted
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/EventHandlers/CodingJobSubmittedHandler.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-consent.granted
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.Identity/EventHandlers/ConsentHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-consent.revoked
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.Identity/EventHandlers/ConsentHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-document.processed
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.Ocr/EventHandlers/DocumentProcessedHandler.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-patient-risk.assessed
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.PopulationHealth/EventHandlers/PatientRiskAssessedHandler.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-priorauth.result
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/EventHandlers/PriorAuthResultHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-remittance.posted
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/EventHandlers/RemittanceHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-remittance.received
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/EventHandlers/RemittanceHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
+- id: topic-slot.booked
+  type: event
+  owner: solutions-architect
+  tier: high
+  classification: restricted
+  origin: derived
+  evidence: src/HealthQCopilot.Scheduling/EventHandlers/SlotBookedHandler.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6. Not classified; treated as restricted until a person classifies it
 edges:
 - from: agent-service
   rel: builds-with
@@ -1435,6 +1670,234 @@ edges:
   to: gateway
   origin: assumed
   evidence: frontend
+- from: identity-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Identity/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: voice-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Voice/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: agent-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Agents/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: fhir-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Fhir/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: ocr-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Ocr/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: scheduling-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Scheduling/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: notification-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.Notifications/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: pophealth-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.PopulationHealth/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: revenue-service
+  rel: writes
+  to: event-hubs-audit
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/Program.cs (AddEventHubAudit)
+  note: Not in the Phase 1 draft; found in Phase 7, while tracing the change for finding C4
+- from: pkg-auth-client
+  rel: builds-with
+  to: pkg-tsconfig
+  origin: derived
+  evidence: frontend/packages/auth-client/package.json
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: pkg-design-system
+  rel: builds-with
+  to: pkg-tsconfig
+  origin: derived
+  evidence: frontend/packages/design-system/package.json
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: pkg-fhir-types
+  rel: builds-with
+  to: pkg-tsconfig
+  origin: derived
+  evidence: frontend/packages/fhir-types/package.json
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: pkg-graphql-client
+  rel: builds-with
+  to: pkg-tsconfig
+  origin: derived
+  evidence: frontend/packages/graphql-client/package.json
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: pkg-mfe-events
+  rel: builds-with
+  to: pkg-tsconfig
+  origin: derived
+  evidence: frontend/packages/mfe-events/package.json
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: pkg-signalr-client
+  rel: builds-with
+  to: pkg-tsconfig
+  origin: derived
+  evidence: frontend/packages/signalr-client/package.json
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: pkg-web-pubsub-client
+  rel: builds-with
+  to: pkg-tsconfig
+  origin: derived
+  evidence: frontend/packages/web-pubsub-client/package.json
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: agent-service
+  rel: publishes
+  to: topic-escalation.required
+  origin: derived
+  evidence: src/HealthQCopilot.Agents/EventHandlers/EscalationRequiredHandler.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: agent-service
+  rel: publishes
+  to: topic-triage.completed
+  origin: derived
+  evidence: src/HealthQCopilot.Agents/EventHandlers/TriageCompletedHandler.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: identity-service
+  rel: publishes
+  to: topic-breakglass.granted
+  origin: derived
+  evidence: src/HealthQCopilot.Identity/EventHandlers/BreakGlassAccessHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: identity-service
+  rel: publishes
+  to: topic-breakglass.revoked
+  origin: derived
+  evidence: src/HealthQCopilot.Identity/EventHandlers/BreakGlassAccessHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: identity-service
+  rel: publishes
+  to: topic-consent.granted
+  origin: derived
+  evidence: src/HealthQCopilot.Identity/EventHandlers/ConsentHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: identity-service
+  rel: publishes
+  to: topic-consent.revoked
+  origin: derived
+  evidence: src/HealthQCopilot.Identity/EventHandlers/ConsentHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: notification-service
+  rel: publishes
+  to: topic-campaign.activated
+  origin: derived
+  evidence: src/HealthQCopilot.Notifications/EventHandlers/CampaignEventHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: notification-service
+  rel: publishes
+  to: topic-campaign.cancelled
+  origin: derived
+  evidence: src/HealthQCopilot.Notifications/EventHandlers/CampaignEventHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: notification-service
+  rel: publishes
+  to: topic-campaign.completed
+  origin: derived
+  evidence: src/HealthQCopilot.Notifications/EventHandlers/CampaignEventHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: ocr-service
+  rel: publishes
+  to: topic-document.processed
+  origin: derived
+  evidence: src/HealthQCopilot.Ocr/EventHandlers/DocumentProcessedHandler.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: pophealth-service
+  rel: publishes
+  to: topic-care-gap.addressed
+  origin: derived
+  evidence: src/HealthQCopilot.PopulationHealth/EventHandlers/CareGapHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: pophealth-service
+  rel: publishes
+  to: topic-care-gap.closed
+  origin: derived
+  evidence: src/HealthQCopilot.PopulationHealth/EventHandlers/CareGapHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: pophealth-service
+  rel: publishes
+  to: topic-care-gap.identified
+  origin: derived
+  evidence: src/HealthQCopilot.PopulationHealth/EventHandlers/CareGapHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: pophealth-service
+  rel: publishes
+  to: topic-patient-risk.assessed
+  origin: derived
+  evidence: src/HealthQCopilot.PopulationHealth/EventHandlers/PatientRiskAssessedHandler.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: revenue-service
+  rel: publishes
+  to: topic-claim.rejected
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/EventHandlers/ClaimLifecycleHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: revenue-service
+  rel: publishes
+  to: topic-claim.submitted
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/EventHandlers/ClaimLifecycleHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: revenue-service
+  rel: publishes
+  to: topic-coding-job.submitted
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/EventHandlers/CodingJobSubmittedHandler.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: revenue-service
+  rel: publishes
+  to: topic-priorauth.result
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/EventHandlers/PriorAuthResultHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: revenue-service
+  rel: publishes
+  to: topic-remittance.posted
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/EventHandlers/RemittanceHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: revenue-service
+  rel: publishes
+  to: topic-remittance.received
+  origin: derived
+  evidence: src/HealthQCopilot.RevenueCycle/EventHandlers/RemittanceHandlers.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: scheduling-service
+  rel: publishes
+  to: topic-booking.created
+  origin: derived
+  evidence: src/HealthQCopilot.Scheduling/EventHandlers/BookingCreatedHandler.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
+- from: scheduling-service
+  rel: publishes
+  to: topic-slot.booked
+  origin: derived
+  evidence: src/HealthQCopilot.Scheduling/EventHandlers/SlotBookedHandler.cs
+  note: Not in the Phase 1 draft; found by the kit's discovery in Phase 6
 index:
 - paths:
   - src/HealthQCopilot.Identity/**
@@ -1586,3 +2049,19 @@ index:
 - paths:
   - frontend/packages/web-pubsub-client/**
   node: pkg-web-pubsub-client
+- paths:
+  - .github/workflows/**
+  - frontend/e2e/**
+  - frontend/e2e-cloud/**
+  node: ci-pipeline
+- paths:
+  - Directory.Build.props
+  - .editorconfig
+  - .gitignore
+  - global.json
+  - README.md
+  - LICENSE
+  node: repo-config
+- paths:
+  - src/HealthQCopilot.AppHost/**
+  node: dev-apphost
