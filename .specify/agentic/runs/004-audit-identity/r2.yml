@@ -1,0 +1,15 @@
+schema: agentic-run/1
+id: r2
+spec: 004-audit-identity
+mode: sequential
+budget:
+  steps: 20
+  minutes: 90
+steps: 1
+started: '2026-11-23T02:14:17Z'
+last: '2026-11-23T02:15:11Z'
+state: stopped
+stop_reason: T005 is handed off and waits for a reviewing agent. T006, the verification
+  repeated on these results, is open. Both need the owner's go-ahead for a reviewing
+  agent to run.
+report: .specify/agentic/runs/004-audit-identity/r2-report.md

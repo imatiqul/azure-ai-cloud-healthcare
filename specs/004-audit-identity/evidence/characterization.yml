@@ -1,8 +1,13 @@
 schema: agentic-characterization/1
 # The tests that pinned the middleware's behaviour before this spec changed it. They existed already.
-# result is "not-run", and the kit's check fails on it, because nobody has run them at this commit: the agent that wrote
-# the change cannot restore the solution's packages, and no workflow of the repository has run since May 2026.
+# Run by the owner on his own machine on 2026-11-22 at 20:09 local time (UTC-6), at the base commit:
+#   git switch --detach 8d04df3
+#   dotnet test tests/HealthQCopilot.Tests.Unit --filter "FullyQualifiedName~PhiAuditMiddlewareTests" -p:NuGetAudit=false --logger "trx;LogFileName=base.trx"
+# 11 tests, 11 passed. The results file is not in the repository; its SHA-256 is
+# b3f055df1dc6a4c802eadd4e600e2d05f39d464629f5048f2760190cb36e9e7b. unit-tests.md, beside this file, has the rest.
+# The run was made after the change was written, on the commit before it. The base commit does not change, so the
+# tests ran against code this spec had not touched.
 tests:
   - tests/HealthQCopilot.Tests.Unit/Infrastructure/PhiAuditMiddlewareTests.cs
-result: not-run
-commit: 8d04df3
+result: pass
+commit: 8d04df38fc79022e17c95c27f8eb37f0d5b2ee20
