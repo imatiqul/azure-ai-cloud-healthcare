@@ -21,6 +21,8 @@ depends_on:
 M4, confirmed in Phase 1. There are 47 tracked `.map` files under `@mf-types`, a tracked Playwright report that `.gitignore` lists, and a README that says "Proprietary - all rights reserved" while LICENSE is MIT. A listing on 2026-11-22 finds 134 tracked files under `frontend/apps/shell/@mf-types`.
 Evidence: `README.md`, licence section; `LICENSE:1`; `.gitignore`.
 
+On 2026-11-24 the owner decided that the licence is MIT and merged pull request #79, which changes the README's licence section to match the LICENSE file. FR-003 is met by that change, and A1 is no longer an assumption. The change was merged without this spec's gates: no gate of this spec has a recorded decision.
+
 ## User Stories
 - As a contributor, I want to know the licence I am contributing under, so that the README and the LICENSE file do not tell me different things.
 - As a reviewer, I want a diff to show source, so that generated files do not bury the change.
