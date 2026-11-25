@@ -120,4 +120,4 @@ pnpm test:e2e
 
 ## License
 
-Proprietary - all rights reserved.
+MIT. See [LICENSE](LICENSE).
