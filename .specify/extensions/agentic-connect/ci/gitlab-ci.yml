@@ -1,0 +1,57 @@
+# agentic-spec-kit on GitLab CI.  Copy into .gitlab-ci.yml
+#
+# Two things to know:
+#   1. Define the secrets your connect.yml names as CI/CD variables that are both "Masked" and "Protected". GitLab gives
+#      protected variables only to jobs on protected branches, so a merge request cannot read them. The notify and
+#      intake jobs below run only on a protected branch.
+#   2. Gate approvals are read from GitHub pull-request reviews. Approvals made in GitLab merge requests are not read
+#      by the kit yet; this file suits a GitLab pipeline that builds a mirror of a GitHub repository.
+stages: [checks, connect]
+
+default:
+  image: python:3.12-slim@sha256:REPLACE_WITH_THE_DIGEST_YOU_REVIEWED
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git > /dev/null
+    - pip install --quiet pyyaml==6.0.2
+
+agentic-checks:
+  stage: checks
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - python .specify/extensions/agentic/scripts/agentic.py selftest
+    - git fetch origin "$CI_DEFAULT_BRANCH"
+    - python .specify/extensions/agentic/scripts/agentic.py connect run --base-ref "origin/$CI_DEFAULT_BRANCH" --commit "$CI_COMMIT_SHA" --summary agentic.md
+  artifacts:
+    when: always
+    paths: [agentic.md]
+
+agentic-notify:
+  stage: connect
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED == "true" && $CI_PIPELINE_SOURCE != "schedule"
+      when: always
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - python .specify/extensions/agentic/scripts/agentic.py connect notify --base-ref "$CI_COMMIT_BEFORE_SHA" --commit "$CI_COMMIT_SHA"
+
+agentic-intake:
+  stage: connect
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED == "true" && $CI_PIPELINE_SOURCE == "schedule"
+  script:
+    - python .specify/extensions/agentic/scripts/agentic.py connect fetch
+    - |
+      if [ -z "$(git status --porcelain .specify/agentic/intake)" ]; then echo "nothing new"; exit 0; fi
+      branch="intake/$(date -u +%Y%m%d-%H%M)"
+      git config user.name "agentic-spec-kit"
+      git config user.email "agentic-spec-kit@example.invalid"
+      git checkout -b "$branch"
+      git add .specify/agentic/intake
+      git commit -m "Intake: requirements fetched from trackers"
+      git push "https://oauth2:${KIT_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "$branch"
+      echo "Pushed $branch. Open a merge request from it; a Product Owner triages each record."

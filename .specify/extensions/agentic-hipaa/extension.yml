@@ -1,0 +1,27 @@
+schema_version: "1.0"
+
+extension:
+  id: "agentic-hipaa"
+  name: "Agentic Spec Kit — HIPAA domain pack"
+  version: "0.1.0"
+  description: "Mandatory spec sections mapped to HIPAA Security Rule technical safeguards. An engineering aid, not legal advice or a compliance certification."
+  author: "Atiqul Islam"
+  repository: "https://github.com/imatiqul/agentic-spec-kit"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=1.4.3"
+  extensions:
+    - id: "agentic"
+      version: ">=0.1.0"
+
+provides:
+  templates:
+    - name: "hipaa-sections"
+      file: "templates/hipaa-sections.md"
+      description: "The sections a spec must contain when the hipaa pack is active"
+
+tags:
+  - "hipaa"
+  - "compliance"
+  - "healthcare"

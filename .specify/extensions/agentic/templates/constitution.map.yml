@@ -1,0 +1,15 @@
+# One entry per principle in .specify/memory/constitution.md.
+# enforcement: machine  -> list checks. `ck:<ID>` is a kit check; anything else must be declared under external_checks.
+# enforcement: human    -> name the gate where a person judges it.
+schema: agentic-constitution-map/1
+external_checks: {}
+#  arch-test:layering: {run: "dotnet test tests/Architecture"}
+principles: []
+#  - id: P-1
+#    title: Every requirement is traced to a test
+#    enforcement: machine
+#    checks: ["ck:CK-TRACE"]
+#  - id: P-2
+#    title: A human reviews every plan
+#    enforcement: human
+#    judged_at: G3

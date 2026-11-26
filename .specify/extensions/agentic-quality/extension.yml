@@ -1,0 +1,39 @@
+schema_version: "1.0"
+
+extension:
+  id: "agentic-quality"
+  name: "Agentic Spec Kit — Quality"
+  version: "0.4.0"
+  description: "Quality packs that a spec's tier and what it touches switch on: threat model and security evidence, privacy impact, test depth, AI evaluation and safety, infrastructure and release readiness, decision records and the incident loop."
+  author: "Atiqul Islam"
+  repository: "https://github.com/imatiqul/agentic-spec-kit"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=1.4.3"
+  extensions:
+    - id: "agentic"
+      version: ">=0.1.0"
+    - id: "agentic-system"
+      version: ">=0.2.0"
+
+provides:
+  commands:
+    - name: "speckit.agentic-quality.quality"
+      file: "commands/quality.md"
+      description: "Scaffold the quality files a spec needs, fill them from the spec and the code, and run the quality-pack checks."
+
+hooks:
+  after_plan:
+    command: "speckit.agentic-quality.quality"
+    optional: true
+    prompt: "Scaffold the quality files this plan needs?"
+    description: "Write the threat model, test strategy and any privacy, AI or infrastructure records gate G3 will ask for"
+
+tags:
+  - "quality"
+  - "security"
+  - "privacy"
+  - "testing"
+  - "ai-evaluation"
+  - "release"

@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0",
+  "extensions": {
+    "agentic": {
+      "version": "0.1.0",
+      "source": "local",
+      "manifest_hash": "sha256:8964d65c6bc80b19695da2d0a0b819c1b38fe954e1877473545d418c178ca21a",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {},
+      "registered_skills": [],
+      "installed_at": "2026-11-26T22:42:07.545446+00:00"
+    },
+    "agentic-hipaa": {
+      "version": "0.1.0",
+      "source": "local",
+      "manifest_hash": "sha256:cea911a17fbcbeed89abf9cbd2e43084d9b042bed40336827876d201666be2ea",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {},
+      "registered_skills": [],
+      "installed_at": "2026-11-26T22:42:08.004104+00:00"
+    },
+    "agentic-system": {
+      "version": "0.2.0",
+      "source": "local",
+      "manifest_hash": "sha256:2bc23dce6aa86d7250f0950e3532df136d031b52b562096bd30d54020559c411",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {},
+      "registered_skills": [],
+      "installed_at": "2026-11-26T22:42:08.441746+00:00"
+    },
+    "agentic-quality": {
+      "version": "0.4.0",
+      "source": "local",
+      "manifest_hash": "sha256:29684a26f85774e5228250bd5cf06f4df4594768e46c7ab248351b176e27c2c0",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {},
+      "registered_skills": [],
+      "installed_at": "2026-11-26T22:42:08.874895+00:00"
+    },
+    "agentic-product": {
+      "version": "0.5.0",
+      "source": "local",
+      "manifest_hash": "sha256:6ddb9739d577e0558bd91a50e8025a6632e8f093cf904f888759a3c9b88457ad",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {},
+      "registered_skills": [],
+      "installed_at": "2026-11-26T22:42:09.308059+00:00"
+    },
+    "agentic-connect": {
+      "version": "0.6.0",
+      "source": "local",
+      "manifest_hash": "sha256:1db735557b6d28588426a3ea0ed681f8e1f778d843772be047a825efa7b96dbe",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {},
+      "registered_skills": [],
+      "installed_at": "2026-11-26T22:42:09.743253+00:00"
+    },
+    "agentic-team": {
+      "version": "0.3.0",
+      "source": "local",
+      "manifest_hash": "sha256:96f12981c2c13cf82bb73ac0130788b6b709720bb10a540fe10a7d7491966ea9",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {},
+      "registered_skills": [],
+      "installed_at": "2026-11-26T22:42:10.181838+00:00"
+    }
+  }
+}

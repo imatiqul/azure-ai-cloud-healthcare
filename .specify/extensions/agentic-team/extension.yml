@@ -1,0 +1,38 @@
+schema_version: "1.0"
+
+extension:
+  id: "agentic-team"
+  name: "Agentic Spec Kit — Team"
+  version: "0.3.0"
+  description: "A team of agents defined once and rendered per runtime, with work items, path locks, a rework limit, run budgets and golden tasks. Gates stay with people."
+  author: "Atiqul Islam"
+  repository: "https://github.com/imatiqul/agentic-spec-kit"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=1.4.3"
+  extensions:
+    - id: "agentic"
+      version: ">=0.1.0"
+
+provides:
+  commands:
+    - name: "speckit.agentic-team.orchestrate"
+      file: "commands/orchestrate.md"
+      description: "Run one stage of the agent team for a spec: dispatch the stage's agents, track their work items, stop at the gate."
+    - name: "speckit.agentic-team.role"
+      file: "commands/role.md"
+      description: "Play one role of the agent team for a spec, in a single session."
+    - name: "speckit.agentic-team.guard"
+      file: "commands/guard.md"
+      description: "Run by the coding agent's runtime before a tool call: blocks a file write outside the work in progress. Not for people or agents to invoke."
+
+events:
+  pre_tool_use:
+    command: "speckit.agentic-team.guard"
+
+tags:
+  - "multi-agent"
+  - "orchestration"
+  - "governance"
+  - "worktrees"
