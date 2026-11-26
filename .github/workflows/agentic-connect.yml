@@ -1,0 +1,139 @@
+# agentic-connect: notifications, review mirroring and intake.
+# Copied on 2026-11-26 from .specify/extensions/agentic-connect/ci/github-actions.yml. Three things differ from it:
+#   - the weekday timer is left out, so the intake job runs only when a person starts it. Every branch pushed to this
+#     repository is permanent (the ruleset BranchDelete), and each intake run that finds something pushes one;
+#   - the notify job names no secret, because connect.yml configures no notification channel;
+#   - the intake job names one secret, TRACKER_GITHUB_TOKEN, the only one connect.yml names.
+#
+# Why this is a separate workflow from agentic-checks:
+#   A workflow that runs on `pull_request` takes its own file, and the kit's code, from the pull request. Anyone who can
+#   open one could change either and read a secret. So the checks run there with no secret at all, and everything that
+#   needs a secret runs here, from the default branch's copy of this file and of the kit:
+#     - `workflow_run` fires after agentic-checks finishes. The pull request's files are checked out as DATA under head/
+#       and read by the kit under trusted/. Nothing from head/ is executed.
+#     - `workflow_dispatch` runs on the default branch.
+#   CK-PIPELINE-SECRETS fails a workflow that breaks this rule.
+name: agentic-connect
+on:
+  workflow_run:
+    workflows: [agentic-checks]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  notify:
+    if: github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE: ${{ github.event.repository.default_branch }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+      # No secret is named here: connect.yml configures no notification channel, so this job sends nothing.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          path: trusted            # the default branch: the only code that runs in this job
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: head               # the change under review: read, never run
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0   # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml==6.0.2
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+        with:
+          path: .agentic-state
+          key: agentic-sent-${{ github.run_id }}
+          restore-keys: agentic-sent-
+      - name: Tell people what changed
+        run: |
+          url=""
+          if [ -n "$PR_NUMBER" ]; then url="$REPO_URL/pull/$PR_NUMBER"; fi
+          python trusted/.specify/extensions/agentic/scripts/agentic.py --root head connect notify \
+            --base-ref "origin/$BASE" --commit "$HEAD_SHA" --pr-url "$url" \
+            --ledger .agentic-state/sent.txt --summary "$GITHUB_STEP_SUMMARY"
+
+  # Optional. Turns reviews that carry a gate's approval line into decision records and commits them to the pull request.
+  # Enable it by setting the repository variable AGENTIC_MIRROR to "true".
+  # The commit is pushed with KIT_PUSH_TOKEN. Use a GitHub App token: a push made with the built-in token does not start
+  # workflows, so the checks would not run on the new commit. List KIT_PUSH_TOKEN under `pipeline_secrets` in connect.yml.
+  mirror:
+    if: github.event_name == 'workflow_run' && vars.AGENTIC_MIRROR == 'true' && github.event.workflow_run.pull_requests[0].number
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE: ${{ github.event.repository.default_branch }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          path: trusted
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: head
+          fetch-depth: 0
+          token: ${{ secrets.KIT_PUSH_TOKEN }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0   # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml==6.0.2
+      - name: Mirror reviews into decision records
+        run: |
+          python trusted/.specify/extensions/agentic/scripts/agentic.py --root head connect mirror \
+            --base-ref "origin/$BASE" --change "pull/$PR_NUMBER" --commit "$HEAD_SHA" --write
+          cd head
+          if [ -z "$(git status --porcelain .specify/agentic/decisions .specify/agentic/audit)" ]; then echo "nothing to record"; exit 0; fi
+          git config user.name "agentic-spec-kit"
+          git config user.email "agentic-spec-kit@users.noreply.github.com"
+          git add .specify/agentic/decisions .specify/agentic/audit
+          git commit -m "Record gate decisions mirrored from pull-request reviews"
+          git push origin "HEAD:refs/heads/$HEAD_BRANCH"
+
+  intake:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE: ${{ github.event.repository.default_branch }}
+      # Reads the labelled issues and the Project. Give the token the scope read:project and no other.
+      TRACKER_GITHUB_TOKEN: ${{ secrets.TRACKER_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0   # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml==6.0.2
+      - name: Fetch requirements from the configured sources
+        run: python .specify/extensions/agentic/scripts/agentic.py connect fetch
+      - name: Open a pull request with what arrived
+        run: |
+          if [ -z "$(git status --porcelain .specify/agentic/intake)" ]; then echo "nothing new"; exit 0; fi
+          branch="intake/$(date -u +%Y%m%d-%H%M)"
+          git config user.name "agentic-spec-kit"
+          git config user.email "agentic-spec-kit@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add .specify/agentic/intake
+          git commit -m "Intake: requirements fetched from trackers"
+          git push origin "$branch"
+          gh pr create --base "$BASE" --head "$branch" --title "Intake: new and changed requirements" \
+            --body "Fetched by agentic-spec-kit. A Product Owner triages each record; nothing here is approved by being merged."
