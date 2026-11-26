@@ -120,4 +120,4 @@ pnpm test:e2e
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
