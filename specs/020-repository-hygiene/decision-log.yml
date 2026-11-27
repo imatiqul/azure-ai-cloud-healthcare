@@ -1,0 +1,17 @@
+# Decisions made inside this change. `agentic.py decision` writes this file, and a person may edit it.
+# It is part of the evidence of G5: the person who approves G5 approves what is decided here.
+schema: agentic-decision-log/1
+entries:
+- id: D-001
+  title: Does FR-002 go first, on its own, or does it wait for FR-001 and FR-005?
+  state: decided
+  outcome: FR-002 goes first, on its own. It removes one tracked file and changes no build. FR-001 and FR-005 stay
+    in spec 020 for a later change.
+  owner: imatiqul
+  decided_on: 2026-11-26
+  proposed_by: spec-author
+  affects:
+  - FR-002
+  - FR-001
+  - FR-005
+  source: https://github.com/imatiqul/azure-ai-cloud-healthcare/issues/82#issuecomment-7204786683
