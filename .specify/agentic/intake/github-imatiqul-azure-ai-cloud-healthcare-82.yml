@@ -14,7 +14,7 @@ body: '`frontend/playwright-report/index.html` is tracked, although `.gitignore`
   repository: the kit reads this issue and its discussion as the request behind a
   change, and the change goes through the kit''s gates in pull requests.'
 hash: sha256:9b520f0ebc9f7c8065d4761f64fcc1af17ba7c03fb77eafe77f308766a75ab14
-status: new
+status: specified
 via: live-test
 labels:
 - kit-live-test
@@ -22,3 +22,4 @@ discussion:
   comments: 2
   hash: sha256:b0bcab13ccac0e5d4d55e024c93f07b48d733cbf37d454d03b681982c3d0b093
   fetched: '2026-11-27'
+spec: 020-repository-hygiene

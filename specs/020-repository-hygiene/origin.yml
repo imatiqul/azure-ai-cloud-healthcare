@@ -1,0 +1,21 @@
+schema: agentic-origin/1
+intake:
+- github-imatiqul-azure-ai-cloud-healthcare-82
+dispositions: []
+conversation:
+  summary: 'In issue 82 the owner asked for FR-002 of this spec to be delivered on
+    its own: the Playwright report frontend/playwright-report/index.html is tracked,
+    although .gitignore ignores its folder. The discussion asked whether FR-002 should
+    wait for FR-001, the generated map files, which needs FR-005, a frontend build
+    that produces them. The owner answered that FR-002 goes first, on its own, because
+    it removes one tracked file and changes no build, and that FR-001 and FR-005 stay
+    in this spec for a later change. Not discussed: FR-004, the pipeline check, and
+    when the later change comes. The issue and both comments are the owner''s; one
+    person holds every role in this repository.'
+  links:
+  - https://github.com/imatiqul/azure-ai-cloud-healthcare/issues/82
+  people:
+  - imatiqul
+  captured_on: '2026-11-27'
+  captured_by: spec-author
+  confirmed_by: imatiqul
