@@ -1,0 +1,24 @@
+schema: agentic-intake/1
+id: github-imatiqul-azure-ai-cloud-healthcare-82
+source:
+  platform: github
+  key: imatiqul/azure-ai-cloud-healthcare#82
+  url: https://github.com/imatiqul/azure-ai-cloud-healthcare/issues/82
+  revision: '2026-11-26T22:33:36Z'
+  fetched: '2026-11-27'
+title: Stop tracking the Playwright report (spec 020, FR-002)
+body: '`frontend/playwright-report/index.html` is tracked, although `.gitignore` ignores
+  `frontend/playwright-report/`. Spec 020 (repository hygiene) says in FR-002 that
+  test reports must not be tracked. This issue asks for that one requirement to be
+  delivered on its own. It is also the first live test of agentic-spec-kit on this
+  repository: the kit reads this issue and its discussion as the request behind a
+  change, and the change goes through the kit''s gates in pull requests.'
+hash: sha256:9b520f0ebc9f7c8065d4761f64fcc1af17ba7c03fb77eafe77f308766a75ab14
+status: new
+via: live-test
+labels:
+- kit-live-test
+discussion:
+  comments: 2
+  hash: sha256:b0bcab13ccac0e5d4d55e024c93f07b48d733cbf37d454d03b681982c3d0b093
+  fetched: '2026-11-27'
