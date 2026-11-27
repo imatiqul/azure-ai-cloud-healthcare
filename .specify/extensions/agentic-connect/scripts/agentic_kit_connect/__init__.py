@@ -56,7 +56,10 @@ pipeline_secrets: []
 
 
 def config(ctx) -> dict | None:
-    """connect.yml as the pipeline uses it: read from the base branch, so a change cannot point a secret at a new address."""
+    """connect.yml as the pipeline reads it: from the base branch, so a change cannot point a secret at a new address.
+
+    Where the base branch has none, the copy the change brings is read, so that the change which adds the file can be
+    looked at. Nothing is sent on the strength of that copy: see `sending`."""
     holder = ctx.trusted if ctx.trusted.exists(CONNECT) else ctx.src
     if not holder.exists(CONNECT):
         return None
@@ -64,6 +67,19 @@ def config(ctx) -> dict | None:
     if not isinstance(data, dict):
         raise core.KitError(f"{CONNECT} must be a mapping")
     return data
+
+
+def sending(ctx) -> dict | None:
+    """connect.yml for anything that sends with a credential (REV-2). Where a base branch is given, only its copy counts:
+    a file that arrives with a change names addresses nobody has merged, and the job that sends holds the secrets."""
+    if ctx.trusted.ref is None:
+        return config(ctx)
+    return config(ctx) if ctx.trusted.exists(CONNECT) else None
+
+
+def _not_merged(ctx) -> str:
+    return (f"{CONNECT} is not on {ctx.trusted.ref}, the base branch, so nothing is sent with it: "
+            "the addresses and secret names of a change count once the change is merged")
 
 
 def _register() -> None:
@@ -105,6 +121,9 @@ def cmd_connect(args) -> int:
         return 0
     cfg = _need_config(ctx)
     if a == "fetch":
+        if sending(ctx) is None:
+            print(f"cannot fetch: {_not_merged(ctx)}", file=sys.stderr)
+            return 2
         try:
             rows = trackers.fetch_sources(ctx, cfg.get("sources") or [], transport, env, only=args.source, write=not args.dry_run)
         except core.KitError as exc:
@@ -133,6 +152,10 @@ def cmd_connect(args) -> int:
             print(json.dumps(rows, indent=2))
         for r in rows:
             state = "recorded" if r["written"] else ("waiting for " + ", ".join(r["missing"]) if r["missing"] else "ready to record (add --write)")
+            if r.get("note"):
+                state = f"not recorded: {r['note']}"
+            elif r.get("exception"):
+                state += ", with the single-approver exception: a reviewer also wrote the change"
             if not args.json:
                 print(f"{r['spec']} {r['gate']}: {r['decision']} - {state}")
         if not rows and not args.json:
@@ -141,17 +164,27 @@ def cmd_connect(args) -> int:
     if a in ("run", "notify"):
         results = pipeline.run_checks(ctx)
         events = notify.detect(ctx, results, args.commit or "")
-        deliveries = []
+        deliveries, held = [], ""
         if args.notify or a == "notify":
-            deliveries = notify.deliver(ctx, cfg, events, transport, env, Path(args.ledger) if args.ledger else None, SMTP, args.pr_url or "")
+            live = sending(ctx)
+            if live is None:
+                cfg, held = {}, _not_merged(ctx)  # nor do the templates of a file nobody merged shape what this job writes
+            else:
+                deliveries = notify.deliver(ctx, live, events, transport, env, Path(args.ledger) if args.ledger else None, SMTP, args.pr_url or "")
+            if args.ledger:  # a pipeline keeps this file between runs; with nothing sent there would be nothing to keep (LIV-8)
+                Path(args.ledger).parent.mkdir(parents=True, exist_ok=True)
+                Path(args.ledger).touch()
         text = pipeline.summary(ctx, results, events, deliveries, (cfg.get("notify") or {}).get("templates"))
+        if held:
+            text += f"\n## Notifications\n- none: {held}\n"
         if args.summary:
             with open(args.summary, "a", encoding="utf-8", newline="\n") as fh:
                 fh.write(text)
         if args.json:
             print(json.dumps({"ok": pipeline.exit_code(ctx, results) == 0, "results": [r.as_dict() for r in results],
                               "events": [{"type": e.type, "key": e.key, "spec": e.spec, "gate": e.gate, "facts": e.facts} for e in events],
-                              "notifications": [{k: v for k, v in d.items() if k != "text"} for d in deliveries]}, indent=2))
+                              "notifications": [{k: v for k, v in d.items() if k != "text"} for d in deliveries],
+                              **({"not_sent": held} if held else {})}, indent=2))
         else:
             print(text)
         if a == "notify":  # this job reports on delivery; the check result belongs to the job that ran `connect run` or `check`

@@ -24,7 +24,7 @@ EVENTS = {
     "gate-ready": "Gate {gate} of {spec} is ready for review by {roles}",
     "gate-approved": "Gate {gate} of {spec} was approved",
     "gate-rejected": "Gate {gate} of {spec} was sent back",
-    "check-failed": "{count} check(s) failed: {ids}",
+    "check-failed": "{count} check(s) {status}: {ids}",   # {status}: failed, could not run, or failed or could not run (LIV-6)
     "released": "{spec} passed its last gate",
     "intake-new": "{count} new requirement(s) arrived: {ids}",
     "duplicate-candidate": "{ids} may duplicate existing work and needs a decision",
@@ -49,8 +49,18 @@ class Event:
     def fields(self) -> dict:
         f = self.facts
         return {"spec": self.spec, "gate": self.gate, "roles": ", ".join(f.get("roles") or []) or "nobody yet named",
-                "count": f.get("count", len(f.get("ids") or [])), "ids": ", ".join(str(i) for i in (f.get("ids") or [])[:12]) or "-",
-                "status": f.get("status", ""), "decision": f.get("decision", "")}
+                "count": f.get("count", len(f.get("ids") or [])), "ids": _named(f.get("ids") or []),
+                "status": f.get("status") or ("failed" if self.type == "check-failed" else ""), "decision": f.get("decision", "")}
+
+
+#: How many identifiers one event names. A notification is a headline.
+NAMED = 12
+
+
+def _named(ids: list) -> str:
+    """The first identifiers, and how many more there are: a reader must not take twelve for all of them (LIV-6)."""
+    shown = ", ".join(str(i) for i in ids[:NAMED]) or "-"
+    return shown + (f" and {len(ids) - NAMED} more" if len(ids) > NAMED else "")
 
 
 def _key(*parts) -> str:
@@ -73,7 +83,8 @@ def detect(ctx: Context, results: list | None = None, commit: str = "") -> list[
     not_run = [r.check for r in results or [] if r.not_run]
     if failed or not_run:
         out.append(Event("check-failed", _key("check-failed", commit, *sorted(failed + not_run)),
-                         facts={"ids": failed + [f"{c} (not run)" for c in not_run], "count": len(failed) + len(not_run)}))
+                         facts={"ids": failed + [f"{c} (not run)" for c in not_run], "count": len(failed) + len(not_run),
+                                "status": " or ".join(word for word, some in (("failed", failed), ("could not run", not_run)) if some)}))
     green = results is not None and not failed and not not_run
     for row in board(ctx):
         spec = row["spec"]

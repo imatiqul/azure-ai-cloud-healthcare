@@ -55,10 +55,22 @@ def mirror(ctx: Context, change: str, commit: str, write: bool = False) -> list[
     """Find reviews on `change` that carry an approval line for the current evidence of a gate, and mirror them.
 
     A gate is mirrored only when every role it needs is covered by an approving review from a person who holds that
-    role, or when someone sent it back. Returns one row per gate looked at.
+    role, or when someone sent it back. Returns one row per gate looked at. A row that could be recorded and is not
+    says why in `note`:
+
+    - a review that approves with conditions: the conditions are the reviewer's to state, and nothing here can pick
+      them out of a review (REV-8);
+    - a reviewer who also wrote the change, in a project that forbids the single-approver exception. Where the project
+      allows it, the record carries the exception, as CK-APPROVER asks (REV-9).
     """
     from agentic_kit.__main__ import _evidence_files, cmd_record, stated_reviews
-    reviews = [r for r in adapters.enforcement(ctx).reviews(change) if r.account_type == "User"]
+    adapter = adapters.enforcement(ctx)
+    reviews = [r for r in adapter.reviews(change) if r.account_type == "User"]
+    try:
+        authors = adapter.authors(change)
+    except KitError:
+        authors = set()  # who wrote the change is not known here; CK-APPROVER asks again and judges the record
+    exception_allowed = (ctx.kit().get("gates") or {}).get("single_approver_exception", "forbidden") == "allowed"
     rows = []
     for spec in ctx.specs():
         records = approved_records(ctx, spec)
@@ -75,9 +87,19 @@ def mirror(ctx: Context, change: str, commit: str, write: bool = False) -> list[
             decision, approvals, missing = found["decision"], found["approvals"], found["missing"]
             row = {"spec": spec, "gate": gate, "decision": decision, "missing": missing, "written": False,
                    "approvals": [f"{who}:{role}:{change}#{r.ref_suffix}" for who, role, r in approvals]}
-            if not missing and write:
-                args = argparse.Namespace(root=str(ctx.src.root), base_ref=ctx.trusted.ref, json=False, spec=spec, gate=gate, decision=decision,
-                                          commit=commit, approval=row["approvals"], condition=None, exception=False, file=None)
-                row["written"] = cmd_record(args) == 0
+            wrote = sorted({who for who, _, _ in approvals if who.lower() in authors})
+            by_hand = f"`record --spec {spec} --gate {gate} --change {change}`"
+            if missing:
+                pass
+            elif decision == "approve-with-conditions":
+                row["note"] = f"the review approves with conditions, which are the reviewer's to state: a person records it, with {by_hand} and one --condition for each"
+            elif wrote and not exception_allowed:
+                row["note"] = f"{', '.join(wrote)} wrote this change as well, and this project forbids the single-approver exception"
+            else:
+                row["exception"] = bool(wrote)
+                if write:
+                    args = argparse.Namespace(root=str(ctx.src.root), base_ref=ctx.trusted.ref, json=False, spec=spec, gate=gate, decision=decision,
+                                              commit=commit, approval=row["approvals"], condition=None, exception=bool(wrote), file=None)
+                    row["written"] = cmd_record(args) == 0
             rows.append(row)
     return rows

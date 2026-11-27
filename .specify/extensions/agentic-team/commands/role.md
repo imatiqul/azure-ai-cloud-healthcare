@@ -21,7 +21,7 @@ In what follows, `A` means `python .specify/extensions/agentic/scripts/agentic.p
 
    | Agent | What to run or write |
    |---|---|
-   | spec-author | `/speckit.specify` at the spec stage, `/speckit.clarify` at the clarify stage |
+   | spec-author | `/speckit.specify` at the spec stage, `/speckit.clarify` at the clarify stage. In Lite, which has no Architect, also `/speckit.plan` at the plan stage, and `/speckit.tasks` then `/speckit.agentic.trace` at the tasks stage, naming the files each task changes, in backticks |
    | architect | `/speckit.plan` at the plan stage, `/speckit.tasks` then `/speckit.agentic.trace` at the tasks stage. Name the files each task changes, in backticks |
    | impact-analyst | `/speckit.agentic-system.impact` |
    | data-agent, contract-agent | `/speckit.agentic-system.change` at the plan stage; the work items assigned to you at the implement stage. If the impact report triggers neither pack, say so and finish |

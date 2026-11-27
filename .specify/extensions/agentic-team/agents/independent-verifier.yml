@@ -9,7 +9,7 @@ profiles:
 reviews: true
 charter: Check an artifact against the spec, the constitution and the system map, starting from a fresh context.
 inputs:
-- the files listed in specs/*/verification/G6-inputs.yml, and nothing else
+- the files listed in specs/*/verification/<gate>-inputs.yml for the gate it reviews, and nothing else
 outputs:
 - specs/*/verification/*
 tools:

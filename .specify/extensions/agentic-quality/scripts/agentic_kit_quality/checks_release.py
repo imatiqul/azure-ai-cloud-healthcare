@@ -180,19 +180,25 @@ def ck_post_release(ctx: Context, res: Result) -> None:
         wanted = production_criteria(ctx, spec)
         known = spec_ids(ctx, spec, "AC")
         results = {}
+        released = _released_at(ctx, spec)
         if ctx.src.exists(rel):
             for c in (ctx.src.yaml(rel) or {}).get("checks") or []:
                 ac = str(c.get("criterion"))
                 results[ac] = c
+                when = as_date(c.get("date"))
                 if ac not in known:
                     res.fail(f"a production check names {ac}, which is not an acceptance criterion of the spec", rel)
                 elif c.get("result") != "pass":
                     res.fail(f"{ac} was checked in production and did not pass (result: {c.get('result')})", rel)
-                elif not c.get("checked_by") or as_date(c.get("date")) is None:
+                elif not c.get("checked_by") or when is None:
                     res.fail(f"the production check of {ac} does not say who checked it and when", rel)
+                elif when > now:  # a check that has not happened yet closes nothing (REV-7)
+                    res.fail(f"the production check of {ac} is dated {when}, which is after today ({now})", rel)
+                elif released is not None and when < released:
+                    res.fail(f"the production check of {ac} is dated {when}, before the release on {released}; "
+                             "what is checked in production is checked after the release", rel)
         if gate_record(ctx, spec, "G7") is None:
             continue
-        released = _released_at(ctx, spec)
         for ac in wanted:
             if ac in results:
                 continue

@@ -37,7 +37,13 @@ stages:
             displayName: Install PyYAML
           - script: python .specify/extensions/agentic/scripts/agentic.py selftest
             displayName: Self-test
-          - script: python .specify/extensions/agentic/scripts/agentic.py connect run --base-ref origin/main --commit "$(Build.SourceVersion)" --summary "$(Build.ArtifactStagingDirectory)/agentic.md"
+          - script: |
+              # A pull request is compared with origin/main. A build of main is compared with the commit before it, as
+              # the notify job below does: origin/main is then the commit being built, and nothing would have changed.
+              # For a merge commit that is main before the merge. Of several commits pushed at once, only the last is compared.
+              base="origin/main"
+              if [ "$(Build.SourceBranch)" = "refs/heads/main" ]; then base="HEAD~1"; fi
+              python .specify/extensions/agentic/scripts/agentic.py connect run --base-ref "$base" --commit "$(Build.SourceVersion)" --summary "$(Build.ArtifactStagingDirectory)/agentic.md"
             displayName: Checks
           - publish: $(Build.ArtifactStagingDirectory)/agentic.md
             artifact: agentic-summary

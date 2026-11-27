@@ -3,6 +3,8 @@
 Everything that leaves the repository goes through `Http.request`. Tests replace it with `Recorded`, which answers
 from a script and keeps what was asked, so an adapter's exact requests can be asserted without a network.
 Secrets are named in configuration and read from the environment here; their values are never printed or stored.
+A request carries its headers to the address it was sent to and to no other: a redirect is followed only when it
+stays on the same scheme, host and port (REV-1).
 """
 from __future__ import annotations
 
@@ -13,11 +15,13 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 from agentic_kit.core import KitError
 
 RETRY = (429, 502, 503, 504)
+REDIRECT = (301, 302, 303, 307, 308)
+_PORTS = {"http": 80, "https": 443}
 
 
 @dataclass
@@ -40,8 +44,36 @@ def _checked(url: str) -> str:
     return url
 
 
+def _origin(url: str) -> tuple:
+    parts = urlsplit(url)
+    scheme = (parts.scheme or "").lower()
+    try:
+        port = parts.port
+    except ValueError:
+        port = None
+    return scheme, (parts.hostname or "").lower(), port or _PORTS.get(scheme)
+
+
+class _SameOrigin(urllib.request.HTTPRedirectHandler):
+    """Follows a redirect that stays where the request was sent. Any other is left unfollowed: the standard library
+    would send every header of the request, the credential among them, to whatever address the answer names."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if _origin(newurl) != _origin(req.full_url):
+            return None  # the opener then raises the redirect itself as an HTTPError, which `request` turns into an answer
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_OPENER = urllib.request.build_opener(_SameOrigin)
+
+
+def _open(req, timeout):
+    """The one call that opens a connection. Tests of the retry replace it."""
+    return _OPENER.open(req, timeout=timeout)
+
+
 class Http:
-    """The real transport: the standard library, https only, a short bounded retry."""
+    """The real transport: the standard library, https only, a short bounded retry, no redirect to another address."""
 
     def __init__(self, timeout: int = 30, attempts: int = 3, sleep=time.sleep):
         self.timeout, self.attempts, self.sleep = timeout, attempts, sleep
@@ -56,10 +88,15 @@ class Http:
         last = Response(0)
         for attempt in range(self.attempts):
             try:
-                with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310 - scheme checked above
+                with _open(req, timeout=self.timeout) as resp:  # noqa: S310 - scheme checked above
                     return Response(resp.status, resp.read().decode("utf-8", "replace"), dict(resp.headers))
             except urllib.error.HTTPError as exc:
                 last = Response(exc.code, exc.read().decode("utf-8", "replace"), dict(exc.headers or {}))
+                target = (exc.headers or {}).get("Location") if exc.code in REDIRECT else None
+                if target and _origin(urljoin(url, target)) != _origin(url):
+                    host = urlsplit(urljoin(url, target)).hostname or "an address it does not name"
+                    return Response(exc.code, f"the service redirected to {host}, which is not where the request was sent; "
+                                              "the redirect is not followed, so that no credential goes there", last.headers)
                 if exc.code not in RETRY:
                     return last
             except (urllib.error.URLError, TimeoutError, OSError) as exc:
