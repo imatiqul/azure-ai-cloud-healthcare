@@ -9,24 +9,6 @@ installed:
 settings:
   auto_execute_hooks: true
 hooks:
-  after_tasks:
-  - extension: agentic
-    command: speckit.agentic.trace
-    enabled: true
-    optional: true
-    priority: 10
-    prompt: Build the trace manifest for these tasks?
-    description: Generate trace-manifest.json so gate G4 has its evidence
-    condition: null
-  before_implement:
-  - extension: agentic
-    command: speckit.agentic.check
-    enabled: true
-    optional: false
-    priority: 10
-    prompt: Execute speckit.agentic.check?
-    description: Run the kit's checks before implementation starts
-    condition: null
   after_plan:
   - extension: agentic-system
     command: speckit.agentic-system.impact
@@ -45,6 +27,24 @@ hooks:
     prompt: Scaffold the quality files this plan needs?
     description: Write the threat model, test strategy and any privacy, AI or infrastructure
       records gate G3 will ask for
+    condition: null
+  after_tasks:
+  - extension: agentic
+    command: speckit.agentic.trace
+    enabled: true
+    optional: true
+    priority: 10
+    prompt: Build the trace manifest for these tasks?
+    description: Generate trace-manifest.json so gate G4 has its evidence
+    condition: null
+  before_implement:
+  - extension: agentic
+    command: speckit.agentic.check
+    enabled: true
+    optional: false
+    priority: 10
+    prompt: Execute speckit.agentic.check?
+    description: Run the kit's checks before implementation starts
     condition: null
   after_specify:
   - extension: agentic-product

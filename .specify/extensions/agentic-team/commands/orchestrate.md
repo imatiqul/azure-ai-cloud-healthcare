@@ -26,15 +26,15 @@ In what follows, `A` means `python .specify/extensions/agentic/scripts/agentic.p
    |---|---|---|---|
    | spec | spec-author | independent-verifier | G1 |
    | clarify | spec-author | | G2 |
-   | plan | architect, impact-analyst, then data-agent and contract-agent if the impact report triggers their packs | security-reviewer, independent-verifier | G3 |
-   | tasks | architect | independent-verifier | G4 |
+   | plan | architect (in Lite: spec-author), impact-analyst, then data-agent and contract-agent if the impact report triggers their packs | security-reviewer, independent-verifier | G3 |
+   | tasks | architect (in Lite: spec-author) | independent-verifier | G4 |
    | implement | test-agent first, then the owners of the work items | security-reviewer, independent-verifier | G5 |
    | verify | | independent-verifier, drift-sentinel | G6 |
    | release | release-agent | | G7 |
 
-   An agent that is not installed in this profile is skipped.
+   An agent that is not installed in this profile is skipped. Lite has no Architect: there the Spec Author writes the plan and the tasks, which its Lite definition allows.
 4. For the `implement` stage:
-   1. `A work create --spec <spec>` creates one work item per open task. An item with no declared paths cannot start: ask the Architect to name the files in the task list.
+   1. `A work create --spec <spec>` creates one work item per open task. An item with no declared paths cannot start: ask the Architect, or in Lite the Spec Author, to name the files in the task list.
    2. `A work list --spec <spec> --ready` lists the items that can start now, in groups. Items in one group do not share a file, a migration, a contract or a shared component, so they may run at the same time. Never run two items from different groups together.
    3. Each owner claims its item (`A work claim --spec <spec> --item <id> --agent <agent> --worktree`), works in the working copy the command names, and hands off.
       Claiming builds the item's context pack. Give the owner that pack (`A team context --spec <spec> --item <id>`) and nothing from an earlier, finished spec.

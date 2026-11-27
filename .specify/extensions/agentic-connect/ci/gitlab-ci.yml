@@ -23,8 +23,19 @@ agentic-checks:
     GIT_DEPTH: "0"
   script:
     - python .specify/extensions/agentic/scripts/agentic.py selftest
-    - git fetch origin "$CI_DEFAULT_BRANCH"
-    - python .specify/extensions/agentic/scripts/agentic.py connect run --base-ref "origin/$CI_DEFAULT_BRANCH" --commit "$CI_COMMIT_SHA" --summary agentic.md
+    # A merge request is compared with its target branch. A push to the default branch is compared with the commit
+    # before the push: compared with the branch itself, nothing would have changed. Where GitLab knows no commit
+    # before this one (a pipeline run by hand, the first pipeline of a branch) it gives forty zeros, and no base is given.
+    - |
+      if [ -n "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" ]; then
+        git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+        set -- --base-ref "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+      elif [ -n "$CI_COMMIT_BEFORE_SHA" ] && [ "$CI_COMMIT_BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+        set -- --base-ref "$CI_COMMIT_BEFORE_SHA"
+      else
+        set --
+      fi
+      python .specify/extensions/agentic/scripts/agentic.py connect run "$@" --commit "$CI_COMMIT_SHA" --summary agentic.md
   artifacts:
     when: always
     paths: [agentic.md]
@@ -37,7 +48,13 @@ agentic-notify:
   variables:
     GIT_DEPTH: "0"
   script:
-    - python .specify/extensions/agentic/scripts/agentic.py connect notify --base-ref "$CI_COMMIT_BEFORE_SHA" --commit "$CI_COMMIT_SHA"
+    - |
+      if [ -n "$CI_COMMIT_BEFORE_SHA" ] && [ "$CI_COMMIT_BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+        set -- --base-ref "$CI_COMMIT_BEFORE_SHA"
+      else
+        set --      # forty zeros: GitLab knows no commit before this one
+      fi
+      python .specify/extensions/agentic/scripts/agentic.py connect notify "$@" --commit "$CI_COMMIT_SHA"
 
 agentic-intake:
   stage: connect

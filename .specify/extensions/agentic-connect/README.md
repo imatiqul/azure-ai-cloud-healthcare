@@ -30,6 +30,8 @@ agentic.py connect events                # what would be announced now
 
 ## Not verified
 
-No adapter in this extension has been run against the live service. Each is tested against recorded responses that follow the vendor's published API. `docs/adapters/trackers.md` lists every endpoint and when it was read. The three pipeline files have not been run by their CI systems.
+The adapters for Jira, Azure DevOps and ClickUp and the notification channels have not been run against the live service. Each is tested against recorded responses that follow the vendor's published API. `docs/adapters/trackers.md` lists every endpoint and when it was read. The files for Azure Pipelines and GitLab CI have not been run by their CI systems.
+
+The GitHub adapter and the file for GitHub Actions ran for the first time on 2026-11-27, on the reference repository: `connect fetch` read one issue, one Project and the issue's comments, the intake job opened a pull request with the record, and the notify job wrote its summary. The mirror job has not run, and no note has been posted on a live issue. `docs/adapters/trackers.md` says which token reads what on GitHub.
 
 Gate approvals are read from GitHub pull-request reviews only. The kit runs in Azure Pipelines and GitLab CI, but approvals made in Azure Repos or GitLab merge requests are not read yet.

@@ -146,6 +146,19 @@ def ck_notify_content(ctx: Context, res: Result) -> None:
             res.fail(f"the template for {event} is longer than 200 characters; it is a headline, not a message body", CONNECT)
 
 
+def _without_comment(value: str) -> str:
+    """The value of a line without the YAML comment after it. A # inside quotes belongs to the value (LIV-5)."""
+    quote = ""
+    for at, char in enumerate(value):
+        if quote:
+            quote = "" if char == quote else quote
+        elif char in "'\"":
+            quote = char
+        elif char == "#" and (at == 0 or value[at - 1] in " \t"):
+            return value[:at].rstrip()
+    return value
+
+
 def _agent_step(step: dict, commands: list[str]) -> str | None:
     text = f"{step.get('run') or ''}\n{step.get('uses') or ''}"
     for cmd in commands:
@@ -174,7 +187,7 @@ def ck_pipeline_secrets(ctx: Context, res: Result) -> None:
             res.fail(f"the pipeline contains {what}; it belongs in the secret store", rel)
         for n, line in enumerate(text.splitlines(), 1):
             m = re.match(r"^\s*-?\s*([A-Z][A-Z0-9_]*)\s*[:=]\s*(.*?)\s*$", line)
-            if m and m.group(1) in names and not _REFERENCE.match(m.group(2).strip("'\"")):
+            if m and m.group(1) in names and not _REFERENCE.match(_without_comment(m.group(2)).strip("'\"")):
                 res.fail(f"{m.group(1)} is given a literal value; reference the secret store instead", f"{rel}:{n}")
         if not rel.startswith(".github/workflows/"):
             continue

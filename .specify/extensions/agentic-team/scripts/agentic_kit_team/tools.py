@@ -3,7 +3,9 @@
 An MCP server is code that runs with the agent's access and text that the agent reads as instructions. A server
 added in passing, or one that quietly changes under a floating version, is a way into the repository that no review
 saw. This check compares every MCP server configured for a coding agent with `.specify/agentic/tools.yml`, which
-is read from the base branch: a change cannot add a server and approve it in the same breath.
+is read from the base branch: a change cannot add a server and approve it in the same breath. Where the base branch
+has no allowlist yet, the one a change brings counts for the servers the base branch already has, and for no other
+(REV-5).
 """
 from __future__ import annotations
 
@@ -27,7 +29,10 @@ CONFIG_FILES = {
     ".codex/config.toml": "mcp_servers",
 }
 RUNNERS = {"npx", "bunx", "pnpx", "uvx", "pipx"}
+#: These resolve `name@1` and `name@1.2` as ranges: the newest release that fits, which may be another one tomorrow (REV-6).
+NPM_RUNNERS = {"npx", "bunx", "pnpx"}
 _VERSIONED = re.compile(r".+(?:@|==)\d[\w.+-]*$")
+_EXACT_NPM = re.compile(r".+@\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?$")
 _SECRET = re.compile(r"[A-Za-z0-9_\-]{24,}")
 SKELETON = f"""schema: {SCHEMA}
 # The MCP servers coding agents may use in this repository. Read from the base branch.
@@ -76,6 +81,19 @@ def configured(ctx: Context) -> tuple[list[dict], list[tuple[str, str]]]:
     return found, problems
 
 
+def _launch(server: dict) -> tuple:
+    return server["file"], server["name"], server["command"], tuple(server["args"]), server["url"]
+
+
+def on_base(ctx: Context) -> set[tuple] | None:
+    """The servers the base branch configures, when the allowlist under judgement is the change's own: a base branch is
+    given and has none. Otherwise None, and the allowlist counts for whatever it names."""
+    if ctx.trusted.ref is None or ctx.trusted.exists(TOOLS):
+        return None
+    base = Context(ctx.trusted, ctx.trusted, ctx.options, ctx.kit())  # the kit.yml this run goes by, also where the base branch has none
+    return {_launch(s) for s in configured(base)[0]}
+
+
 def allowlist(ctx: Context) -> tuple[dict[str, dict] | None, list[str]]:
     holder = ctx.trusted if ctx.trusted.exists(TOOLS) else ctx.src
     if not holder.exists(TOOLS):
@@ -103,7 +121,7 @@ def unpinned(command: str, args: list[str]) -> str | None:
         package = next((a for a in args if not a.startswith("-") and a not in ("run", "exec", "dlx")), None)
         if package is None:
             return "it names no package"
-        if not _VERSIONED.fullmatch(package):
+        if not (_EXACT_NPM if base in NPM_RUNNERS else _VERSIONED).fullmatch(package):
             return f"{package} names no exact version"
     if base in ("docker", "podman") and not any("@sha256:" in a for a in args):
         return "its container image is not named by digest"
@@ -125,11 +143,16 @@ def ck_tool_allowlist(ctx: Context, res: Result) -> None:
     if allowed is None:
         res.fail(f"{len(found)} MCP server(s) are configured for agents and there is no allowlist. Create {TOOLS} and have each server reviewed", found[0]["file"])
         return
+    before = on_base(ctx)
     for s in found:
         where = s["file"]
         entry = allowed.get(s["name"])
         if entry is None:
             res.fail(f"MCP server '{s['name']}' is not on the allowlist. A server is code that runs with the agent's access; add it to {TOOLS} in a change of its own", where)
+            continue
+        if before is not None and _launch(s) not in before:
+            res.fail(f"MCP server '{s['name']}' and the allowlist that approves it arrive in the same change. The allowlist is read from the base branch, "
+                     f"which has none yet: merge the allowlist first, then add or change the server in a change of its own", where)
             continue
         if s["url"]:
             if s["url"] != str(entry.get("url") or ""):

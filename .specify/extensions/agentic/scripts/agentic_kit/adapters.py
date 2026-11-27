@@ -19,6 +19,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -171,9 +172,22 @@ class GitHubAdapter:
             raise KitError("enforcement.repository is not set in kit.yml (owner/name)")
         return self.repository
 
+    #: GitHub's words when a request needs a user and the credential is the token of an app's installation.
+    NO_USER = "Resource not accessible by integration"
+
+    def _user(self) -> dict:
+        """Who the credential is. The token of an app's installation has no user, and GitHub refuses it the question; a
+        pipeline's own token is one. It is then a Bot: `github-actions[bot]` inside GitHub Actions, not named elsewhere (LIV-4)."""
+        try:
+            return self._run("user") or {}
+        except KitError as exc:
+            if self.NO_USER not in str(exc):
+                raise
+        return {"login": "github-actions[bot]" if os.environ.get("GITHUB_ACTIONS") == "true" else "", "type": "Bot"}
+
     def agent_identity(self):
         try:
-            return (self._run("user") or {}).get("login")
+            return self._user().get("login") or None
         except KitError:
             return None
 
@@ -182,7 +196,7 @@ class GitHubAdapter:
 
     def agent_credential(self) -> dict:
         """What the token in use can do on this repository, as GitHub reports it for the calling identity."""
-        user = self._run("user") or {}
+        user = self._user()
         repo = self._run(f"repos/{self._repo()}") or {}
         try:
             scopes = self._run("__token_scopes__") or []
@@ -263,23 +277,89 @@ class GitHubAdapter:
             return None  # nothing there, or a file
         return {str(row.get("name")): str(row.get("sha") or "") for row in rows if isinstance(row, dict) and row.get("name")}
 
-    def setup_report(self) -> list[dict]:
-        out = []
+    def _rules(self) -> list[dict] | None:
+        """The rules GitHub applies to the default branch through rulesets. Whoever can read the repository may ask.
+        None where they cannot be read (LIV-1)."""
         try:
-            prot = self._run(f"repos/{self._repo()}/branches/{self.branch}/protection") or {}
+            rows = self._run(f"repos/{self._repo()}/rules/branches/{self.branch}")
+        except KitError:
+            return None
+        return [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else None
+
+    def _protection(self) -> tuple[dict | None, str]:
+        """Branch protection: what GitHub answers; {} where the branch has none; None, and why, where it has some that this
+        credential may not read. Only an administrator may read it, so where GitHub refuses, the branch's own entry is
+        asked whether protection is on: anyone who reads the repository may ask that (LIV-2)."""
+        path = f"repos/{self._repo()}/branches/{self.branch}"
+        try:
+            return (self._run(f"{path}/protection") or {}), ""
         except KitError as exc:
-            return [{"item": "branch protection", "status": "not-checkable", "detail": str(exc)}]
-        reviews = prot.get("required_pull_request_reviews") or {}
-        out.append({"item": "pull request reviews required",
-                    "status": "pass" if reviews.get("required_approving_review_count", 0) >= 1 else "fail",
-                    "detail": f"required approvals: {reviews.get('required_approving_review_count', 0)}"})
-        out.append({"item": "code owner review required",
-                    "status": "pass" if reviews.get("require_code_owner_reviews") else "fail", "detail": ""})
-        contexts = ((prot.get("required_status_checks") or {}).get("contexts")) or []
-        out.append({"item": "agentic-checks is a required status check",
-                    "status": "pass" if any("agentic" in c for c in contexts) else "fail", "detail": ", ".join(contexts)})
-        out.append({"item": "administrators are not exempt",
-                    "status": "pass" if (prot.get("enforce_admins") or {}).get("enabled") else "fail", "detail": ""})
+            if "Branch not protected" in str(exc):
+                return {}, ""
+            why = str(exc)
+        try:
+            branch = self._run(path) or {}
+        except KitError:
+            return None, why
+        return ({}, "") if (branch.get("protection") or {}).get("enabled") is False else (None, why)
+
+    def _bypass(self, rules: list[dict]) -> tuple[list[str] | None, str]:
+        """Who may bypass the rulesets that ask for a review: the kinds of actor, and the rulesets' names. None where
+        GitHub does not say, which is so for a ruleset of an organization and for an answer without the list (LIV-3)."""
+        kinds, names = [], []
+        for row in rules:
+            if row.get("type") != "pull_request":
+                continue
+            if row.get("ruleset_source_type") not in (None, "Repository"):
+                return None, f"ruleset {row.get('ruleset_id')} belongs to an organization"
+            try:
+                ruleset = self._run(f"repos/{self._repo()}/rulesets/{row.get('ruleset_id')}") or {}
+            except KitError as exc:
+                return None, str(exc)
+            actors = ruleset.get("bypass_actors")
+            if not isinstance(actors, list):
+                return None, f"GitHub did not say who may bypass ruleset {ruleset.get('name') or row.get('ruleset_id')}"
+            names.append(str(ruleset.get("name") or row.get("ruleset_id")))
+            kinds += [str(a.get("actor_type")) for a in actors if isinstance(a, dict)]
+        return sorted(set(kinds)), ", ".join(names)
+
+    def setup_report(self) -> list[dict]:
+        rules, (prot, why) = self._rules(), self._protection()
+        if rules is None and prot is None:
+            return [{"item": "branch protection", "status": "not-checkable", "detail": why}]
+        unread = f"branch protection is on and could not be read: {why}" if prot is None else ""
+        asked = next(((row.get("parameters") or {}) for row in rules or [] if row.get("type") == "pull_request"), {})
+        reviews = (prot or {}).get("required_pull_request_reviews") or {}
+        status_checks = (prot or {}).get("required_status_checks") or {}
+        contexts = [str(c) for c in status_checks.get("contexts") or []]
+        contexts += [str(c.get("context")) for c in status_checks.get("checks") or [] if isinstance(c, dict) and c.get("context")]
+        contexts += [str(c.get("context")) for row in rules or [] if row.get("type") == "required_status_checks"
+                     for c in (row.get("parameters") or {}).get("required_status_checks") or [] if isinstance(c, dict) and c.get("context")]
+        contexts = sorted(set(contexts))
+
+        def item(name: str, passes: bool, detail: str) -> dict:
+            if passes or not unread:
+                return {"item": name, "status": "pass" if passes else "fail", "detail": detail}
+            return {"item": name, "status": "not-checkable", "detail": unread}
+
+        by_rule = int(asked.get("required_approving_review_count") or 0)
+        by_protection = int(reviews.get("required_approving_review_count") or 0)
+        out = [item("pull request reviews required", max(by_rule, by_protection) >= 1, f"required approvals: {max(by_rule, by_protection)}"),
+               item("code owner review required", bool(asked.get("require_code_owner_review") or reviews.get("require_code_owner_reviews")), ""),
+               item("agentic-checks is a required status check", any("agentic" in c for c in contexts), ", ".join(contexts))]
+        name = "administrators are not exempt"
+        if by_protection >= 1 and (prot.get("enforce_admins") or {}).get("enabled"):
+            out.append({"item": name, "status": "pass", "detail": ""})
+        elif by_rule >= 1:
+            kinds, said = self._bypass(rules or [])
+            if kinds is None:
+                out.append({"item": name, "status": "not-checkable", "detail": said})
+            elif not kinds:
+                out.append({"item": name, "status": "pass", "detail": ""})
+            else:
+                out.append(item(name, False, f"ruleset {said} may be bypassed by: {', '.join(kinds)}"))
+        else:
+            out.append(item(name, False, ""))
         return out
 
 
