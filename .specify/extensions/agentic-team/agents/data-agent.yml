@@ -1,0 +1,30 @@
+schema: agentic-agent/1
+id: data-agent
+title: Data Agent
+supports_role: data-owner
+profiles:
+- standard
+- regulated
+when: data-store
+charter: Write the data-change plan, the migrations and the backfill for a spec that touches a data store.
+inputs:
+- specs/*/spec.md
+- specs/*/plan.md
+- system-map/*
+outputs:
+- specs/*/data-change-plan.md
+- migrations inside the task's paths
+tools:
+- read
+- search
+- edit
+- run:agentic_kit
+write_paths:
+- specs/*/data-change-plan.md
+- '{task.paths}'
+- specs/*/evidence/*
+never:
+- Run anything against a real data store
+- Lower a classification to pass a check
+- Write seed or test data copied from a real record
+model_class: strong

@@ -1,0 +1,61 @@
+schema_version: "1.0"
+
+extension:
+  id: "agentic"
+  name: "Agentic Spec Kit — Govern"
+  version: "0.1.0"
+  description: "Human approval gates bound to identity and evidence, waivers, traceability and an audit log, enforced by deterministic checks."
+  author: "Atiqul Islam"
+  repository: "https://github.com/imatiqul/agentic-spec-kit"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=1.4.3"
+
+provides:
+  commands:
+    - name: "speckit.agentic.guide"
+      file: "commands/guide.md"
+      description: "Say where a change stands, what is needed next and from whom, and which command to run. Start here when you do not know which command you need."
+    - name: "speckit.agentic.init"
+      file: "commands/init.md"
+      description: "Set up the kit in this project: profile, roles, constitution map and the CI workflow."
+    - name: "speckit.agentic.doctor"
+      file: "commands/doctor.md"
+      description: "Report whether approvals can be trusted here, and what is not enforced."
+    - name: "speckit.agentic.adopt"
+      file: "commands/adopt.md"
+      description: "Adopt the kit on an existing codebase: inventory suppressions and propose a baseline."
+    - name: "speckit.agentic.gate"
+      file: "commands/gate.md"
+      description: "Show a gate's evidence, its hash and the line a human reviewer pastes to approve."
+    - name: "speckit.agentic.waive"
+      file: "commands/waive.md"
+      description: "Draft a waiver for one suppression, with owner, reason, compensating control and expiry."
+    - name: "speckit.agentic.trace"
+      file: "commands/trace.md"
+      description: "Build the trace manifest and show which acceptance criteria are proven, in debt or a gap."
+    - name: "speckit.agentic.check"
+      file: "commands/check.md"
+      description: "Run every check the active profile requires and report failures."
+    - name: "speckit.agentic.verify"
+      file: "commands/verify.md"
+      description: "Run an independent verification of an artifact with a declared, limited set of inputs."
+
+hooks:
+  after_tasks:
+    command: "speckit.agentic.trace"
+    optional: true
+    prompt: "Build the trace manifest for these tasks?"
+    description: "Generate trace-manifest.json so gate G4 has its evidence"
+  before_implement:
+    command: "speckit.agentic.check"
+    optional: false
+    description: "Run the kit's checks before implementation starts"
+
+tags:
+  - "governance"
+  - "human-in-the-loop"
+  - "traceability"
+  - "audit"
+  - "gate"

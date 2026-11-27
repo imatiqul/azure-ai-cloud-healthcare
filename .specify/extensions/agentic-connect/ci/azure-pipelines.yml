@@ -1,0 +1,105 @@
+# agentic-spec-kit on Azure Pipelines.  Copy to azure-pipelines.yml
+#
+# Two things to set up outside this file:
+#   1. A variable group named `agentic-connect` holding the secrets your connect.yml names, each marked secret.
+#      Add a "Branch control" check to the group that allows only the default branch. A pull request can change this
+#      file; the check is what stops it reading the secrets.
+#   2. Gate approvals are read from GitHub pull-request reviews. This pipeline can build a GitHub repository. Approvals
+#      made in Azure Repos are not read by the kit yet.
+trigger:
+  branches:
+    include: [main]
+pr:
+  branches:
+    include: ["*"]
+schedules:
+  - cron: "17 6 * * 1-5"
+    displayName: Fetch requirements
+    branches:
+      include: [main]
+    always: true
+
+pool:
+  vmImage: ubuntu-24.04
+
+stages:
+  - stage: checks
+    displayName: agentic-checks
+    jobs:
+      - job: checks
+        steps:
+          - checkout: self
+            fetchDepth: 0
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "3.12"
+          - script: pip install pyyaml==6.0.2
+            displayName: Install PyYAML
+          - script: python .specify/extensions/agentic/scripts/agentic.py selftest
+            displayName: Self-test
+          - script: python .specify/extensions/agentic/scripts/agentic.py connect run --base-ref origin/main --commit "$(Build.SourceVersion)" --summary "$(Build.ArtifactStagingDirectory)/agentic.md"
+            displayName: Checks
+          - publish: $(Build.ArtifactStagingDirectory)/agentic.md
+            artifact: agentic-summary
+            condition: always()
+
+  - stage: connect
+    displayName: Notify and intake
+    dependsOn: checks
+    condition: and(succeededOrFailed(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    variables:
+      - group: agentic-connect
+    jobs:
+      - job: notify
+        condition: ne(variables['Build.Reason'], 'Schedule')
+        steps:
+          - checkout: self
+            fetchDepth: 0
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "3.12"
+          - script: pip install pyyaml==6.0.2
+            displayName: Install PyYAML
+          - script: python .specify/extensions/agentic/scripts/agentic.py connect notify --base-ref HEAD~1 --commit "$(Build.SourceVersion)"
+            displayName: Tell people what changed
+            env:
+              SLACK_WEBHOOK_URL: $(SLACK_WEBHOOK_URL)
+              TEAMS_WEBHOOK_URL: $(TEAMS_WEBHOOK_URL)
+              SMTP_HOST: $(SMTP_HOST)
+              SMTP_USER: $(SMTP_USER)
+              SMTP_PASSWORD: $(SMTP_PASSWORD)
+              JIRA_USER: $(JIRA_USER)
+              JIRA_TOKEN: $(JIRA_TOKEN)
+              ADO_TOKEN: $(ADO_TOKEN)
+              CLICKUP_TOKEN: $(CLICKUP_TOKEN)
+              TRACKER_GITHUB_TOKEN: $(TRACKER_GITHUB_TOKEN)
+      - job: intake
+        condition: eq(variables['Build.Reason'], 'Schedule')
+        steps:
+          - checkout: self
+            fetchDepth: 0
+            persistCredentials: true
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "3.12"
+          - script: pip install pyyaml==6.0.2
+            displayName: Install PyYAML
+          - script: python .specify/extensions/agentic/scripts/agentic.py connect fetch
+            displayName: Fetch requirements
+            env:
+              JIRA_USER: $(JIRA_USER)
+              JIRA_TOKEN: $(JIRA_TOKEN)
+              ADO_TOKEN: $(ADO_TOKEN)
+              CLICKUP_TOKEN: $(CLICKUP_TOKEN)
+              TRACKER_GITHUB_TOKEN: $(TRACKER_GITHUB_TOKEN)
+          - script: |
+              if [ -z "$(git status --porcelain .specify/agentic/intake)" ]; then echo "nothing new"; exit 0; fi
+              branch="intake/$(date -u +%Y%m%d-%H%M)"
+              git config user.name "agentic-spec-kit"
+              git config user.email "agentic-spec-kit@example.invalid"
+              git checkout -b "$branch"
+              git add .specify/agentic/intake
+              git commit -m "Intake: requirements fetched from trackers"
+              git push origin "$branch"
+              echo "Pushed $branch. Open a pull request from it; a Product Owner triages each record."
+            displayName: Push what arrived to a branch

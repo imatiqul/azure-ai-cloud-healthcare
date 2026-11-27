@@ -1,0 +1,2 @@
+# Python compiles the kit's code where it runs. The compiled files are per machine and are not kept.
+__pycache__/

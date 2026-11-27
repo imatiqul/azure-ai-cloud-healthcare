@@ -1,0 +1,12 @@
+schema: agentic-waiver/1
+id: W-000
+rule: test-skip                 # ci-escape | test-skip | lint-disable | advisory-suppress | ac:<spec>:AC-000
+scope:
+  paths: ["path/to/file"]
+  pattern: ""                   # optional text the suppressed line must contain
+reason: ""
+compensating_control: ""
+owner: ""                       # a role from roles.yml
+expires: 2099-01-01
+critical: false                 # true needs approved_by from Security & Compliance
+# approved_by: {reviewer: "", review_ref: "pull/0#review-0"}

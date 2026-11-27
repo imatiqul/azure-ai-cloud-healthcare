@@ -1,0 +1,61 @@
+# agentic-open-pull-request: opens a pull request for a branch, as the workflow's own account.
+# Written into .github/workflows/ by `agentic.py init --open-pr-workflow`. A team of two or more does not need it.
+#
+# Why. GitHub does not let the author of a pull request approve it. Where the person who pushes a branch is also
+# the person who approves its gate, someone else has to open the pull request. Opened here, its author is
+# github-actions[bot], and that person may review it. Nothing about approval changes: the kit still reads who
+# wrote the commits, and where the reviewer is among them the gate needs `gates.single_approver_exception: allowed`.
+#
+# Before the first run, in the repository's settings: Actions, General, Workflow permissions,
+# "Allow GitHub Actions to create and approve pull requests".
+# Know what that switch does before you turn it on. It is one switch for both: with it on, any workflow of this
+# repository whose job may write pull requests can approve one, not only open one. The kit's gate never counts such
+# an approval: it accepts a review only from a person's account that roles.yml lists, and never from the pipeline's
+# own. A branch rule that only counts approvals may count it. A second account, or a GitHub App, opens a pull
+# request without this switch.
+# After a run: GitHub holds the workflows of a pull request that a workflow opened until a person with write
+# access chooses "Approve workflows to run" on it. Until then agentic-checks does not start.
+#
+# No secret is used. What a person types reaches the command through the environment, never pasted into it.
+# When this file was written, on 2026-11-26, it had not run on GitHub. docs/limits.md says what has run since.
+name: agentic-open-pull-request
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: The branch to open a pull request for
+        required: true
+        type: string
+      title:
+        description: The title of the pull request
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  open:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HEAD_BRANCH: ${{ inputs.branch }}
+      TITLE: ${{ inputs.title }}
+      BASE_BRANCH: ${{ github.event.repository.default_branch }}
+      OWNER: ${{ github.repository_owner }}
+      ASKED_BY: ${{ github.actor }}
+    steps:
+      - name: Open the pull request
+        run: |
+          if [ "$HEAD_BRANCH" = "$BASE_BRANCH" ]; then
+            echo "A pull request needs a branch other than $BASE_BRANCH." >&2
+            exit 2
+          fi
+          open=$(gh api -X GET "repos/$GITHUB_REPOSITORY/pulls" -f head="$OWNER:$HEAD_BRANCH" -f base="$BASE_BRANCH" -f state=open --jq '.[0].html_url // ""')
+          if [ -n "$open" ]; then
+            echo "A pull request for $HEAD_BRANCH is already open: $open"
+            exit 0
+          fi
+          body="Opened by the agentic-open-pull-request workflow for the branch $HEAD_BRANCH, asked for by @$ASKED_BY. Its author is the workflow's account, so that the person who pushed the branch can review it. The checks on this pull request start once a person with write access approves the workflow runs."
+          gh api "repos/$GITHUB_REPOSITORY/pulls" -f title="$TITLE" -f head="$HEAD_BRANCH" -f base="$BASE_BRANCH" -f body="$body" --jq '"Opened " + .html_url'

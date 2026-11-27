@@ -1,0 +1,23 @@
+schema: agentic-agent/1
+id: drift-sentinel
+title: Drift Sentinel
+supports_role: devops-sre
+profiles:
+- standard
+- regulated
+charter: After a merge, report where code, specs, the system map and contracts have drifted apart.
+inputs:
+- '**'
+outputs:
+- .specify/agentic/findings.yml
+tools:
+- read
+- search
+- run:agentic_kit
+- edit
+write_paths:
+- .specify/agentic/findings.yml
+never:
+- Fix drift without a spec
+- Edit the map, a spec or a contract to hide drift
+model_class: fast

@@ -1,0 +1,39 @@
+schema_version: "1.0"
+
+extension:
+  id: "agentic-product"
+  name: "Agentic Spec Kit — Product"
+  version: "0.5.0"
+  description: "From a requirement to the truth about what the system does: intake records, requirement linting, living capability specs fed by deltas, duplicate detection decided by a person, outcomes, and lineage from a line of code to who asked for it."
+  author: "Atiqul Islam"
+  repository: "https://github.com/imatiqul/agentic-spec-kit"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=1.4.3"
+  extensions:
+    - id: "agentic"
+      version: ">=0.1.0"
+
+provides:
+  commands:
+    - name: "speckit.agentic-product.shape"
+      file: "commands/shape.md"
+      description: "Shape a spec before its first gate: link what asked for it, find likely duplicates, lint the wording, and draft the behaviour delta."
+    - name: "speckit.agentic-product.release"
+      file: "commands/release.md"
+      description: "After release: merge the change's deltas into the living specs, seal the finished change, and note the outcome review that is due."
+
+hooks:
+  after_specify:
+    command: "speckit.agentic-product.shape"
+    optional: true
+    prompt: "Check this spec for duplicates and draft its behaviour delta?"
+    description: "Link the request, list likely duplicates for the Product Owner, lint the wording and draft the delta gate G1 will review"
+
+tags:
+  - "requirements"
+  - "living-specs"
+  - "duplicates"
+  - "traceability"
+  - "brownfield"

@@ -1,0 +1,16 @@
+schema: agentic-connect/1
+# Where requirements come from. Secrets are NAMED here and supplied by the pipeline's secret store; never write a value.
+# Written on 2026-11-26 for the live test of agentic-spec-kit on this repository. One source: the open issues that carry the
+# label kit-live-test, and the items of the owner's GitHub Project number 3. The Project is private and owned by a user
+# account. GitHub's documents said on 2026-11-26 that a fine-grained token cannot read such a Project, and that a classic
+# personal access token with the scope read:project can. No notification channel is configured, so the kit tells nobody
+# anything and writes no note on an issue.
+sources:
+  - {id: live-test, platform: github, repo: imatiqul/azure-ai-cloud-healthcare, labels: [kit-live-test],
+     project: {owner: imatiqul, owner_type: user, number: 3}, auth: {token_env: TRACKER_GITHUB_TOKEN}}
+notify:
+  channels: []
+  routes: []
+  links: {repository: "https://github.com/imatiqul/azure-ai-cloud-healthcare", branch: main}
+# Other secrets the pipeline holds that an agent step must never see (for example a token that can push).
+pipeline_secrets: []

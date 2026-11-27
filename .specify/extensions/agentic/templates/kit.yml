@@ -1,0 +1,15 @@
+schema: agentic-kit/1
+profile: __PROFILE__            # lite | standard | regulated
+domain_packs: [__PACKS__]
+enforcement:
+  adapter: github
+  repository: __REPOSITORY__    # owner/name
+  default_branch: main          # where merged work lands; on it the gate check also asks for G5 and G6
+upstream:
+  speckit: "1.4.3"
+gates:
+  single_approver_exception: forbidden   # allowed | forbidden
+  require_evidence_hash: __HASH__
+metrics:
+  - {id: lead-time-per-gate, source: audit-log}
+  - {id: rework-rate, source: audit-log}
