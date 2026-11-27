@@ -2,7 +2,7 @@ schema: agentic-decision/1
 spec: 020-repository-hygiene
 gate: G2
 decision: approve
-commit: 5f22f5188f77bc5b3e66dc37b290acf726692046
+commit: 02c05515188dca06eb9cfb15bb14b20c4a49ffe1
 evidence:
   hash: sha256:f2861c74374a67b73184ea26f64ed36a88d260e9c74972af2300ac579e368234
   files:
@@ -12,9 +12,20 @@ evidence:
 approvals:
 - reviewer: imatiqul
   role: product-owner
-  review_ref: pull/87#review-6082604371
+  review_ref: pull/87#review-6082690040
 - reviewer: imatiqul
   role: solutions-architect
-  review_ref: pull/87#review-6082604371
+  review_ref: pull/87#review-6082690040
 single_approver_exception: true
-audit_head: sha256:67e5fdf92c25f4948e66be001775b637f38e50f20b06a430a8da063d9fad641e
+audit_head: sha256:58c23cd645e9a49509cc4a81a8403a95aa5e125a161255a32afe1a76ad404223
+superseded:
+- decision: approve
+  commit: 5f22f5188f77bc5b3e66dc37b290acf726692046
+  hash: sha256:f2861c74374a67b73184ea26f64ed36a88d260e9c74972af2300ac579e368234
+  approvals:
+  - reviewer: imatiqul
+    role: product-owner
+    review_ref: pull/87#review-6082604371
+  - reviewer: imatiqul
+    role: solutions-architect
+    review_ref: pull/87#review-6082604371
