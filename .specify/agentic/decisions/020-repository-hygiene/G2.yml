@@ -1,0 +1,20 @@
+schema: agentic-decision/1
+spec: 020-repository-hygiene
+gate: G2
+decision: approve
+commit: 5f22f5188f77bc5b3e66dc37b290acf726692046
+evidence:
+  hash: sha256:f2861c74374a67b73184ea26f64ed36a88d260e9c74972af2300ac579e368234
+  files:
+  - specs/020-repository-hygiene/briefs/G2.md
+  - specs/020-repository-hygiene/origin.yml
+  - specs/020-repository-hygiene/spec.md
+approvals:
+- reviewer: imatiqul
+  role: product-owner
+  review_ref: pull/87#review-6082604371
+- reviewer: imatiqul
+  role: solutions-architect
+  review_ref: pull/87#review-6082604371
+single_approver_exception: true
+audit_head: sha256:67e5fdf92c25f4948e66be001775b637f38e50f20b06a430a8da063d9fad641e
